@@ -1,0 +1,41 @@
+/* Reset di base */
+body {
+    background-color: #f8f9fa; /* grigio chiaro */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container {
+    max-width: 960px;
+}
+
+/* Pulsanti personalizzati */
+.btn-primary {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.btn-primary:hover {
+    background-color: #45a049;
+    border-color: #45a049;
+}
+
+/* Box della dashboard */
+.card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Navbar */
+.navbar-brand {
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* Footer (se aggiunto in futuro) */
+footer {
+    text-align: center;
+    padding: 1rem;
+    margin-top: 2rem;
+    color: #777;
+    font-size: 0.9rem;
+}
