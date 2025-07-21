@@ -15,7 +15,6 @@ $slotDisponibili = $stmt->fetchColumn();
 <div class="bg-dark text-white  text-center py-5" style="border-radius: 15px; background-image: url('assets/minecraft-bg2.jpg'); background-size: cover; background-position: center;">
     <div class="container">
         <h1 class="display-4 fw-bold ">Crea il tuo Server Minecraft</h1>
-        <div class="text-start">
             <i class="bi-check-circle-fill text-success fs-4">Hosting veloce</i><br>
             <i class="bi-check-circle-fill text-success fs-4">Semplice e automatico</i><br>
             <i class="bi-check-circle-fill text-success fs-4">Altamente personalizzabile</i><br>
