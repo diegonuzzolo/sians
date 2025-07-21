@@ -17,7 +17,7 @@ $slotDisponibili = $stmt->fetchColumn();
         <h1 class="display-4 fw-bold ">Crea il tuo Server Minecraft</h1>
             <i class="bi-check-circle-fill text-success fs-4 color-orange">Hosting veloce</i><br>
             <i class="bi-check-circle-fill text-success fs-4 color-orange">Semplice e automatico</i><br>
-            <i class="bi-check-circle-fill text-success fs-4 color-orange">Altamente personalizzabile</i><br>
+            <i class="bi-check-circle-fill text-success fs-4 col-orange">Altamente personalizzabile</i><br>
         </div>
 
 
