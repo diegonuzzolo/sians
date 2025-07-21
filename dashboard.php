@@ -31,6 +31,14 @@ $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $mieiServer = $stmt->fetchColumn();
 
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, vm.proxmox_vmid 
+                       FROM servers s
+                       JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
+                       WHERE s.user_id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$servers = $stmt->fetchAll();
+
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -59,75 +67,54 @@ $mieiServer = $stmt->fetchColumn();
 </nav>
 
 <div class="container my-5">
-  <h1 class="mb-4">La tua Dashboard</h1>
+    <h3>I tuoi server Minecraft</h3>
 
-  <?php if ($server): ?>
-    <div class="server-box">
-      <h3>Il tuo server Minecraft</h3>
-      <p><strong>Nome:</strong> <?= htmlspecialchars($server['name']) ?></p>
-      <p><strong>IP:</strong> <?= htmlspecialchars($server['ip']) ?></p>
-      <p><strong>Stato:</strong> 
-        <span class="badge bg-<?= $server['status'] === 'online' ? 'success' : 'secondary' ?>">
-          <?= htmlspecialchars($server['status']) ?>
-        </span>
-      </p>
-    </div>
-  <?php else: ?>
-    <div class="alert alert-warning">
-      Non hai ancora creato un server Minecraft.
-    </div>
-
-    <?php if ($disponibili > 0): ?>
-      <a href="add_server.php" class="btn btn-primary">Crea il tuo Server</a>
+    <?php if (count($servers) === 0): ?>
+        <p class="text-muted">Non hai ancora server attivi.</p>
     <?php else: ?>
-      <div class="alert alert-danger mt-3">
-        Nessuno slot disponibile al momento. Riprova più tardi.
-      </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped mt-3">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nome</th>
+                        <th>ID Proxmox</th>
+                        <th>Stato</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($servers as $server): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($server['name']) ?></td>
+                            <td><?= $server['proxmox_vmid'] ?></td>
+                            <td>
+                                <?php if ($server['status'] === 'running'): ?>
+                                    <span class="badge bg-success">Attivo</span>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary">Spento</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <form action="server_action.php" method="post" class="d-inline">
+                                    <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+                                    <?php if ($server['status'] === 'running'): ?>
+                                        <button name="action" value="stop" class="btn btn-warning btn-sm">Ferma</button>
+                                    <?php else: ?>
+                                        <button name="action" value="start" class="btn btn-success btn-sm">Avvia</button>
+                                    <?php endif; ?>
+                                </form>
+
+                                <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
+                                    <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+                                    <button class="btn btn-danger btn-sm">Elimina</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php endif; ?>
-  <?php endif; ?>
-
-  <div class="container my-5">
-    <h2 class="mb-4">Benvenuto nella tua Dashboard</h2>
-
-    <div class="row">
-        <!-- Slot liberi -->
-        <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Slot disponibili</h5>
-                    <p class="card-text fs-3"><?= $slotDisponibili ?></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Server creati -->
-        <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">I tuoi server</h5>
-                    <p class="card-text fs-3"><?= $mieiServer ?></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Azione -->
-        <div class="col-md-4">
-            <div class="card bg-light mb-3">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Nuovo Server</h5>
-                    <?php if ($slotDisponibili > 0): ?>
-                        <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
-                    <?php else: ?>
-                        <p class="text-danger mt-2">Nessuno slot disponibile</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
 </div>
 
 </body>
