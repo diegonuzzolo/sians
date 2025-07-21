@@ -15,20 +15,18 @@ $slotDisponibili = $stmt->fetchColumn();
 <div class="container">
     <h1 style="text-shadow: 2px 2px 4px; color: black;" class="display-4 fw-bold ">Crea il tuo Server Minecraft</h1>
 </div>
-<div class="bg-dark text-white  text-center py-5" style="height: 35vh; border-radius: 15px; background-image: url('assets/minecraft-bg3.jpg'); background-size: cover; background-position: center;">
-
+<div class="bg-dark text-white  text-center py-5" style="height: 35vh; border-radius: 15px; background-image: url('assets/minecraft-bg3.jpg'); background-size: cover; background-position: center;"\>
 
     <?php if (!isset($_SESSION['user_id'])): ?>
         <br><br><br>
         <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
         <a href="login.php" class="btn btn-outline-light btn-lg mt-3">Accedi</a>
         <?php else: ?>
+            <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
             <?php endif; ?>
-        </div>
-    </div>
-    <div class="container my-5 text-center">
-        <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
-    </div>
+    
+    
+    
 
     <!-- Sezione slot -->
 <div class="container my-5 text-center">
