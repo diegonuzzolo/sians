@@ -35,9 +35,10 @@ $servers = $stmt->fetchAll();
             <tr>
                 <td><?= htmlspecialchars($server['name']) ?></td>
                 <td>
-                    <span class="badge bg-<?= $server['status'] === 'online' ? 'success' : 'secondary' ?>">
-                        <?= ucfirst($server['status']) ?>
-                    </span>
+                    <input type="hidden" name="action" value="<?= $server['status'] === 'attivo' ? 'stop' : 'start' ?>">
+                        <button type="submit" class="btn btn-sm btn-<?= $server['status'] === 'attivo' ? 'danger' : 'primary' ?>">
+                            <?= $server['status'] === 'attivo' ? 'Spegni' : 'Accendi' ?>
+                        </button>
                 </td>
                 <td>
     <!-- Form per accendere/spegnere il server -->
