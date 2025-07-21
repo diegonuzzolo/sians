@@ -16,3 +16,9 @@ try {
 } catch (\PDOException $e) {
     die("Errore connessione DB: " . $e->getMessage());
 }
+
+// config.php
+define('PROXMOX_HOST', 'https://sians.it');
+define('PROXMOX_NODE', 'pve');
+define('PROXMOX_API_TOKEN_ID', 'root@pam!sians-token');
+define('PROXMOX_API_TOKEN_SECRET', '8063fe38-5209-477a-8d77-6024ad52966a');

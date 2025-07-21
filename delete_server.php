@@ -11,16 +11,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['server_id'])) {
     $server = $stmt->fetch();
 
     if ($server) {
-        // Elimina il server
-        $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ? AND user_id = ?");
-        $stmt->execute([$server_id, $_SESSION['user_id']]);
+        // Stoppa la VM (per sicurezza)
+        shell_exec("qm shutdown {$server['proxmox_vmid']}");
 
         // Libera la VM associata
         $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = NULL, assigned_server_id = NULL WHERE proxmox_vmid = ?");
         $stmt->execute([$server['proxmox_vmid']]);
+
+        // Elimina il server dal DB
+        $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ? AND user_id = ?");
+        $stmt->execute([$server_id, $_SESSION['user_id']]);
     }
 
     header("Location: dashboard.php");
     exit;
 }
-?>
