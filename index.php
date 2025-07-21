@@ -50,7 +50,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark">
   <div class="container">
-    <a class="navbar-brand" href="#">Sians Hosting</a>
+    <a class="navbar-brand" href="https://sians.it">Sians Hosting</a>
     <div class="collapse navbar-collapse justify-content-end">
       <ul class="navbar-nav">
         <?php if (isset($_SESSION['user_id'])): ?>
