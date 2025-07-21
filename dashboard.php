@@ -112,18 +112,19 @@ $servers = $stmt->fetchAll();
 
 
         <!-- Azione -->
-        <div class="col-md-4" styles="margin: 0 auto;">
-            <div class="card bg-light mb-3">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Nuovo Server</h5>
-                    <?php if ($slotDisponibili > 0): ?>
-                        <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
-                    <?php else: ?>
-                        <p class="text-danger mt-2">Nessuno slot disponibile</p>
-                    <?php endif; ?>
-                </div>
-            </div>
+        <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+    <div class="card bg-light mb-3" style="width: 300px;">
+        <div class="card-body text-center">
+            <h5 class="card-title">Nuovo Server</h5>
+            <?php if ($slotDisponibili > 0): ?>
+                <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
+            <?php else: ?>
+                <p class="text-danger mt-2">Nessuno slot disponibile</p>
+            <?php endif; ?>
         </div>
+    </div>
+</div>
+
 
 </div>
 
