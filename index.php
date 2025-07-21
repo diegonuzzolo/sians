@@ -10,7 +10,7 @@ $slotDisponibili = $stmt->fetchColumn();
 <?php include 'includes/header.php'; ?>
 
 <!-- Hero -->
-<div class="bg-dark text-white text-center py-5" style="background-image: url('assets/minecraft-bg.jpg'); background-size: cover; background-position: center;">
+<div class="bg-dark text-white text-center py-5" style="background-image: url('assets/'); background-size: cover; background-position: center;">
     <div class="container">
         <h1 class="display-4 fw-bold">Crea il tuo Server Minecraft</h1>
         <p class="lead">Hosting veloce, semplice e automatico. Altamente personalizzabile.</p>
