@@ -7,15 +7,6 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId = $_SESSION['user_id'];
-
-// Conta i server totali disponibili
-$totaleSlot = 10;
-
-// Conta quelli già assegnati
-$stmt = $pdo->query("SELECT COUNT(*) FROM servers WHERE user_id IS NOT NULL");
-$assegnati = $stmt->fetchColumn();
-$disponibili = max(0, $totaleSlot - $assegnati);
 
 // Cerca il server dell'utente attuale
 $stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id = ?");
@@ -121,7 +112,7 @@ $servers = $stmt->fetchAll();
 
 
         <!-- Azione -->
-        <div class="col-md-4">
+        <div class="col-md-4" styles="margin: 0 auto;">
             <div class="card bg-light mb-3">
                 <div class="card-body text-center">
                     <h5 class="card-title">Nuovo Server</h5>
