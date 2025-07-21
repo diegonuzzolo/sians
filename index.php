@@ -19,8 +19,10 @@ $slotDisponibili = $stmt->fetchColumn();
 </div>
     <?php if (!isset($_SESSION['user_id'])): ?>
         <br><br><br>
-        <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
-        <a href="login.php" class="btn btn-outline-dark btn-lg mt-3">Accedi</a>
+        <div class="text-center">
+            <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
+            <a href="login.php" class="btn btn-outline-dark btn-lg mt-3">Accedi</a>
+        </div>
         <?php else: ?>
             <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
             <?php endif; ?>
