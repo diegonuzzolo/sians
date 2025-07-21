@@ -6,6 +6,7 @@ require 'config/config.php';
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
 
+
 ?>
 
 <?php include 'includes/header.php'; ?>
@@ -31,6 +32,26 @@ $slotDisponibili = $stmt->fetchColumn();
     <p class="text-muted">Slot disponibili per creare nuovi server Minecraft.</p>
 </div>
 
+<!-- Vantaggi -->
+<div class="container my-5">
+    <div class="row text-center">
+        <div class="col-md-4 mb-4">
+            <i class="bi bi-lightning-charge-fill text-warning fs-1"></i>
+            <h5>Prestazioni Elevate</h5>
+            <p>Server su macchine virtuali dedicate con risorse garantite.</p>
+        </div>
+        <div class="col-md-4 mb-4">
+            <i class="bi bi-gear-fill text-info fs-1"></i>
+            <h5>Controllo Totale</h5>
+            <p>Avvia, spegni o elimina i tuoi server dalla dashboard.</p>
+        </div>
+        <div class="col-md-4 mb-4">
+            <i class="bi bi-check-circle-fill text-success fs-1"></i>
+            <h5>Facile da Usare</h5>
+            <p>Interfaccia semplice e intuitiva per tutti i giocatori.</p>
+        </div>
+    </div>
+</div>
 
 <!-- Footer -->
 <?php include 'includes/footer.php'; ?>
