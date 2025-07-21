@@ -19,11 +19,13 @@ $slotDisponibili = $stmt->fetchColumn();
             <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
             <a href="login.php" class="btn btn-outline-light btn-lg mt-3">Accedi</a>
             <?php else: ?>
+                <br>
+                <br><br>
                 <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
                 <?php endif; ?>
             </div>
         </div>
-        <p style="color: black; padding: 5px; margin: 10px; font-weight: bold;" class="lead fs-2">Hosting veloce, semplice e automatico. Altamente personalizzabile.</p>
+        <p style="color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Hosting veloce, semplice e automatico. Altamente personalizzabile.</p>
 
 <!-- Sezione slot -->
 <div class="container my-5 text-center">
