@@ -4,7 +4,7 @@ require 'includes/auth.php';
 
 // Funzione per spegnere VM Proxmox via API
 function stopProxmoxVM($host, $tokenId, $tokenSecret, $node, $vmid) {
-    $url = "$host/api2/json/nodes/$node/qemu/$vmid/status/stop";
+    $url = "$host/api2/json/nodes/$node/qemu/$vmid/status/shutdown";
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

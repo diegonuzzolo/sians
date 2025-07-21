@@ -23,10 +23,10 @@ $slotDisponibili = $stmt->fetchColumn();
         <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
         <a href="login.php" class="btn btn-outline-light btn-lg mt-3">Accedi</a>
         <?php else: ?>
-            <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
             <?php endif; ?>
         </div>
     </div>
+    <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
 
     <!-- Sezione slot -->
 <div class="container my-5 text-center">
