@@ -1,10 +1,16 @@
 <?php
 session_start();
 require 'config/config.php';
+require 'includes/auth.php';
 
 // Conta gli slot liberi
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
+
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$mieiServer = $stmt->fetchColumn();
 ?>
 
 <?php include 'includes/header.php'; ?>
@@ -29,27 +35,46 @@ $slotDisponibili = $stmt->fetchColumn();
     <div class="display-5 text-success fw-bold"><?= $slotDisponibili ?></div>
     <p class="text-muted">Slot disponibili per creare nuovi server Minecraft.</p>
 </div>
-
-<!-- Vantaggi -->
 <div class="container my-5">
-    <div class="row text-center">
-        <div class="col-md-4 mb-4">
-            <i class="bi bi-lightning-charge-fill text-warning fs-1"></i>
-            <h5>Prestazioni Elevate</h5>
-            <p>Server su macchine virtuali dedicate con risorse garantite.</p>
+    <h2 class="mb-4">Benvenuto nella tua Dashboard</h2>
+
+    <div class="row">
+        <!-- Slot liberi -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Slot disponibili</h5>
+                    <p class="card-text fs-3"><?= $slotDisponibili ?></p>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <i class="bi bi-gear-fill text-info fs-1"></i>
-            <h5>Controllo Totale</h5>
-            <p>Avvia, spegni o elimina i tuoi server dalla dashboard.</p>
+
+        <!-- Server creati -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">I tuoi server</h5>
+                    <p class="card-text fs-3"><?= $mieiServer ?></p>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <i class="bi bi-check-circle-fill text-success fs-1"></i>
-            <h5>Facile da Usare</h5>
-            <p>Interfaccia semplice e intuitiva per tutti i giocatori.</p>
+
+        <!-- Azione -->
+        <div class="col-md-4">
+            <div class="card bg-light mb-3">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Nuovo Server</h5>
+                    <?php if ($slotDisponibili > 0): ?>
+                        <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
+                    <?php else: ?>
+                        <p class="text-danger mt-2">Nessuno slot disponibile</p>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
 
 <!-- Footer -->
 <?php include 'includes/footer.php'; ?>
