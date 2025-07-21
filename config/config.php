@@ -20,5 +20,5 @@ try {
 // config.php
 define('PROXMOX_HOST', 'https://proxmox.sians.it');
 define('PROXMOX_NODE', 'pve');
-define('PROXMOX_API_TOKEN_ID', 'root@pam!sians-token');
-define('PROXMOX_API_TOKEN_SECRET', '8063fe38-5209-477a-8d77-6024ad52966a');
+define('PROXMOX_API_TOKEN_ID', 'diego@pve!sians');
+define('PROXMOX_API_TOKEN_SECRET', '04630a7b-98e3-4090-9226-b9b7dfa025b9');
