@@ -112,7 +112,7 @@ $servers = $stmt->fetchAll();
 
 
         <!-- Azione -->
-        <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="d-flex justify-content-center align-items-center" >
     <div class="card bg-light mb-3" style="width: 300px;">
         <div class="card-body text-center">
             <h5 class="card-title">Nuovo Server</h5>
