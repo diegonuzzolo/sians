@@ -70,7 +70,7 @@ $servers = $stmt->fetchAll();
                 <thead class="table-dark">
                     <tr>
                         <th>Nome</th>
-                        <th>ID Proxmox</th>
+                        <th>ID</th>
                         <th>Stato</th>
                         <th>Azioni</th>
                     </tr>
