@@ -15,9 +15,11 @@ $slotDisponibili = $stmt->fetchColumn();
 <div class="bg-dark text-white  text-center py-5" style="border-radius: 15px; background-image: url('assets/minecraft-bg2.jpg'); background-size: cover; background-position: center;">
     <div class="container">
         <h1 class="display-4 fw-bold ">Crea il tuo Server Minecraft</h1>
-        <i class="bi-check-circle-fill text-success fs-4">Hosting veloce</i>
-        <i class="bi-check-circle-fill text-success fs-4">Semplice e automatico</i>
-        <i class="bi-check-circle-fill text-success fs-4">Altamente personalizzabile</i>
+        <div class="text-start">
+            <i class="bi-check-circle-fill text-success fs-4">Hosting veloce</i>
+            <i class="bi-check-circle-fill text-success fs-4">Semplice e automatico</i>
+            <i class="bi-check-circle-fill text-success fs-4">Altamente personalizzabile</i>
+        </div>
 
 
         <?php if (!isset($_SESSION['user_id'])): ?>
