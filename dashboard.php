@@ -48,14 +48,7 @@ $servers = $stmt->fetchAll();
   </style>
 </head> 
 <body>
-<nav class="navbar navbar-dark bg-dark">
-  <div class="container">
-    <a class="navbar-brand" href="index.php">Sians Hosting</a>
-    <div class="d-flex">
-      <a href="logout.php" class="btn btn-outline-light">Logout</a>
-    </div>
-  </div>
-</nav>
+<?php include 'includes/header.php'; ?>
 
 
 
