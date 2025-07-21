@@ -66,33 +66,8 @@ $servers = $stmt->fetchAll();
   </div>
 </nav>
 
-<div class="container my-5">
-  <h1 class="mb-4">La tua Dashboard</h1>
 
-  <?php if ($server): ?>
-    <div class="server-box">
-      <h3>Il tuo server Minecraft</h3>
-      <p><strong>Nome:</strong> <?= htmlspecialchars($server['name']) ?></p>
-      <p><strong>IP:</strong> <?= htmlspecialchars($server['ip']) ?></p>
-      <p><strong>Stato:</strong> 
-        <span class="badge bg-<?= $server['status'] === 'online' ? 'success' : 'secondary' ?>">
-          <?= htmlspecialchars($server['status']) ?>
-        </span>
-      </p>
-    </div>
-  <?php else: ?>
-    <div class="alert alert-warning">
-      Non hai ancora creato un server Minecraft.
-    </div>
 
-    <?php if ($disponibili > 0): ?>
-      <a href="add_server.php" class="btn btn-primary">Crea il tuo Server</a>
-    <?php else: ?>
-      <div class="alert alert-danger mt-3">
-        Nessuno slot disponibile al momento. Riprova più tardi.
-      </div>
-    <?php endif; ?>
-  <?php endif; ?>
 <div class="container my-5">
     <h3>I tuoi server Minecraft</h3>
 
@@ -144,6 +119,22 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
 </div>
 
+
+        <!-- Azione -->
+        <div class="col-md-4">
+            <div class="card bg-light mb-3">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Nuovo Server</h5>
+                    <?php if ($slotDisponibili > 0): ?>
+                        <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
+                    <?php else: ?>
+                        <p class="text-danger mt-2">Nessuno slot disponibile</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+</div>
 
 
 
