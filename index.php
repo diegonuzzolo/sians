@@ -12,7 +12,10 @@ $slotDisponibili = $stmt->fetchColumn();
 <!-- Hero -->
 <div class="bg-dark text-white text-center py-5" style="background-image: url('assets/minecraft-bg1.jpg'); background-size: cover; background-position: center;">
     <div class="container">
-        <h1 class="display-4 fw-bold">Crea il tuo Server Minecraft</h1>
+        <h1 class="display-4 fw-bold text-shadow" style="color: #2f2f2f;">
+  Crea il tuo Server Minecraft
+</h1>
+
         <p class="lead">Hosting veloce, semplice e automatico. Altamente personalizzabile.</p>
         <?php if (!isset($_SESSION['user_id'])): ?>
             <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
