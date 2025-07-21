@@ -26,7 +26,9 @@ $slotDisponibili = $stmt->fetchColumn();
             <?php endif; ?>
         </div>
     </div>
-    <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
+    <div class="container my-5 text-center">
+        <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
+    </div>
 
     <!-- Sezione slot -->
 <div class="container my-5 text-center">
