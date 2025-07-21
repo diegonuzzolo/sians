@@ -26,11 +26,7 @@ $slotDisponibili = $stmt->fetchColumn();
             <?php endif; ?>
         </div>
     </div>
-    <div class="container my-5 text-center">
-        <i class="bi-check-circle-fill text-success fw-bolder fs-4">Hosting veloce</i><br>
-        <i class="bi-check-circle-fill text-success fw-bolder fs-4">Semplice e automatico</i><br>
-        <i class="bi-check-circle-fill text-success fw-bolder fs-4">Altamente personalizzabile</i><br>
-    </div>
+
     <!-- Sezione slot -->
 <div class="container my-5 text-center">
     <h2 class="mb-4">Slot Server Disponibili</h2>
