@@ -2,7 +2,25 @@
 session_start();
 require 'config/config.php';
 
-require 'includes/auth.php';
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+$userId = $_SESSION['user_id'];
+
+// Conta i server totali disponibili
+$totaleSlot = 10;
+
+// Conta quelli già assegnati
+$stmt = $pdo->query("SELECT COUNT(*) FROM servers WHERE user_id IS NOT NULL");
+$assegnati = $stmt->fetchColumn();
+$disponibili = max(0, $totaleSlot - $assegnati);
+
+// Cerca il server dell'utente attuale
+$stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id = ?");
+$stmt->execute([$userId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Quanti slot ancora disponibili in totale
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
@@ -12,6 +30,7 @@ $slotDisponibili = $stmt->fetchColumn();
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $mieiServer = $stmt->fetchColumn();
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
