@@ -58,5 +58,6 @@ if ($httpCode == 200) {
     header("Location: dashboard.php");
     exit;
 } else {
-    exit("Errore nell'operazione: $response");
+        exit("Errore nell'operazione. Codice HTTP: $httpCode, risposta: $response");
+
 }
