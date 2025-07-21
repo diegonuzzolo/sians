@@ -1,16 +1,11 @@
 <?php
 session_start();
 require 'config/config.php';
-require 'includes/auth.php';
 
 // Conta gli slot liberi
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
 
-
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$mieiServer = $stmt->fetchColumn();
 ?>
 
 <?php include 'includes/header.php'; ?>
@@ -34,45 +29,6 @@ $mieiServer = $stmt->fetchColumn();
     <h2 class="mb-4">Slot Server Disponibili</h2>
     <div class="display-5 text-success fw-bold"><?= $slotDisponibili ?></div>
     <p class="text-muted">Slot disponibili per creare nuovi server Minecraft.</p>
-</div>
-<div class="container my-5">
-    <h2 class="mb-4">Benvenuto nella tua Dashboard</h2>
-
-    <div class="row">
-        <!-- Slot liberi -->
-        <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Slot disponibili</h5>
-                    <p class="card-text fs-3"><?= $slotDisponibili ?></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Server creati -->
-        <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">I tuoi server</h5>
-                    <p class="card-text fs-3"><?= $mieiServer ?></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Azione -->
-        <div class="col-md-4">
-            <div class="card bg-light mb-3">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Nuovo Server</h5>
-                    <?php if ($slotDisponibili > 0): ?>
-                        <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
-                    <?php else: ?>
-                        <p class="text-danger mt-2">Nessuno slot disponibile</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 

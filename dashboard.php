@@ -2,25 +2,16 @@
 session_start();
 require 'config/config.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require 'includes/auth.php';
 
-$userId = $_SESSION['user_id'];
+// Quanti slot ancora disponibili in totale
+$stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
+$slotDisponibili = $stmt->fetchColumn();
 
-// Conta i server totali disponibili
-$totaleSlot = 10;
-
-// Conta quelli già assegnati
-$stmt = $pdo->query("SELECT COUNT(*) FROM servers WHERE user_id IS NOT NULL");
-$assegnati = $stmt->fetchColumn();
-$disponibili = max(0, $totaleSlot - $assegnati);
-
-// Cerca il server dell'utente attuale
-$stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id = ?");
-$stmt->execute([$userId]);
-$server = $stmt->fetch(PDO::FETCH_ASSOC);
+// Quanti server ha l'utente
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$mieiServer = $stmt->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -37,7 +28,7 @@ $server = $stmt->fetch(PDO::FETCH_ASSOC);
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
   </style>
-</head>
+</head> 
 <body>
 <nav class="navbar navbar-dark bg-dark">
   <div class="container">
@@ -75,6 +66,49 @@ $server = $stmt->fetch(PDO::FETCH_ASSOC);
       </div>
     <?php endif; ?>
   <?php endif; ?>
+
+  <div class="container my-5">
+    <h2 class="mb-4">Benvenuto nella tua Dashboard</h2>
+
+    <div class="row">
+        <!-- Slot liberi -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Slot disponibili</h5>
+                    <p class="card-text fs-3"><?= $slotDisponibili ?></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Server creati -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">I tuoi server</h5>
+                    <p class="card-text fs-3"><?= $mieiServer ?></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azione -->
+        <div class="col-md-4">
+            <div class="card bg-light mb-3">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Nuovo Server</h5>
+                    <?php if ($slotDisponibili > 0): ?>
+                        <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
+                    <?php else: ?>
+                        <p class="text-danger mt-2">Nessuno slot disponibile</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 </div>
 
 </body>
