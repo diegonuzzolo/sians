@@ -18,7 +18,7 @@ try {
 }
 
 // config.php
-define('PROXMOX_HOST', 'https://192.168.1.251:8006');
+define('PROXMOX_HOST', 'https://proxmox.sians.it');
 define('PROXMOX_NODE', 'pve');
 define('PROXMOX_API_TOKEN_ID', 'root@pam!sians-token');
 define('PROXMOX_API_TOKEN_SECRET', '8063fe38-5209-477a-8d77-6024ad52966a');
