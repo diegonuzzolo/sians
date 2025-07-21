@@ -1,84 +1,80 @@
 <?php
 session_start();
+require 'config/config.php';
+
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header('Location: login.php');
     exit;
 }
 
-require 'config/config.php';
+$userId = $_SESSION['user_id'];
 
+// Conta i server totali disponibili
+$totaleSlot = 10;
+
+// Conta quelli già assegnati
+$stmt = $pdo->query("SELECT COUNT(*) FROM servers WHERE user_id IS NOT NULL");
+$assegnati = $stmt->fetchColumn();
+$disponibili = max(0, $totaleSlot - $assegnati);
+
+// Cerca il server dell'utente attuale
 $stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$servers = $stmt->fetchAll();
+$stmt->execute([$userId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <title>Dashboard - Minecraft Hosting</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Dashboard - Server Minecraft</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f7f9fc; }
+    .server-box {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
-<body class="bg-light">
-
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" href="https://sians.it">Minecraft Hosting</a>
-        <div class="collapse navbar-collapse justify-content-end">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link" href="logout.php">Esci</a>
-                </li>
-            </ul>
-        </div>
+<body>
+<nav class="navbar navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" href="index.php">Sians Hosting</a>
+    <div class="d-flex">
+      <a href="logout.php" class="btn btn-outline-light">Logout</a>
     </div>
+  </div>
 </nav>
 
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3>I tuoi Server Minecraft</h3>
-        <a href="add_server.php" class="btn btn-success">+ Crea Nuovo Server</a>
+<div class="container my-5">
+  <h1 class="mb-4">La tua Dashboard</h1>
+
+  <?php if ($server): ?>
+    <div class="server-box">
+      <h3>Il tuo server Minecraft</h3>
+      <p><strong>Nome:</strong> <?= htmlspecialchars($server['name']) ?></p>
+      <p><strong>IP:</strong> <?= htmlspecialchars($server['ip']) ?></p>
+      <p><strong>Stato:</strong> 
+        <span class="badge bg-<?= $server['status'] === 'online' ? 'success' : 'secondary' ?>">
+          <?= htmlspecialchars($server['status']) ?>
+        </span>
+      </p>
+    </div>
+  <?php else: ?>
+    <div class="alert alert-warning">
+      Non hai ancora creato un server Minecraft.
     </div>
 
-    <?php if (count($servers) === 0): ?>
-        <div class="alert alert-warning">Non hai ancora nessun server.</div>
+    <?php if ($disponibili > 0): ?>
+      <a href="crea_server.php" class="btn btn-primary">Crea il tuo Server</a>
     <?php else: ?>
-        <table class="table table-striped table-hover shadow-sm bg-white">
-            <thead class="table-dark">
-                <tr>
-                    <th>Nome</th>
-                    <th>Stato</th>
-                    <th>Azioni</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($servers as $server): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($server['name']) ?></td>
-                        <td>
-                            <?= $server['status'] === 'online' ? '<span class="badge bg-success">Online</span>' : '<span class="badge bg-secondary">Offline</span>' ?>
-                        </td>
-                        <td>
-                            <!-- Azione Avvio/Spegnimento -->
-                            <form method="post" action="server_action.php" class="d-inline">
-                                <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-                                <input type="hidden" name="action" value="<?= $server['status'] === 'online' ? 'stop' : 'start' ?>">
-                                <button type="submit" class="btn btn-sm btn-<?= $server['status'] === 'online' ? 'danger' : 'primary' ?>">
-                                    <?= $server['status'] === 'online' ? 'Spegni' : 'Accendi' ?>
-                                </button>
-                            </form>
-
-                            <!-- Elimina -->
-                            <form method="post" action="delete_server.php" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                            </form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+      <div class="alert alert-danger mt-3">
+        Nessuno slot disponibile al momento. Riprova più tardi.
+      </div>
     <?php endif; ?>
+  <?php endif; ?>
 </div>
 
 </body>
