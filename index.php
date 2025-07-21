@@ -15,9 +15,9 @@ $slotDisponibili = $stmt->fetchColumn();
 <div class="bg-dark text-white  text-center py-5" style="border-radius: 15px; background-image: url('assets/minecraft-bg2.jpg'); background-size: cover; background-position: center;">
     <div class="container">
         <h1 class="display-4 fw-bold ">Crea il tuo Server Minecraft</h1>
-        <p style="color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Hosting veloce <i class="bi-check-circle-fill text-success"></i></p>
-        <p style="color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Semplice e automatico <i class="bi-check-circle-fill text-success"></i></p>
-        <p style="color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Altamente personalizzabile <i class="bi-check-circle-fill text-success"></i></p>
+        <p style="text align-left; color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Hosting veloce </p><i class="bi-check-circle-fill text-success"></i>
+        <p style="text align-left color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Semplice e automatico </p><i class="bi-check-circle-fill text-success"></i>
+        <p style="text align-left color: black; padding: 5px; margin: 10px; font-weight: bold; text-align: center;" class="lead fs-2">Altamente personalizzabile </p><i class="bi-check-circle-fill text-success"></i>
 
 
         <?php if (!isset($_SESSION['user_id'])): ?>
