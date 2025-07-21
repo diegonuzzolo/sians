@@ -68,7 +68,7 @@ $server = $stmt->fetch(PDO::FETCH_ASSOC);
     </div>
 
     <?php if ($disponibili > 0): ?>
-      <a href="crea_server.php" class="btn btn-primary">Crea il tuo Server</a>
+      <a href="add_server.php" class="btn btn-primary">Crea il tuo Server</a>
     <?php else: ?>
       <div class="alert alert-danger mt-3">
         Nessuno slot disponibile al momento. Riprova più tardi.
