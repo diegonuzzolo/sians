@@ -23,7 +23,7 @@ $servers = $stmt->fetchAll();
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
-        <a class="navbar-brand" href="#">Minecraft Hosting</a>
+        <a class="navbar-brand" href="https://sians.it">Minecraft Hosting</a>
         <div class="collapse navbar-collapse justify-content-end">
             <ul class="navbar-nav">
                 <li class="nav-item">
