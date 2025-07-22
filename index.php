@@ -15,7 +15,13 @@ $slotDisponibili = $stmt->fetchColumn();
 <div class="container">
     <h6 style="text-shadow: 2px 2px 4px; color: black;" class="fw-bold">Crea il tuo Server Minecraft</h6>
 </div>
-  <div class="position-relative top-0 end-50 translate-middle-x">
+
+<div id="banner" class="bg-dark text-white text-center py-5"
+     style="height: 100vh; border-radius: 15px; background-image: url('assets/banner.png'); background-size: cover; background-position: center;">
+    
+  
+</div>
+  <div class="position-relative top-0 start-50 translate-middle-x">
         <?php if (!isset($_SESSION['user_id'])): ?>
             <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
             <a href="login.php" class="btn btn-outline-dark btn-lg mt-3">Accedi</a>
@@ -23,12 +29,6 @@ $slotDisponibili = $stmt->fetchColumn();
             <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
         <?php endif; ?>
     </div>
-<div id="banner" class="bg-dark text-white text-center py-5"
-     style="height: 100vh; border-radius: 15px; background-image: url('assets/banner.png'); background-size: cover; background-position: center;">
-    
-  
-</div>
-
 <script>
     // Script per cambiare il banner su mobile
     window.addEventListener("load", function () {
