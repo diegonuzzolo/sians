@@ -13,7 +13,7 @@ $slotDisponibili = $stmt->fetchColumn();
 
 <!-- Hero -->
 <div class="container">
-    <h1 style="text-shadow: 2px 2px 4px; color: black;" class="display-4 fw-bold ">Crea il tuo Server Minecraft</h1>
+    <h3 style="text-shadow: 2px 2px 4px; color: black;" class="display-4 fw-bold ">Crea il tuo Server Minecraft</h3>
 </div>
 <div class="bg-dark text-white  text-center py-5" style="height: 100vh; border-radius: 15px; background-image: url('assets/banner.png'); background-size: cover; background-position: center;">
     <div class="position-absolute bottom-0 start-50 translate-middle-x">
