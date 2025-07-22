@@ -5,31 +5,42 @@ require 'includes/auth.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
 
-
     if (!$name) {
         $error = "Inserisci il nome del server";
     } else {
-        // Cerca una VM libera
-        $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
-        $vm = $stmt->fetch();
+        try {
+            $pdo->beginTransaction();
 
-        if (!$vm) {
-            $error = "Nessun server disponibile al momento. Riprova più tardi.";
-        } else {
-            // Crea il server e associa la VM
-            $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, proxmox_vmid) VALUES (?, ?, ?)");
-            $stmt->execute([$_SESSION['user_id'], $name, $vm['proxmox_vmid']]);
-            $server_id = $pdo->lastInsertId();
+            // Cerca una VM libera con lock per evitare assegnazioni concorrenti
+            $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1 FOR UPDATE");
+            $stmt->execute();
+            $vm = $stmt->fetch();
 
-            // Aggiorna la VM come assegnata
-            $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-            $stmt->execute([$_SESSION['user_id'], $server_id, $vm['id']]);
+            if (!$vm) {
+                $pdo->rollBack();
+                $error = "Nessun server disponibile al momento. Riprova più tardi.";
+            } else {
+                // Crea il server e associa la VM
+                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, proxmox_vmid) VALUES (?, ?, ?)");
+                $stmt->execute([$_SESSION['user_id'], $name, $vm['proxmox_vmid']]);
+                $server_id = $pdo->lastInsertId();
 
-            header("Location: dashboard.php");
-            exit;
+                // Aggiorna la VM come assegnata
+                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id'], $server_id, $vm['id']]);
+
+                $pdo->commit();
+
+                header("Location: dashboard.php");
+                exit;
+            }
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $error = "Errore interno, riprova più tardi.";
         }
     }
 }
+
 ?>
 
 <?php include 'includes/header.php'; ?>
