@@ -154,9 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.status === 'running') {
                         statusBadge.textContent = 'Attivo';
                         statusBadge.className = 'badge bg-success';
+                        // Modifica pulsante: FERMA
+                        actionButton.textContent = 'Ferma';
+                        actionButton.className = 'btn btn-danger action-button';
+                        actionButton.setAttribute('data-action', 'stop');
                     } else if (data.status === 'stopped' || data.status === 'halted') {
                         statusBadge.textContent = 'Spento';
                         statusBadge.className = 'badge bg-secondary';
+                         actionButton.textContent = 'Avvia';
+                actionButton.className = 'btn btn-success action-button';
+                actionButton.setAttribute('data-action', 'start');
                     } else {
                         statusBadge.textContent = data.status;
                         statusBadge.className = 'badge bg-warning';
