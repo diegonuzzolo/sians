@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach(row => {
         const vmid = row.querySelector('td:nth-child(2)').textContent.trim();
         const statusBadge = row.querySelector('td:nth-child(4) span');
+        const actionButton = row.querySelector('td:nth-child(5) button');
 
         if (!vmid || !statusBadge) return;
 
