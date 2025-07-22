@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Primo aggiornamento e poi ogni 10 secondi
         updateStatus();
-        setInterval(updateStatus, 10000);
+        setInterval(updateStatus, 1000);
     });
 });
 </script>
