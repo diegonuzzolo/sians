@@ -134,40 +134,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!vmid || !statusBadge) return;
 
         // Funzione per aggiornare lo stato della VM
-        async function updateStatus() {
-            try {
-                const res = await fetch(`get_vm_status.php?vmid=${vmid}`);
-                if (!res.ok) throw new Error('Errore rete');
-                const data = await res.json();
-                if (data.status) {
-                    if (previousStatus.value && previousStatus.value !== data.status) {
-                        // Stato cambiato! Mostriamo avviso visivo
-                        row.style.transition = 'background-color 0.5s ease';
-                        row.style.backgroundColor = '#fff3cd'; // giallo chiaro (alert)
-
-                        // Dopo 2 secondi, rimuoviamo l'effetto
-                        setTimeout(() => {
-                            row.style.backgroundColor = '';
-                        }, 2000);
-                    }
-
-                    previousStatus.value = data.status;
-
-                    if (data.status === 'running') {
-                        statusBadge.textContent = 'Attivo';
-                        statusBadge.className = 'badge bg-success';
-                    } else if (data.status === 'stopped' || data.status === 'halted') {
-                        statusBadge.textContent = 'Spento';
-                        statusBadge.className = 'badge bg-secondary';
-                    } else {
-                        statusBadge.textContent = data.status;
-                        statusBadge.className = 'badge bg-warning';
-                    }
-                }
-            } catch (e) {
-                console.error('Errore aggiornamento stato VM', e);
-            }
+        // Ignora il valore status da DB e aggiorna sempre con stato reale da Proxmox
+async function updateStatus() {
+    // ... fetch get_vm_status.php ...
+    if (data.status) {
+        if (data.status === 'running') {
+            statusBadge.textContent = 'Attivo';
+            statusBadge.className = 'badge bg-success';
+        } else if (data.status === 'stopped' || data.status === 'halted') {
+            statusBadge.textContent = 'Spento';
+            statusBadge.className = 'badge bg-secondary';
+        } else {
+            statusBadge.textContent = data.status;
+            statusBadge.className = 'badge bg-warning';
         }
+    }
+}
+
 
         updateStatus();
         setInterval(updateStatus, 10000);
