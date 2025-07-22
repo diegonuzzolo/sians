@@ -125,9 +125,11 @@ $servers = $stmt->fetchAll();
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const rows = document.querySelectorAll('table tbody tr');
+    
     rows.forEach(row => {
         const vmid = row.querySelector('td:nth-child(2)').textContent.trim();
-        const statusBadge = row.querySelector('td:nth-child(4) span');
+        const statusBadge = row.querySelector('td:nth-child(3) span'); // correggo colonna stato
+        const previousStatus = { value: null };
 
         if (!vmid || !statusBadge) return;
 
@@ -138,6 +140,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Errore rete');
                 const data = await res.json();
                 if (data.status) {
+                    if (previousStatus.value && previousStatus.value !== data.status) {
+                        // Stato cambiato! Mostriamo avviso visivo
+                        row.style.transition = 'background-color 0.5s ease';
+                        row.style.backgroundColor = '#fff3cd'; // giallo chiaro (alert)
+
+                        // Dopo 2 secondi, rimuoviamo l'effetto
+                        setTimeout(() => {
+                            row.style.backgroundColor = '';
+                        }, 2000);
+                    }
+
+                    previousStatus.value = data.status;
+
                     if (data.status === 'running') {
                         statusBadge.textContent = 'Attivo';
                         statusBadge.className = 'badge bg-success';
@@ -154,10 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Aggiorna subito e poi ogni 10 secondi
         updateStatus();
         setInterval(updateStatus, 10000);
     });
 });
 </script>
+
 </html>
