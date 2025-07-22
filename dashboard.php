@@ -7,8 +7,9 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+$userId = $_SESSION['user_id'];
 
-// Cerca il server dell'utente attuale
+// Cerca il server dell'utente attuale (puoi rimuoverlo se non serve)
 $stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id = ?");
 $stmt->execute([$userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -19,16 +20,16 @@ $slotDisponibili = $stmt->fetchColumn();
 
 // Quanti server ha l'utente
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
+$stmt->execute([$userId]);
 $mieiServer = $stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, vm.proxmox_vmid 
+// Prendi tutti i server dell'utente con dati VM (ip e hostname)
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, vm.proxmox_vmid, vm.ip_address, vm.hostname 
                        FROM servers s
                        JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
                        WHERE s.user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
+$stmt->execute([$userId]);
 $servers = $stmt->fetchAll();
-
 
 ?>
 <!DOCTYPE html>
@@ -50,8 +51,6 @@ $servers = $stmt->fetchAll();
 <body>
 <?php include 'includes/header.php'; ?>
 
-
-
 <div class="container my-5">
     <h3>I tuoi server Minecraft</h3>
 
@@ -63,7 +62,8 @@ $servers = $stmt->fetchAll();
                 <thead class="table-dark">
                     <tr>
                         <th>Nome</th>
-                        <th>ID</th>
+                        <th>ID Proxmox</th>
+                        <th>IP / Hostname</th>
                         <th>Stato</th>
                         <th>Azioni</th>
                     </tr>
@@ -73,6 +73,10 @@ $servers = $stmt->fetchAll();
                         <tr>
                             <td><?= htmlspecialchars($server['name']) ?></td>
                             <td><?= $server['proxmox_vmid'] ?></td>
+                            <td>
+                                <?= htmlspecialchars($server['ip_address'] ?? '') ?><br>
+                                <small><?= htmlspecialchars($server['hostname'] ?? '') ?></small>
+                            </td>
                             <td>
                                 <?php if ($server['status'] === 'running'): ?>
                                     <span class="badge bg-success">Attivo</span>
@@ -103,9 +107,8 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
 </div>
 
-
-        <!-- Azione -->
-        <div class="d-flex justify-content-center align-items-center" >
+<!-- Azione Nuovo Server -->
+<div class="d-flex justify-content-center align-items-center">
     <div class="card bg-light mb-3" style="width: 300px;">
         <div class="card-body text-center">
             <h5 class="card-title">Nuovo Server</h5>
@@ -116,13 +119,6 @@ $servers = $stmt->fetchAll();
             <?php endif; ?>
         </div>
     </div>
-</div>
-
-
-</div>
-
-
-
 </div>
 
 </body>
