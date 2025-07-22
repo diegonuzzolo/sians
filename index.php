@@ -13,19 +13,34 @@ $slotDisponibili = $stmt->fetchColumn();
 
 <!-- Hero -->
 <div class="container">
-    <h6 style="text-shadow: 2px 2px 4px; color: black;" class=" fw-bold ">Crea il tuo Server Minecraft</h6>
+    <h6 style="text-shadow: 2px 2px 4px; color: black;" class="fw-bold">Crea il tuo Server Minecraft</h6>
 </div>
-<div class="bg-dark text-white  text-center py-5" style="height: 100vh; border-radius: 15px; background-image: url('assets/banner.png'); background-size: cover; background-position: center;">
+
+<div id="banner" class="bg-dark text-white text-center py-5"
+     style="height: 100vh; border-radius: 15px; background-image: url('assets/banner.png'); background-size: cover; background-position: center;">
+    
     <div class="position-absolute bottom-0 start-50 translate-middle-x">
         <?php if (!isset($_SESSION['user_id'])): ?>
-            
-                <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
-                <a href="login.php" class="btn btn-outline-light btn-lg mt-3">Accedi</a>
-                <?php else: ?>
-                    <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
-                    <?php endif; ?>
-                </div>
+            <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
+            <a href="login.php" class="btn btn-outline-light btn-lg mt-3">Accedi</a>
+        <?php else: ?>
+            <a href="dashboard.php" class="btn btn-primary btn-lg mt-3">Vai alla Dashboard</a>
+        <?php endif; ?>
+    </div>
 </div>
+
+<script>
+    // Script per cambiare il banner su mobile
+    window.addEventListener("load", function () {
+        const isMobile = window.innerWidth < 768;
+        const banner = document.getElementById("banner");
+
+        if (isMobile) {
+            banner.style.backgroundImage = "url('assets/banner-mobile.png')";
+        }
+    });
+</script>
+
     
     
     
