@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     rows.forEach(row => {
         const vmid = row.querySelector('td:nth-child(2)').textContent.trim();
-        const statusBadge = row.querySelector('td:nth-child(3) span');
+        const statusBadge = row.querySelector('td:nth-child(4) span');
 
         if (!vmid || !statusBadge) return;
 
