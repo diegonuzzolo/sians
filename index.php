@@ -65,7 +65,7 @@ $vmStorageSpeed = 7500; // MB/s
         <div class="col-md-3 mb-4">
             <i class="bi bi-memory text-primary fs-1"></i>
             <h5>RAM</h5>
-            <p class="fs-5 fw-bold"><?= $vmRam ?> GB DDR4 dedicati</p>
+            <p class="fs-5 fw-bold"><?= $vmRam ?> GB DDR5 dedicati</p>
         </div>
         <div class="col-md-3 mb-4">
             <i class="bi bi-hdd-fill text-success fs-1"></i>
