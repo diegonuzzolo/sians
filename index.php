@@ -15,7 +15,7 @@ $slotDisponibili = $stmt->fetchColumn();
 <div class="container">
     <h6 style="text-shadow: 2px 2px 4px; color: black;" class="fw-bold">Crea il tuo Server Minecraft</h6>
 </div>
-  <div class="position-relative top-0 start-100 translate-middle-x">
+  <div class="position-relative top-0 start-100 ">
         <?php if (!isset($_SESSION['user_id'])): ?>
             <a href="register.php" class="btn btn-success btn-lg mt-3 me-2">Registrati</a>
             <a href="login.php" class="btn btn-outline-light btn-lg mt-3">Accedi</a>
