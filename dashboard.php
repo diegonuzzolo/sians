@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusBadge.className = 'badge bg-secondary';
                          actionButton.textContent = 'Avvia';
                 actionButton.className = 'btn btn-success action-button';
-                actionButton.setAttribute('data-action', 'start');
+                actionButton.setAttribute('data-action', 'stop');
                     } else {
                         statusBadge.textContent = data.status;
                         statusBadge.className = 'badge bg-warning';
