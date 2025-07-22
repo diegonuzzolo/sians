@@ -78,7 +78,7 @@ $servers = $stmt->fetchAll();
                                 <small><?= htmlspecialchars($server['hostname'] ?? '') ?></small>
                             </td>
                             <td>
-                                <?php if ($server['status'] === 'running'): ?>
+                                <?php if ($server['status'] === 'OK'): ?>
                                     <span class="badge bg-success">Attivo</span>
                                 <?php else: ?>
                                     <span class="badge bg-secondary">Spento</span>
