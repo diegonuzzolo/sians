@@ -1,15 +1,36 @@
 <?php
-
-
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-
 echo "Script partito\n";
-exit;
-require 'config/config.php'; // contiene $pdo
-require 'includes/auth.php'; // verifica autenticazione
+
+require 'config/config.php';
+require 'includes/auth.php';
+
+echo "File config e auth caricati\n";
+
+$serverId = $_GET['server_id'] ?? null;
+
+if (!$serverId) {
+    echo "ID server mancante\n";
+    exit;
+}
+
+echo "server_id: $serverId\n";
+
+// Recupera info del server e della VM
+$stmt = $pdo->prepare("SELECT s.id, s.vm_id, v.internal_ip FROM servers s JOIN minecraft_vms v ON s.vm_id = v.id WHERE s.id = ? AND s.user_id = ?");
+$stmt->execute([$serverId, $_SESSION['user_id']]);
+$server = $stmt->fetch();
+
+if (!$server) {
+    echo "Server non trovato o non tuo\n";
+    exit;
+}
+
+echo "Server trovato, VM ID: " . $server['vm_id'] . "\n";
+
 
 $serverId = $_GET['server_id'] ?? null;
 
