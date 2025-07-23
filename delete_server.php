@@ -2,7 +2,6 @@
 require 'config/config.php';
 require 'includes/auth.php';
 
-// Funzione per spegnere VM Proxmox via API
 function stopProxmoxVM($host, $tokenId, $tokenSecret, $node, $vmid) {
     $url = "$host/api2/json/nodes/$node/qemu/$vmid/status/shutdown";
 
@@ -17,7 +16,6 @@ function stopProxmoxVM($host, $tokenId, $tokenSecret, $node, $vmid) {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // Considera 200 OK o 500 VM già spenta come successo
     if ($httpCode === 200 || $httpCode === 500) {
         return true;
     }
@@ -27,7 +25,6 @@ function stopProxmoxVM($host, $tokenId, $tokenSecret, $node, $vmid) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['server_id'])) {
     $server_id = intval($_POST['server_id']);
 
-    // Recupera il VMID associato al server
     $stmt = $pdo->prepare("SELECT proxmox_vmid FROM servers WHERE id = ? AND user_id = ?");
     $stmt->execute([$server_id, $_SESSION['user_id']]);
     $server = $stmt->fetch();
@@ -35,25 +32,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['server_id'])) {
     if ($server) {
         $vmid = intval($server['proxmox_vmid']);
 
-        // Spegni la VM via API Proxmox
         $success = stopProxmoxVM(PROXMOX_HOST, PROXMOX_API_TOKEN_ID, PROXMOX_API_TOKEN_SECRET, PROXMOX_NODE, $vmid);
 
         if ($success) {
-            // Libera la VM associata nel DB
-            $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = NULL, assigned_server_id = NULL WHERE proxmox_vmid = ?");
+            $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = NULL, assigned_server_id = NULL, status = 'stopped' WHERE proxmox_vmid = ?");
             $stmt->execute([$vmid]);
 
-            // Elimina il server dal DB
             $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ? AND user_id = ?");
             $stmt->execute([$server_id, $_SESSION['user_id']]);
+
+            header("Location: dashboard.php?msg=Server eliminato correttamente");
+            exit;
         } else {
-            // Errore spegnimento VM
-            exit("Errore: impossibile spegnere la VM su Proxmox.");
+            header("Location: dashboard.php?error=Impossibile spegnere la VM su Proxmox");
+            exit;
         }
     } else {
         exit("Server non trovato o non autorizzato.");
     }
-
-    header("Location: dashboard.php");
-    exit;
 }

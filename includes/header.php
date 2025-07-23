@@ -12,7 +12,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container-fluid">
-    <a class="navbar-brand" href="https://sians.it">Sians • Minecraft Hosting</a>
+    <a class="navbar-brand" href="https://sians.it">Minecraft Hosting</a>
     <div class="collapse navbar-collapse">
       <ul class="navbar-nav ms-auto">
         <?php if (isset($_SESSION['user_id'])): ?>

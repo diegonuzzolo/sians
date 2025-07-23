@@ -7,29 +7,19 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+$userId = $_SESSION['user_id'];
 
-// Cerca il server dell'utente attuale
-$stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id = ?");
-$stmt->execute([$userId]);
-$server = $stmt->fetch(PDO::FETCH_ASSOC);
-
-// Quanti slot ancora disponibili in totale
+// Slot disponibili
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
 
-// Quanti server ha l'utente
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$mieiServer = $stmt->fetchColumn();
-
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, vm.proxmox_vmid 
+// Server utente
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, vm.proxmox_vmid, vm.ip_address, vm.hostname 
                        FROM servers s
                        JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
                        WHERE s.user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
+$stmt->execute([$userId]);
 $servers = $stmt->fetchAll();
-
-
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -46,16 +36,14 @@ $servers = $stmt->fetchAll();
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
   </style>
-</head> 
+</head>
 <body>
 <?php include 'includes/header.php'; ?>
-
-
 
 <div class="container my-5">
     <h3>I tuoi server Minecraft</h3>
 
-    <?php if (count($servers) === 0): ?>
+    <?php if (empty($servers)): ?>
         <p class="text-muted">Non hai ancora server attivi.</p>
     <?php else: ?>
         <div class="table-responsive">
@@ -63,49 +51,53 @@ $servers = $stmt->fetchAll();
                 <thead class="table-dark">
                     <tr>
                         <th>Nome</th>
-                        <th>ID</th>
+                        <th>ID Proxmox</th>
+                        <th>IP / Hostname</th>
                         <th>Stato</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($servers as $server): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($server['name']) ?></td>
-                            <td><?= $server['proxmox_vmid'] ?></td>
-                            <td>
-                                <?php if ($server['status'] === 'running'): ?>
-                                    <span class="badge bg-success">Attivo</span>
-                                <?php else: ?>
-                                    <span class="badge bg-secondary">Spento</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <form action="server_action.php" method="post" class="d-inline">
-                                    <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-                                    <?php if ($server['status'] === 'running'): ?>
-                                        <button name="action" value="stop" class="btn btn-warning btn-sm">Ferma</button>
-                                    <?php else: ?>
-                                        <button name="action" value="start" class="btn btn-success btn-sm">Avvia</button>
-                                    <?php endif; ?>
-                                </form>
+                <?php foreach ($servers as $server): ?>
+                    <tr data-vmid="<?= $server['proxmox_vmid'] ?>" data-server-id="<?= $server['id'] ?>">
+                        <td><?= htmlspecialchars($server['name']) ?></td>
+                        <td><?= $server['proxmox_vmid'] ?></td>
+                        <td>
+                            <?= htmlspecialchars($server['ip_address'] ?? '') ?><br>
+                            <small><?= htmlspecialchars($server['hostname'] ?? '') ?></small>
+                        </td>
+                        <td>
+                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
+                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+                            </span>
+                        </td>
+                        <td>
+                            <!-- Form Azione -->
+                            <form action="server_action.php" method="post" class="d-inline action-form">
+                                <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+                                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                                        class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
+                                        title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
+                                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                                </button>
+                            </form>
 
-                                <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                    <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-                                    <button class="btn btn-danger btn-sm">Elimina</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
+                            <!-- Form Elimina -->
+                            <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
+                                <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+                                <button class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     <?php endif; ?>
 </div>
 
-
-        <!-- Azione -->
-        <div class="d-flex justify-content-center align-items-center" >
+<!-- Nuovo Server -->
+<div class="d-flex justify-content-center align-items-center">
     <div class="card bg-light mb-3" style="width: 300px;">
         <div class="card-body text-center">
             <h5 class="card-title">Nuovo Server</h5>
@@ -118,12 +110,63 @@ $servers = $stmt->fetchAll();
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const rows = document.querySelectorAll('tbody tr');
 
-</div>
+    rows.forEach(row => {
+        const vmid = row.dataset.vmid;
+        const serverId = row.dataset.serverId;
+        const statusBadge = row.querySelector('td:nth-child(4) span');
+        const form = row.querySelector('.action-form');
+        const button = form.querySelector('button');
 
+        let previousStatus = null;
 
+        async function updateStatus() {
+            try {
+                const res = await fetch(`get_vm_status.php?vmid=${vmid}`);
+                if (!res.ok) throw new Error('Errore rete');
+                const data = await res.json();
 
-</div>
+                if (data.status) {
+                    if (previousStatus && previousStatus !== data.status) {
+                        row.style.transition = 'background-color 0.5s';
+                        row.style.backgroundColor = '#fff3cd';
+                        setTimeout(() => row.style.backgroundColor = '', 2000);
+                    }
+
+                    previousStatus = data.status;
+
+                    // Badge
+                    if (data.status === 'running') {
+                        statusBadge.textContent = 'Attivo';
+                        statusBadge.className = 'badge bg-success';
+                        // Bottone: FERMA
+                        button.textContent = 'Ferma';
+                        button.className = 'btn btn-warning btn-sm';
+                        button.value = 'stop';
+                        button.title = 'Ferma Server';
+                    } else {
+                        statusBadge.textContent = 'Spento';
+                        statusBadge.className = 'badge bg-secondary';
+                        // Bottone: AVVIA
+                        button.textContent = 'Avvia';
+                        button.className = 'btn btn-success btn-sm';
+                        button.value = 'start';
+                        button.title = 'Avvia Server';
+                    }
+                }
+            } catch (err) {
+                console.error('Errore nel polling stato VM:', err);
+            }
+        }
+
+        updateStatus();
+        setInterval(updateStatus, 5000); // ogni 5 secondi
+    });
+});
+</script>
 
 </body>
 </html>
