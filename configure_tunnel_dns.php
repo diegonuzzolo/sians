@@ -39,6 +39,10 @@ $command = 'sudo -u www-data HOME=/var/www zrok share public 127.0.0.1:25565 --b
 
 exec($command, $output, $return_var);
 
+echo "Return code: $return_var\n";
+echo "Output:\n";
+echo implode("\n", $output);
+
 preg_match('/tcp:\/\/(.+):(\d+)/', $tunnelOutput ?? '', $matches);
 
 
