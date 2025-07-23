@@ -59,11 +59,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="mb-3">
-    <label for="subdomain" class="form-label">Sottodominio (mcX.sians.it)</label>
-    <input type="text" name="subdomain" id="subdomain" class="form-control" pattern="^[a-z0-9\-]+$" required>
-    <div class="form-text">Solo lettere, numeri e trattini. Es: <code>mc42</code></div>
-</div>
-
+            <label for="subdomain" class="form-label">Hostname (es mc..)</label>
+            <div class="input-group" style="max-width: 300px;">
+                <input type="text" name="subdomain" id="subdomain" class="form-control" required>
+                <span class="input-group-text">.sians.it</span>
+            </div>
+            <div class="form-text">Questo sarà l'indirizzo che userai per collegarti al server Minecraft.</div>
+        </div>
 
         <button type="submit" class="btn btn-primary">Crea Server</button>
         <a href="dashboard.php" class="btn btn-secondary">Annulla</a>
