@@ -3,34 +3,8 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-echo "Script partito\n";
-
 require 'config/config.php';
 require 'includes/auth.php';
-
-echo "File config e auth caricati\n";
-
-$serverId = $_GET['server_id'] ?? null;
-
-if (!$serverId) {
-    echo "ID server mancante\n";
-    exit;
-}
-
-echo "server_id: $serverId\n";
-
-// Recupera info del server e della VM
-$stmt = $pdo->prepare("SELECT s.id, s.vm_id, v.internal_ip FROM servers s JOIN minecraft_vms v ON s.vm_id = v.id WHERE s.id = ? AND s.user_id = ?");
-$stmt->execute([$serverId, $_SESSION['user_id']]);
-$server = $stmt->fetch();
-
-if (!$server) {
-    echo "Server non trovato o non tuo\n";
-    exit;
-}
-
-echo "Server trovato, VM ID: " . $server['vm_id'] . "\n";
-
 
 $serverId = $_GET['server_id'] ?? null;
 
@@ -40,8 +14,13 @@ if (!$serverId) {
     exit;
 }
 
-// 1. Recupera info del server e della VM
-$stmt = $pdo->prepare("SELECT s.id, s.vm_id, v.internal_ip FROM servers s JOIN minecraft_vms v ON s.vm_id = v.id WHERE s.id = ? AND s.user_id = ?");
+// Recupera info del server e della VM
+$stmt = $pdo->prepare(
+    "SELECT s.id, s.proxmox_vmid, s.subdomain, s.zrok_tcp_endpoint, s.zrok_host, s.zrok_port, v.ip_address 
+     FROM servers s 
+     JOIN minecraft_vms v ON s.proxmox_vmid = v.proxmox_vmid 
+     WHERE s.id = ? AND s.user_id = ?"
+);
 $stmt->execute([$serverId, $_SESSION['user_id']]);
 $server = $stmt->fetch();
 
@@ -51,8 +30,13 @@ if (!$server) {
     exit;
 }
 
-// 2. Crea tunnel con zrok
+echo "Server trovato, Proxmox VM ID: " . $server['proxmox_vmid'] . ", VM IP: " . $server['ip_address'] . "\n";
+
+// Crea tunnel con zrok
+// Assicurati che il comando sia corretto per il tuo setup e che 'zrok' sia accessibile dal PHP
 $tunnelOutput = shell_exec("zrok share public 127.0.0.1:25565 --backend-mode proxy 2>&1");
+echo "Output zrok:\n$tunnelOutput\n";
+
 preg_match('/tcp:\/\/(.+):(\d+)/', $tunnelOutput, $matches);
 
 if (!$matches) {
@@ -63,11 +47,13 @@ if (!$matches) {
 $zrokHost = $matches[1]; // es. zrok.io
 $zrokPort = $matches[2]; // es. 12345
 
-// 3. Genera sottodominio univoco
-$subdomain = "mc" . $server['id']; // es. mc5
+// Genera sottodominio univoco
+$subdomain = "mc" . $server['id']; // es. mc154
 $fullDomain = "$subdomain.sians.it";
 
-// 4. Imposta variabili per Cloudflare
+echo "Sottodominio generato: $fullDomain\n";
+
+// Configurazione Cloudflare API
 $cfApiToken = 'GB_VVFoJoCoOi49P-ZeoNt7xf3kWAuWGPxDv1GMv';
 $zoneId = 'ad73843747d02aa059e3a650182af704';
 
@@ -76,27 +62,33 @@ $headers = [
     "Content-Type: application/json"
 ];
 
-// 5. Crea un record A/SRV su Cloudflare
+// Funzione per creare record DNS su Cloudflare
+function createDnsRecord($zoneId, $data, $headers) {
+    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records");
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($data),
+    ]);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    return json_decode($response, true);
+}
 
-// (a) Record A puntato all’host TCP di zrok (non serve davvero ma evitiamo errori)
+// 1) Creazione record A (con IP placeholder perché Minecraft usa SRV)
 $dataA = [
     "type" => "A",
     "name" => $subdomain,
-    "content" => "192.0.2.1", // IP placeholder, Minecraft usa solo SRV
+    "content" => "192.0.2.1", // IP placeholder (non deve puntare a IP reale)
     "ttl" => 120,
     "proxied" => false
 ];
-$ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records");
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => json_encode($dataA),
-]);
-$responseA = curl_exec($ch);
-curl_close($ch);
+$responseA = createDnsRecord($zoneId, $dataA, $headers);
+echo "Risposta Cloudflare A record:\n";
+print_r($responseA);
 
-// (b) Record SRV per Minecraft (_minecraft._tcp.subdomain.sians.it)
+// 2) Creazione record SRV per Minecraft (_minecraft._tcp.subdomain)
 $dataSRV = [
     "type" => "SRV",
     "data" => [
@@ -110,20 +102,26 @@ $dataSRV = [
     ],
     "ttl" => 120
 ];
-$ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records");
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => json_encode($dataSRV),
+$responseSRV = createDnsRecord($zoneId, $dataSRV, $headers);
+echo "Risposta Cloudflare SRV record:\n";
+print_r($responseSRV);
+
+// Aggiorna tabella servers con i dati
+$stmt = $pdo->prepare(
+    "UPDATE servers SET 
+       subdomain = ?, 
+       zrok_tcp_endpoint = ?, 
+       zrok_host = ?, 
+       zrok_port = ?, 
+       dns_created = 1
+     WHERE id = ?"
+);
+$stmt->execute([
+    $fullDomain,
+    "tcp://$zrokHost:$zrokPort",
+    $zrokHost,
+    $zrokPort,
+    $server['id']
 ]);
-$responseSRV = curl_exec($ch);
-curl_close($ch);
 
-// 6. Salva il dominio nel DB
-$stmt = $pdo->prepare("UPDATE servers SET subdomain = ? WHERE id = ?");
-$stmt->execute([$fullDomain, $server['id']]);
-
-echo "Tunnel e DNS configurati correttamente per $fullDomain!";
-// header("Location: dashboard.php");
-// exit;
+echo "Tunnel e DNS configurati correttamente per $fullDomain!\n";
