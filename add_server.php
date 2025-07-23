@@ -3,57 +3,7 @@ session_start();
 require 'config/config.php';
 require 'includes/auth.php';
 require 'includes/functions.php'; 
-// FUNZIONI UTILI DA INSERIRE O INCLUDERE (esempio minimale)
-function startNgrokTcpTunnel($port) {
-    // Esempio: esegue ngrok in background e ritorna host e porta pubblica (adattare a tua logica)
-    $command = "sudo -u www-data ngrok  tcp $port --log=stdout --log-level=info";
-    exec($command . " 2>&1", $output, $return_var);
-    // Qui dovresti parsare l'output reale di ngrok per estrarre host e port
-    // Per esempio, se ngrok ritorna un URL come 1.tcp.ngrok.io:12345
-    // Esempio fittizio:
-    return [
-        'host' => '1.tcp.ngrok.io',
-        'port' => 12345,
-    ];
-}
 
-function createCloudflareDnsRecord($subdomain, $targetHost, $targetPort) {
-    $url = CLOUDFLARE_API_BASE . "/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records";
-
-    $data = [
-        "type" => "SRV",
-        "name" => $subdomain . '.' . DOMAIN,
-        "data" => [
-            "service" => "_minecraft",
-            "proto" => "_tcp",
-            "name" => $subdomain,
-            "priority" => 0,
-            "weight" => 0,
-            "port" => intval($targetPort),
-            "target" => $targetHost
-        ],
-        "ttl" => 120,
-        "proxied" => false
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
-        "Content-Type: application/json"
-    ]);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    if (!$response) {
-        return false;
-    }
-    $respData = json_decode($response, true);
-    return isset($respData['success']) && $respData['success'] === true;
-}
 
 // Gestione form
 $error = null;
@@ -91,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Avvia tunnel ngrok
                 // Avvia tunnel ngrok e crea record DNS
-require_once 'path/to/ngrok_cloudflare_functions.php'; // metti le funzioni startNgrokTcpTunnel() e createOrUpdateCloudflareDnsRecord() in un file a parte
+require_once 'includes/functions.php'; // metti le funzioni startNgrokTcpTunnel() e createOrUpdateCloudflareDnsRecord() in un file a parte
 
 $tunnel = startNgrokTcpTunnel(25565);
 if (!$tunnel) {
