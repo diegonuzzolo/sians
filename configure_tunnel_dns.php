@@ -34,7 +34,7 @@ echo "Server trovato, Proxmox VM ID: " . $server['proxmox_vmid'] . ", VM IP: " .
 
 // Crea tunnel con zrok
 // Assicurati che il comando sia corretto per il tuo setup e che 'zrok' sia accessibile dal PHP
-$tunnelOutput = shell_exec('sudo -u www-data HOME=/var/www zrok share public 192.168.1.249:25565 --backend-mode drive </dev/null');
+$tunnelOutput = shell_exec('sudo -u www-data HOME=/var/www zrok share public 192.168.1.249:25565 --backend-mode web </dev/null');
 // $command = 'sudo -u www-data HOME=/var/www zrok share public 192.168.1.249:25565 --backend-mode proxy </dev/null 2>&1';
 
 // exec($command, $output, $return_var);
