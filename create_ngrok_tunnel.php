@@ -23,7 +23,7 @@ if (!$server) {
 
 // Avvia tunnel ngrok per la porta 25565 della VM (Minecraft)
 $vmIp = $server['vm_ip'];
-$command = "ngrok tcp {$vmIp}:25565 --region=eu --log=stdout --log-format=logfmt";
+$command = "sudo -u www-data ngrok  tcp {$vmIp}:25565 --region=eu --log=stdout --log-format=logfmt";
 $descriptors = [
     1 => ['pipe', 'w'], // stdout
     2 => ['pipe', 'w'], // stderr
