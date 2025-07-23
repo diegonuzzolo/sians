@@ -33,8 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
                 $stmt->execute([$_SESSION['user_id'], $server_id, $vm['id']]);
 
-                // Reindirizza alla dashboard
-                header("Location: dashboard.php");
+                // Reindirizza a create zrok dns
+                header("Location: create_zrok_dns.php?server_id=" . $server_id);
+
                 exit;
             }
         }
@@ -58,13 +59,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="mb-3">
-            <label for="subdomain" class="form-label">Hostname (es mc..)</label>
-            <div class="input-group" style="max-width: 300px;">
-                <input type="text" name="subdomain" id="subdomain" class="form-control" required>
-                <span class="input-group-text">.sians.it</span>
-            </div>
-            <div class="form-text">Questo sarà l'indirizzo che userai per collegarti al server Minecraft.</div>
-        </div>
+    <label for="subdomain" class="form-label">Sottodominio (mcX.sians.it)</label>
+    <input type="text" name="subdomain" id="subdomain" class="form-control" pattern="^[a-z0-9\-]+$" required>
+    <div class="form-text">Solo lettere, numeri e trattini. Es: <code>mc42</code></div>
+</div>
+
 
         <button type="submit" class="btn btn-primary">Crea Server</button>
         <a href="dashboard.php" class="btn btn-secondary">Annulla</a>
