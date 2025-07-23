@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="mb-3">
-            <label for="subdomain" class="form-label">nome ip (es mc..)</label>
+            <label for="subdomain" class="form-label">Hostname (es mc..)</label>
             <div class="input-group" style="max-width: 300px;">
                 <input type="text" name="subdomain" id="subdomain" class="form-control" required>
                 <span class="input-group-text">.sians.it</span>
