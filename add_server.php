@@ -51,15 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <form method="post" class="mt-4">
+    <form method="post" class="mt-4" style="max-width: 350px;">
         <div class="mb-3">
             <label for="name" class="form-label">Nome del Server</label>
-            <input type="text" name="name" id="name" class="form-control" required>
+            <input type="text" name="name" id="name" class="form-control" required style="max-width: 300px;">
         </div>
 
         <div class="mb-3">
-            <label for="subdomain" class="form-label">Sottodominio desiderato (es. mc1)</label>
-            <div class="input-group">
+            <label for="subdomain" class="form-label">nome ip (es: mc..)</label>
+            <div class="input-group" style="max-width: 300px;">
                 <input type="text" name="subdomain" id="subdomain" class="form-control" required>
                 <span class="input-group-text">.sians.it</span>
             </div>
@@ -70,5 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="dashboard.php" class="btn btn-secondary">Annulla</a>
     </form>
 </div>
+
 
 <?php include 'includes/footer.php'; ?>
