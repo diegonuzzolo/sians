@@ -12,7 +12,7 @@ if (!$subdomain || !$vmid) {
 }
 
 // Comando per eseguire il tunnel ngrok
-$ngrokCommand = "sudo /usr/bin/ngrok  tcp 192.168.1.$vmid:25565 --log=stdout --log-format=json";
+$ngrokCommand = "ngrok    tcp 192.168.1.$vmid:25565 --log=stdout --log-format=json";
 
 // Avvia il processo ngrok e cattura l'output
 $descriptorspec = [
