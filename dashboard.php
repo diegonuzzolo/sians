@@ -14,20 +14,19 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id I
 $slotDisponibili = $stmt->fetchColumn();
 
 // Server utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname 
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname, s.ngrok_tcp_host, s.ngrok_tcp_port
                        FROM servers s
                        JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
                        WHERE s.user_id = ?");
-
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Dashboard - Server Minecraft</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     body { background-color: #f7f9fc; }
     .server-box {
@@ -50,57 +49,70 @@ $servers = $stmt->fetchAll();
         <div class="table-responsive">
             <table class="table table-bordered table-striped mt-3">
                 <thead class="table-dark">
-    <tr>
-        <th>Nome</th>
-        <th>ID Proxmox</th>
-        <th>IP / Hostname</th>
-        <th>Dominio</th>
-        <th>Stato</th>
-        <th>Azioni</th>
-    </tr>
-</thead>
-<tbody>
-<?php foreach ($servers as $server): ?>
-    <tr data-vmid="<?= $server['proxmox_vmid'] ?>" data-server-id="<?= $server['id'] ?>">
-        <td><?= htmlspecialchars($server['name']) ?></td>
-        <td><?= $server['proxmox_vmid'] ?></td>
-        <td>
-            <?= htmlspecialchars($server['ip_address'] ?? '') ?><br>
-            <small><?= htmlspecialchars($server['hostname'] ?? '') ?></small>
-        </td>
-        <td>
-            <?php if (!empty($server['subdomain'])): ?>
-                <a href="http://<?= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank">
-                    <?= htmlspecialchars($server['subdomain']) ?>.sians.it
-                </a>
-            <?php else: ?>
-                <span class="text-muted">In attesa...</span>
-            <?php endif; ?>
-        </td>
-        <td>
-            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
-                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
-            </span>
-        </td>
-        <td>
-            <!-- Azioni -->
-            <form action="server_action.php" method="post" class="d-inline action-form">
-                <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                        class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
-                        title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
-                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                </button>
-            </form>
-            <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
-                <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-                <button class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
-            </form>
-        </td>
-    </tr>
-<?php endforeach; ?>
-</tbody>
+                    <tr>
+                        <th>Nome</th>
+                        <th>ID Proxmox</th>
+                        <th>IP / Hostname / Ngrok</th>
+                        <th>Dominio</th>
+                        <th>Stato</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($servers as $server): ?>
+                    <tr data-vmid="<?= htmlspecialchars($server['proxmox_vmid']) ?>" data-server-id="<?= htmlspecialchars($server['id']) ?>">
+                        <td><?= htmlspecialchars($server['name']) ?></td>
+                        <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
+                        <td>
+                            <?php if (!empty($server['ip_address'])): ?>
+                                <?= htmlspecialchars($server['ip_address']) ?><br>
+                            <?php endif; ?>
 
+                            <?php if (!empty($server['hostname'])): ?>
+                                <small><?= htmlspecialchars($server['hostname']) ?></small><br>
+                            <?php endif; ?>
+
+                            <?php if (!empty($server['ngrok_tcp_host']) && !empty($server['ngrok_tcp_port'])): ?>
+                                <div>
+                                    <strong>Ngrok:</strong>
+                                    <code><?= htmlspecialchars($server['ngrok_tcp_host']) ?>:<?= htmlspecialchars($server['ngrok_tcp_port']) ?></code>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-muted small">Ngrok non disponibile</div>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($server['subdomain'])): ?>
+                                <a href="http://<?= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank">
+                                    <?= htmlspecialchars($server['subdomain']) ?>.sians.it
+                                </a>
+                            <?php else: ?>
+                                <span class="text-muted">In attesa...</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
+                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+                            </span>
+                        </td>
+                        <td>
+                            <!-- Azioni -->
+                            <form action="server_action.php" method="post" class="d-inline action-form">
+                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                                        class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
+                                        title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
+                                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                                </button>
+                            </form>
+                            <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
+                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                                <button class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
     <?php endif; ?>
@@ -127,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach(row => {
         const vmid = row.dataset.vmid;
         const serverId = row.dataset.serverId;
-        const statusBadge = row.querySelector('td:nth-child(4) span');
+        const statusBadge = row.querySelector('td:nth-child(5) span'); // Stato è colonna 5
         const form = row.querySelector('.action-form');
         const button = form.querySelector('button');
 
