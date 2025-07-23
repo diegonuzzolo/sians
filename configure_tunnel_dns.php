@@ -48,7 +48,7 @@ if (!$subdomain) {
 // --- 1) Avvia ngrok TCP tunnel (porta Minecraft 25565 locale sulla VM) ---
 
 // Costruiamo il comando (adatta se devi specificare un indirizzo IP VM o localhost)
-$cmd = 'sudo -u www-data ngrok  tcp 25565 --log=stdout --log-level=info';
+$cmd = 'sudo /usr/bin/ngrok  tcp 25565 --log=stdout --log-level=info';
 
 // Lancia il comando in background, cattura output
 exec($cmd . ' 2>&1', $output, $ret);
@@ -74,8 +74,8 @@ if (!$tunnelUrl) {
 
 // --- 2) Cerchiamo se esiste già un record DNS per questo sottodominio ---
 
-$zone_id = 'IL_TUO_ZONE_ID'; // da config
-$cloudflare_api_token = 'IL_TUO_TOKEN_API'; // da config
+$zone_id = CLOUDFLARE_ZONE_ID; // da config
+$cloudflare_api_token = CLOUDFLARE_API_TOKEN; // da config
 $domain = 'sians.it';
 
 // Cerca record A o CNAME per il sottodominio
