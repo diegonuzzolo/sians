@@ -37,7 +37,8 @@ echo "Server trovato, Proxmox VM ID: " . $server['proxmox_vmid'] . ", VM IP: " .
 $tunnelOutput = shell_exec('sudo -u www-data HOME=/var/www zrok share public 127.0.0.1:25565 --backend-mode proxy </dev/null');
 echo "Output zrok:\n$tunnelOutput\n";
 
-preg_match('/tcp:\/\/(.+):(\d+)/', $tunnelOutput, $matches);
+preg_match('/tcp:\/\/(.+):(\d+)/', $tunnelOutput ?? '', $matches);
+
 
 if (!$matches) {
     echo "Errore nella creazione del tunnel zrok:\n$tunnelOutput";
