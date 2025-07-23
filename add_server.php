@@ -4,29 +4,39 @@ require 'includes/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
+    $subdomain = strtolower(trim($_POST['subdomain'] ?? ''));
 
-
-    if (!$name) {
-        $error = "Inserisci il nome del server";
+    if (!$name || !$subdomain) {
+        $error = "Inserisci sia il nome del server che il sottodominio.";
+    } elseif (!preg_match('/^[a-z0-9\-]+$/', $subdomain)) {
+        $error = "Il sottodominio può contenere solo lettere, numeri e trattini.";
     } else {
-        // Cerca una VM libera
-        $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
-        $vm = $stmt->fetch();
-
-        if (!$vm) {
-            $error = "Nessun server disponibile al momento. Riprova più tardi.";
+        // Verifica se il sottodominio è già usato
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE subdomain = ?");
+        $stmt->execute([$subdomain]);
+        if ($stmt->fetchColumn() > 0) {
+            $error = "Questo sottodominio è già in uso. Scegline un altro.";
         } else {
-            // Crea il server e associa la VM
-            $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, proxmox_vmid) VALUES (?, ?, ?)");
-            $stmt->execute([$_SESSION['user_id'], $name, $vm['proxmox_vmid']]);
-            $server_id = $pdo->lastInsertId();
+            // Cerca una VM libera
+            $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
+            $vm = $stmt->fetch();
 
-            // Aggiorna la VM come assegnata
-            $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-            $stmt->execute([$_SESSION['user_id'], $server_id, $vm['id']]);
+            if (!$vm) {
+                $error = "Nessun server disponibile al momento. Riprova più tardi.";
+            } else {
+                // Crea il server e associa la VM
+                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, proxmox_vmid) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$_SESSION['user_id'], $name, $subdomain, $vm['proxmox_vmid']]);
+                $server_id = $pdo->lastInsertId();
 
-            header("Location: dashboard.php");
-            exit;
+                // Aggiorna la VM come assegnata
+                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id'], $server_id, $vm['id']]);
+
+                // Reindirizza alla dashboard
+                header("Location: dashboard.php");
+                exit;
+            }
         }
     }
 }
@@ -45,6 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="mb-3">
             <label for="name" class="form-label">Nome del Server</label>
             <input type="text" name="name" id="name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="subdomain" class="form-label">Sottodominio desiderato (es. mc1)</label>
+            <div class="input-group">
+                <input type="text" name="subdomain" id="subdomain" class="form-control" required>
+                <span class="input-group-text">.sians.it</span>
+            </div>
+            <div class="form-text">Questo sarà l'indirizzo che userai per collegarti al server Minecraft.</div>
         </div>
 
         <button type="submit" class="btn btn-primary">Crea Server</button>
