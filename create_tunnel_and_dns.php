@@ -38,7 +38,7 @@ if (!$vmIp) {
 // Esempio basilare per avviare tunnel SSH remoto (modifica secondo le tue esigenze):
 
 $sshUser = 'diego';
-$sshKey = '/home/diego/.ssh/id_rsa'; // percorso chiave privata
+$sshKey = '/root/.ssh/id_rsa'; // percorso chiave privata
 
 // Comando per avviare tunnel ngrok in background sulla VM
 $commandStartTunnel = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'nohup ngrok tcp 25565 > /dev/null 2>&1 &'";
