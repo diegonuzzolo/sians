@@ -9,8 +9,9 @@ const CURSEFORGE_API_KEY = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIP
 try {
     $pdo = new PDO($dsn, $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    echo "🟢 Connessione al database riuscita.\n";
 } catch (PDOException $e) {
-    die("Errore connessione DB: " . $e->getMessage());
+    die("🔴 Errore connessione DB: " . $e->getMessage() . "\n");
 }
 
 function insert_or_update_project(PDO $pdo, array $project) {
@@ -31,11 +32,14 @@ function insert_or_update_project(PDO $pdo, array $project) {
         ':url' => $project['url'],
         ':thumbnail_url' => $project['thumbnail_url'],
     ]);
+
+    echo "✅ Salvato: {$project['name']} [{$project['id']}] ({$project['project_type']})\n";
 }
 
 function fetch_curseforge_projects(PDO $pdo, string $projectType, int $classId) {
     $page = 0;
     $pageSize = 50;
+    echo "\n🔄 Sincronizzazione $projectType...\n";
 
     do {
         $page++;
@@ -51,7 +55,10 @@ function fetch_curseforge_projects(PDO $pdo, string $projectType, int $classId) 
         $data = json_decode($response, true);
         curl_close($ch);
 
-        if (!isset($data['data']) || count($data['data']) === 0) break;
+        if (!isset($data['data']) || count($data['data']) === 0) {
+            echo "ℹ️  Nessun dato ricevuto alla pagina $page. Fine.\n";
+            break;
+        }
 
         foreach ($data['data'] as $mod) {
             $project = [
@@ -72,9 +79,12 @@ function fetch_curseforge_projects(PDO $pdo, string $projectType, int $classId) 
         }
 
     } while (true);
+
+    echo "✅ Completato $projectType.\n";
 }
 
 function fetch_project_by_id(PDO $pdo, $id, $projectType = 'modpack') {
+    echo "\n🔍 Recupero manuale progetto ID $id...\n";
     $url = "https://api.curseforge.com/v1/mods/$id";
     $headers = [
         "x-api-key: " . CURSEFORGE_API_KEY,
@@ -90,13 +100,13 @@ function fetch_project_by_id(PDO $pdo, $id, $projectType = 'modpack') {
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     if ($response === false || $http_code >= 400) {
-        echo "Errore nel recupero progetto ID $id: HTTP $http_code\n";
+        echo "❌ Errore nel recupero progetto ID $id: HTTP $http_code\n";
         return;
     }
 
     $mod = json_decode($response, true)['data'];
     if (!$mod) {
-        echo "Progetto ID $id non trovato.\n";
+        echo "❌ Progetto ID $id non trovato.\n";
         return;
     }
 
@@ -118,7 +128,9 @@ function fetch_project_by_id(PDO $pdo, $id, $projectType = 'modpack') {
     echo "✅ Aggiunto progetto manuale: {$mod['name']} (ID: $id)\n";
 }
 
-// Avvia sincronizzazione
+// Avvia sincronizzazione CLI
 fetch_curseforge_projects($pdo, 'modpack', 4471);
 fetch_curseforge_projects($pdo, 'plugin', 4559);
 fetch_project_by_id($pdo, 301027, 'modpack'); // Aggiunta RLCraft
+
+echo "\n🎉 Sincronizzazione completata!\n";
