@@ -14,7 +14,7 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id I
 $slotDisponibili = $stmt->fetchColumn();
 
 // Server utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip AS ip, vm.hostname, s.tunnel_url
                        FROM servers s
                        JOIN minecraft_vms vm ON s.vm_id = vm.id
                        WHERE s.user_id = ?");
@@ -70,7 +70,7 @@ $servers = $stmt->fetchAll();
                         <td><?= htmlspecialchars($server['name']) ?></td>
                         <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
                         <td>
-                            <?= !empty($server['ip_address']) ? htmlspecialchars($server['ip_address']) . '<br>' : '' ?>
+                            <?= !empty($server['ip']) ? htmlspecialchars($server['ip']) . '<br>' : '' ?>
                             <?= !empty($server['hostname']) ? '<small>' . htmlspecialchars($server['hostname']) . '</small><br>' : '' ?>
                         </td>
                         <td>
