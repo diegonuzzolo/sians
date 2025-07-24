@@ -1,8 +1,8 @@
 <?php
 // Configurazione DB e API
-$dsn = 'mysql:host=localhost;dbname=minecraft;charset=utf8mb4';
-$user = 'root';
-$pass = '';
+$dsn = 'mysql:host=localhost;dbname=minecraft_platform;charset=utf8mb4';
+$user = 'diego';
+$pass = 'Lgu8330Serve6';
 
 const CURSEFORGE_API_KEY = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
 
