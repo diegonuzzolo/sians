@@ -1,19 +1,7 @@
 <?php
-require_once 'config/config.php';
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 session_start();
-
-
-echo "Debug: script avviato<br>";
-
-if (!isset($_SESSION['user_id'])) {
-    echo "Utente non loggato, redirect in corso..."; exit;
-}
-
-session_start();
+require 'config/config.php';
+require 'includes/auth.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -27,7 +15,7 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id I
 $slotDisponibili = $stmt->fetchColumn();
 
 // Server utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip_address AS ip_address, vm.hostname, s.tunnel_url
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
                        FROM servers s
                        JOIN minecraft_vms vm ON s.vm_id = vm.id
                        WHERE s.user_id = ?");
@@ -109,30 +97,29 @@ $servers = $stmt->fetchAll();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge <?= $server['status'] === 'attivo' ? 'bg-success' : 'bg-secondary' ?>">
-                                <?= $server['status'] === 'attivo' ? 'Attivo' : 'Spento' ?>
+                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
+                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
                             </span>
                         </td>
-                    <td>
-    <!-- Form start/stop -->
-    <form action="server_action.php" method="post" class="d-inline">
-        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-        <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
-                title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
-            <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-        </button>
-    </form>
+                        <td>
+                            <!-- Form Start/Stop -->
+                            <form action="server_action.php" method="post" class="d-inline">
+                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                                        class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
+                                        title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
+                                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                                </button>
+                            </form>
 
-    <!-- Form delete -->
-    <form action="server_action.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
-        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-        <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" title="Elimina Server">
-            Elimina
-        </button>
-    </form>
-</td>
-
+                            <!-- Form Delete -->
+                            <form action="server_action.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
+                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                                <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" title="Elimina Server">
+                                    Elimina
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -184,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     previousStatus = data.status;
 
                     // Badge
-                    if (data.status === 'attivo') {
+                    if (data.status === 'running') {
                         statusBadge.textContent = 'Attivo';
                         statusBadge.className = 'badge bg-success';
                         // Bottone: FERMA
