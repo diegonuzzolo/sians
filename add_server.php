@@ -1,54 +1,44 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 require 'config/config.php';
 require 'includes/auth.php';
-require 'includes/header.php';
 
-$error = '';
-$success = '';
+// Recupera nome server dal form
+$serverName = $_POST['server_name'] ?? null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $serverName = trim($_POST['name'] ?? '');
-    $subdomain = trim($_POST['subdomain'] ?? '');
-    $userId = $_SESSION['user_id'] ?? null;
-
-    if (!$serverName || !$subdomain || !$userId) {
-        $error = "Tutti i campi sono obbligatori.";
-    } else {
-        try {
-            // Trova una VM libera
-            $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
-            $stmt->execute();
-            $vm = $stmt->fetch();
-
-            if (!$vm) {
-                $error = "Nessuna VM disponibile";
-            } else {
-                $vmId = $vm['id'];
-                $proxmoxVmid = $vm['proxmox_vmid'];
-
-                // Inserisci nuovo server
-                $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, subdomain) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$serverName, $userId, $vmId, $proxmoxVmid, $subdomain]);
-                $serverId = $pdo->lastInsertId();
-
-                // Assegna la VM
-                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-                $stmt->execute([$userId, $serverId, $vmId]);
-
-                // Reindirizza a tunnel/DNS
-                header("Location: create_tunnel_and_dns.php?server_id=$serverId");
-                exit;
-            }
-        } catch (PDOException $e) {
-            $error = "Errore database: " . $e->getMessage();
-        }
-    }
+if (!$serverName) {
+    echo "Nome server mancante.";
+    exit;
 }
+
+// Cerca una VM libera
+$stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
+$stmt->execute();
+$vm = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$vm) {
+    echo "Nessuna VM disponibile.";
+    exit;
+}
+
+$vmId = $vm['id'];
+$proxmoxVmid = $vm['proxmox_vmid'];
+$userId = $_SESSION['user_id'];
+
+// Inserisce il nuovo server
+$stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid) VALUES (?, ?, ?, ?)");
+$stmt->execute([$serverName, $userId, $vmId, $proxmoxVmid]);
+
+$serverId = $pdo->lastInsertId();
+
+// Aggiorna la VM come assegnata
+$stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+$stmt->execute([$userId, $serverId, $vmId]);
+
+// Redirect allo script che crea tunnel e DNS
+header("Location: create_tunnel_and_dns.php?server_id=" . $serverId);
+exit;
 ?>
+
 <?php include 'includes/header.php';?>
 <div class="container mt-5">
     <h2>Aggiungi un nuovo Server Minecraft</h2>
