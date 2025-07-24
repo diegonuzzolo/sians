@@ -133,12 +133,7 @@ $servers = $stmt->fetchAll();
         <div class="card-body text-center">
             <h5 class="card-title">Nuovo Server</h5>
             <?php if ($slotDisponibili > 0): ?>
-               <form action="add_server.php" method="POST">
-  <input type="text" name="server_name" placeholder="Nome Server" required>
-  <input type="text" name="subdomain" placeholder="Sottodominio" required>
-  <button type="submit">Crea Server</button>
-</form>
-
+                <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
             <?php else: ?>
                 <p class="text-danger mt-2">Nessuno slot disponibile</p>
             <?php endif; ?>
