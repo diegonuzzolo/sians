@@ -57,9 +57,9 @@ $servers = $stmt->fetchAll();
                 <thead class="table-dark">
                     <tr>
                         <th>Nome</th>
-                        <th>ID Proxmox</th>
+                        <th>ID</th>
                         <!-- <th>IP / Hostname</th> -->
-                        <th>Tunnel ngrok TCP</th>
+                        <th>Hostname</th>
                         <th>Dominio</th>
                         <th>Stato</th>
                         <th>Azioni</th>
