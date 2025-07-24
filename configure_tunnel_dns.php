@@ -48,7 +48,7 @@ if (!$subdomain) {
 // --- 1) Avvia ngrok TCP tunnel (porta Minecraft 25565 locale sulla VM) ---
 
 // Costruiamo il comando (adatta se devi specificare un indirizzo IP VM o localhost)
-$cmd = 'ngrok    tcp 25565 --log=stdout --log-level=info';
+$cmd = 'sudo -u www-data /usr/local/bin/ngrok tcp 25565 --log=stdout --log-level=info';
 
 // Lancia il comando in background, cattura output
 exec($cmd . ' 2>&1', $output, $ret);

@@ -2,7 +2,7 @@
 
 function avviaTunnelNgrokTcp(int $portaLocale = 25565): ?array {
     // Comando per avviare ngrok in background con output JSON
-    $cmd = "ngrok tcp $portaLocale --log=stdout --log-format=json > /tmp/ngrok.log 2>&1 & echo $!";
+    $cmd = "sudo -u www-data /usr/local/bin/ngrok tcp $portaLocale --log=stdout --log-format=json > /tmp/ngrok.log 2>&1 & echo $!";
     $pid = trim(shell_exec($cmd));
     if (!$pid) return null;
 
