@@ -113,12 +113,11 @@ $servers = $stmt->fetchAll();
                             </form>
 
                             <!-- Form Delete -->
-                            <form action="server_action.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                                <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" title="Elimina Server">
-                                    Elimina
-                                </button>
-                            </form>
+                            <form method="POST" action="delete_server.php" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');" class="d-inline">
+    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+    <button type="submit" class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
+</form>
+
                         </td>
                     </tr>
                 <?php endforeach; ?>
