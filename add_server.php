@@ -11,74 +11,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subdomain = trim($_POST['subdomain'] ?? '');
     $userId = $_SESSION['user_id'] ?? null;
 
-    // Controllo campi obbligatori
     if (!$serverName || !$subdomain || !$userId) {
         $error = "Tutti i campi sono obbligatori.";
-    } 
-    // Validazione subdomain: solo lettere, numeri, trattini (esempio)
-    elseif (!preg_match('/^[a-z0-9-]+$/i', $subdomain)) {
+    } elseif (!preg_match('/^[a-z0-9-]+$/i', $subdomain)) {
         $error = "Hostname non valido. Usa solo lettere, numeri e trattini.";
-    } 
-    else {
-        // 1. Cerca VM libera
-        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
-        $stmt->execute();
-        $vm = $stmt->fetch(PDO::FETCH_ASSOC);
+    } else {
+        try {
+            // 1. Cerca VM libera
+            $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
+            $stmt->execute();
+            $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$vm) {
-            $error = "Nessuna VM libera disponibile.";
-        } else {
-            // 2. Crea il server nel DB
-            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, subdomain) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$serverName, $userId, $vm['id'], $subdomain]);
-            $serverId = $pdo->lastInsertId();
-
-            // 3. Aggiorna VM come assegnata
-            $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-            $stmt->execute([$userId, $serverId, $vm['id']]);
-
-            // 4. Avvia tunnel ngrok sulla VM
-            $vmIp = $vm['ip'];
-            $sshKey = '/home/diego/.ssh/id_rsa';
-            $sshUser = 'diego';
-
-            // Avvia ngrok in background
-            $commandStartNgrok = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'nohup ngrok tcp 25565 > /dev/null 2>&1 &'";
-
-            exec($commandStartNgrok, $outputStart, $exitStart);
-            if ($exitStart !== 0) {
-                $error = "Errore nell'avviare ngrok sulla VM $vmIp.";
+            if (!$vm) {
+                $error = "Nessuna VM libera disponibile.";
             } else {
-                // Attendi che ngrok si avvii
-                sleep(5);
-
-                // Ottieni tunnel attivi da ngrok API
-                $commandGetTunnel = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'curl -s http://127.0.0.1:4040/api/tunnels'";
-                $json = shell_exec($commandGetTunnel);
-                $data = json_decode($json, true);
-
-                if (!isset($data['tunnels']) || count($data['tunnels']) == 0) {
-                    $error = "Nessun tunnel ngrok attivo trovato sulla VM $vmIp.";
+                // 2. Crea il server nel DB
+                $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, subdomain) VALUES (?, ?, ?, ?)");
+                if (!$stmt->execute([$serverName, $userId, $vm['id'], $subdomain])) {
+                    $error = "Errore nella creazione del server: " . implode(", ", $stmt->errorInfo());
                 } else {
-                    $tunnelUrl = null;
-                    foreach ($data['tunnels'] as $tunnel) {
-                        if ($tunnel['proto'] === 'tcp') {
-                            $tunnelUrl = $tunnel['public_url'];
-                            break;
-                        }
-                    }
+                    $serverId = $pdo->lastInsertId();
 
-                    if (!$tunnelUrl) {
-                        $error = "Nessun tunnel TCP trovato.";
+                    // 3. Aggiorna VM come assegnata
+                    $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+                    if (!$stmt->execute([$userId, $serverId, $vm['id']])) {
+                        $error = "Errore nell'assegnazione della VM: " . implode(", ", $stmt->errorInfo());
                     } else {
-                        // 5. Aggiorna il server con tunnel_url
-                        $stmt = $pdo->prepare("UPDATE servers SET tunnel_url = ? WHERE id = ?");
-                        $stmt->execute([$tunnelUrl, $serverId]);
+                        // 4. Avvia tunnel ngrok sulla VM
+                        $vmIp = $vm['ip'];
+                        $sshKey = '/home/diego/.ssh/id_rsa';
+                        $sshUser = 'diego';
 
-                        $success = "Server creato con successo. Tunnel attivo: $tunnelUrl";
+                        $commandStartNgrok = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'nohup ngrok tcp 25565 > /dev/null 2>&1 &'";
+
+                        exec($commandStartNgrok, $outputStart, $exitStart);
+                        if ($exitStart !== 0) {
+                            $error = "Errore nell'avviare ngrok sulla VM $vmIp.";
+                        } else {
+                            sleep(5);
+                            $commandGetTunnel = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'curl -s http://127.0.0.1:4040/api/tunnels'";
+                            $json = shell_exec($commandGetTunnel);
+                            $data = json_decode($json, true);
+
+                            if (!isset($data['tunnels']) || count($data['tunnels']) == 0) {
+                                $error = "Nessun tunnel ngrok attivo trovato sulla VM $vmIp.";
+                            } else {
+                                $tunnelUrl = null;
+                                foreach ($data['tunnels'] as $tunnel) {
+                                    if ($tunnel['proto'] === 'tcp') {
+                                        $tunnelUrl = $tunnel['public_url'];
+                                        break;
+                                    }
+                                }
+
+                                if (!$tunnelUrl) {
+                                    $error = "Nessun tunnel TCP trovato.";
+                                } else {
+                                    $stmt = $pdo->prepare("UPDATE servers SET tunnel_url = ? WHERE id = ?");
+                                    if (!$stmt->execute([$tunnelUrl, $serverId])) {
+                                        $error = "Errore nell'aggiornamento del tunnel: " . implode(", ", $stmt->errorInfo());
+                                    } else {
+                                        $success = "Server creato con successo. Tunnel attivo: $tunnelUrl";
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
+        } catch (PDOException $e) {
+            $error = "Errore database: " . $e->getMessage();
         }
     }
 }
@@ -96,7 +98,7 @@ include 'includes/header.php';
         <a href="dashboard.php" class="btn btn-primary">Torna alla Dashboard</a>
     <?php endif; ?>
 
-    <?php if (!$success): // Mostra il form solo se non abbiamo successo ?>
+    <?php if (!$success): ?>
     <form method="post" class="mt-4" style="max-width: 400px;">
         <div class="mb-3">
             <label for="name" class="form-label">Nome del Server</label>
