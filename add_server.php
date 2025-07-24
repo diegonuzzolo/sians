@@ -44,9 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once 'includes/functions.php'; // metti le funzioni startNgrokTcpTunnel() e createOrUpdateCloudflareDnsRecord() in un file a parte
 
 $tunnel = startNgrokTcpTunnel(25565);
+
 if (!$tunnel) {
     $error = "Impossibile avviare il tunnel ngrok.";
+    var_dump($error);
+    exit;
 } else {
+    var_dump($tunnel);
     $dnsSuccess = createOrUpdateCloudflareDnsRecord($subdomain, $tunnel['host']);
     if (!$dnsSuccess) {
         $error = "Errore nella creazione del record DNS su Cloudflare.";
