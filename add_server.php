@@ -3,10 +3,20 @@ require 'config/config.php';
 require 'includes/auth.php';
 
 $serverName = $_POST['server_name'] ?? null;
+$subdomain = $_POST['subdomain'] ?? null;
 
-if (!$serverName) {
+if (!$serverName || !$subdomain) {
     http_response_code(400);
-    echo "Nome server mancante";
+    echo "Nome server o sottodominio mancante";
+    exit;
+}
+
+// Verifica che il sottodominio non sia già usato
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE subdomain = ?");
+$stmt->execute([$subdomain]);
+if ($stmt->fetchColumn() > 0) {
+    http_response_code(409); // Conflict
+    echo "Il sottodominio è già in uso";
     exit;
 }
 
@@ -22,8 +32,8 @@ if (!$vm) {
 }
 
 // Inserisci il nuovo server nella tabella `servers`
-$stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid) VALUES (?, ?, ?, ?)");
-$success = $stmt->execute([$serverName, $userId, $vm['id'], $vm['proxmox_vmid']]);
+$stmt = $pdo->prepare("INSERT INTO servers (name, subdomain, user_id, vm_id, proxmox_vmid) VALUES (?, ?, ?, ?, ?)");
+$success = $stmt->execute([$serverName, $subdomain, $userId, $vm['id'], $vm['proxmox_vmid']]);
 
 if (!$success) {
     echo "Errore database: " . implode(", ", $stmt->errorInfo());
@@ -37,19 +47,18 @@ $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_s
 $stmt->execute([$userId, $serverId, $vm['id']]);
 
 // Reindirizza alla creazione del tunnel e DNS
-header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+header("Location: create_tunnel_and_dns.php?server_id=$serverId&subdomain=$subdomain");
 exit;
 ?>
-
 
 <?php include 'includes/header.php'; ?>
 
 <div class="container mt-4">
     <h2>Crea un nuovo server Minecraft</h2>
 
-    <?php if ($error): ?>
+    <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php elseif ($success): ?>
+    <?php elseif (!empty($success)): ?>
         <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
     <?php endif; ?>
 
@@ -64,7 +73,7 @@ exit;
             <label for="subdomain">Sottodominio (es. mc1)</label>
             <input type="text" class="form-control" id="subdomain" name="subdomain"
                    value="<?= htmlspecialchars($_POST['subdomain'] ?? '') ?>" required>
-            <small class="form-text text-muted">Il dominio sarà <strong>mcX.sians.it</strong></small>
+            <small class="form-text text-muted">Il dominio sarà <strong><span id="subdomain-preview"><?= htmlspecialchars($_POST['subdomain'] ?? 'mcX') ?></span>.sians.it</strong></small>
         </div>
 
         <button type="submit" class="btn btn-primary">Crea server</button>
