@@ -14,7 +14,7 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id I
 $slotDisponibili = $stmt->fetchColumn();
 
 // Server utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname, s.ngrok_tcp_host, s.ngrok_tcp_port
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.custom_subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname, s.ngrok_host, s.ngrok_port
                        FROM servers s
                        JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
                        WHERE s.user_id = ?");
