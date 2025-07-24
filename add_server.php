@@ -53,11 +53,22 @@ exit;
         <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="add_server.php">
-    <input type="text" name="server_name" placeholder="Nome server" required>
-    <button type="submit">Crea server</button>
-</form>
+    <form method="POST">
+        <div class="form-group">
+            <label for="server_name">Nome Server</label>
+            <input type="text" class="form-control" id="server_name" name="server_name"
+                   value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>" required>
+        </div>
 
+        <div class="form-group">
+            <label for="subdomain">Sottodominio (es. mc1)</label>
+            <input type="text" class="form-control" id="subdomain" name="subdomain"
+                   value="<?= htmlspecialchars($_POST['subdomain'] ?? '') ?>" required>
+            <small class="form-text text-muted">Il dominio sarà <strong>mcX.sians.it</strong></small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Crea server</button>
+    </form>
 </div>
 
 <?php include 'includes/footer.php'; ?>
