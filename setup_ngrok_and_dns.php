@@ -12,7 +12,7 @@ if (!$subdomain) {
 
 // Avvia ngrok TCP in background e salva JSON in un file temporaneo
 $tmpFile = '/tmp/ngrok_tunnel_' . uniqid() . '.json';
-$cmd = "ngrok   tcp $localPort --log=stdout --log-format=json > $tmpFile &";
+$cmd = "/usr/local/bin/ngrok tcp $localPort --log=stdout --log-format=json > $tmpFile &";
 exec($cmd);
 
 // Aspetta un attimo che ngrok si avvii
