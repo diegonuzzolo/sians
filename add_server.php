@@ -54,7 +54,7 @@ exit;
     <form method="post" class="mt-4" style="max-width: 400px;">
         <div class="mb-3">
             <label for="name" class="form-label">Nome del Server</label>
-            <input type="text" name="name" id="name" class="form-control" required value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
+            <input type="text" name="server_name" id="name" class="form-control" required value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
         </div>
 
         <div class="mb-3">
