@@ -1,6 +1,13 @@
 <?php
-require 'config/config.php';  // $pdo PDO connection
 
+// Abilita la visualizzazione di tutti gli errori PHP per il debug
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+
+define('DB_PORT', 3306); // Aggiunto il port, se non specificato in DSN
+
+// --- Configurazione API Modrinth ---
 define('MODRINTH_API_BASE_URL', 'https://api.modrinth.com/v2');
 // IMPORTANTE: L'API di Modrinth richiede un'intestazione User-Agent descrittiva.
 // Sostituiscila con qualcosa che identifichi la tua applicazione,
@@ -20,7 +27,7 @@ function connect_db() {
      * Stabilisce una connessione al database MySQL utilizzando PDO.
      * Restituisce l'oggetto PDO se la connessione ha successo, altrimenti null.
      */
-    $dsn = "mysql:host=" . DB_HOST . ";port=" . 3306 . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
     $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -31,7 +38,7 @@ function connect_db() {
         echo "Connessione al database riuscita.\n";
         return $pdo;
     } catch (PDOException $e) {
-        echo "Errore durante la connessione al database: " . $e->getMessage() . "\n";
+        echo "ERRORE CRITICO: Errore durante la connessione al database: " . $e->getMessage() . "\n";
         return null;
     }
 }
@@ -80,7 +87,8 @@ function insert_or_update_item($pdo, $item_data) {
         ]);
         echo "Elemento sincronizzato: " . $item_data['title'] . " (ID: " . $item_data['id'] . ")\n";
     } catch (PDOException $e) {
-        echo "Errore durante la sincronizzazione dell'elemento " . ($item_data['id'] ?? 'N/A') . ": " . $e->getMessage() . "\n";
+        echo "ERRORE DB: Errore durante la sincronizzazione dell'elemento " . ($item_data['id'] ?? 'N/A') . ": " . $e->getMessage() . "\n";
+        // Puoi aggiungere qui una logica per gestire l'errore, ad esempio saltare l'elemento corrente
     }
 }
 
@@ -104,6 +112,7 @@ function fetch_modrinth_projects($project_type, $offset = 0, $limit = PAGE_LIMIT
     ];
 
     $url = MODRINTH_API_BASE_URL . "/search?" . http_build_query($params);
+    echo "DEBUG: Richiesta API Modrinth URL: " . $url . "\n";
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -114,19 +123,28 @@ function fetch_modrinth_projects($project_type, $offset = 0, $limit = PAGE_LIMIT
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curl_error = curl_error($ch);
+    $curl_errno = curl_errno($ch);
     curl_close($ch);
 
     if ($response === false) {
-        echo "Errore cURL durante il recupero dei dati da Modrinth per il tipo '$project_type', offset $offset: $curl_error\n";
+        echo "ERRORE cURL: Durante il recupero dei dati da Modrinth per il tipo '$project_type', offset $offset. Codice errore: $curl_errno, Messaggio: $curl_error\n";
         return null;
     }
 
     if ($http_code >= 400) {
-        echo "Errore HTTP ($http_code) durante il recupero dei dati da Modrinth per il tipo '$project_type', offset $offset: " . $response . "\n";
+        echo "ERRORE HTTP: ($http_code) durante il recupero dei dati da Modrinth per il tipo '$project_type', offset $offset. Risposta: " . $response . "\n";
         return null;
     }
 
-    return json_decode($response, true);
+    $decoded_response = json_decode($response, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        echo "ERRORE JSON: Impossibile decodificare la risposta API per il tipo '$project_type', offset $offset. Errore: " . json_last_error_msg() . ". Risposta RAW: " . $response . "\n";
+        return null;
+    }
+
+    echo "DEBUG: Recuperati " . (isset($decoded_response['hits']) ? count($decoded_response['hits']) : 0) . " progetti per il tipo '$project_type' (offset $offset).\n";
+    return $decoded_response;
 }
 
 function sync_modrinth_data() {
@@ -137,6 +155,7 @@ function sync_modrinth_data() {
      */
     $pdo = connect_db();
     if (!$pdo) {
+        echo "Sincronizzazione interrotta a causa di un errore di connessione al database.\n";
         return; // Esci se la connessione al database fallisce
     }
 
@@ -152,7 +171,7 @@ function sync_modrinth_data() {
                 $data = fetch_modrinth_projects($p_type, $offset, PAGE_LIMIT);
 
                 if (!$data || !isset($data['hits']) || empty($data['hits'])) {
-                    echo "Nessun altro progetto di tipo '$p_type' trovato o si è verificato un errore API.\n";
+                    echo "Nessun altro progetto di tipo '$p_type' trovato o si è verificato un errore API/decodifica JSON.\n";
                     break;
                 }
 
@@ -168,7 +187,7 @@ function sync_modrinth_data() {
                             $dt = new DateTime($project['date_created']);
                             $dateCreated = $dt->format('Y-m-d H:i:s');
                         } catch (Exception $e) {
-                            echo "Avviso: Impossibile parsare date_created '{$project['date_created']}' per l'ID {$project['project_id']}: {$e->getMessage()}\n";
+                            echo "AVVISO: Impossibile parsare date_created '{$project['date_created']}' per l'ID {$project['project_id']}: {$e->getMessage()}\n";
                         }
                     }
 
@@ -178,7 +197,7 @@ function sync_modrinth_data() {
                             $dt = new DateTime($project['date_modified']);
                             $dateModified = $dt->format('Y-m-d H:i:s');
                         } catch (Exception $e) {
-                            echo "Avviso: Impossibile parsare date_modified '{$project['date_modified']}' per l'ID {$project['project_id']}: {$e->getMessage()}\n";
+                            echo "AVVISO: Impossibile parsare date_modified '{$project['date_modified']}' per l'ID {$project['project_id']}: {$e->getMessage()}\n";
                         }
                     }
 
@@ -197,20 +216,27 @@ function sync_modrinth_data() {
                         'url' => isset($project['slug']) ? "https://modrinth.com/project/" . $project['slug'] : null,
                         'thumbnail_url' => $project['icon_url'] ?? null
                     ];
-                    insert_or_update_item($pdo, $item_data);
-                    $totalSyncedForType++;
+                    
+                    // Verifica che l'ID non sia nullo prima di tentare l'inserimento
+                    if ($item_data['id'] !== null) {
+                        insert_or_update_item($pdo, $item_data);
+                        $totalSyncedForType++;
+                    } else {
+                        echo "AVVISO: Saltato elemento senza ID valido. Dati: " . json_encode($project) . "\n";
+                    }
                 }
 
                 // Se il numero di hit è inferiore a PAGE_LIMIT, significa che abbiamo raggiunto l'ultima pagina
                 if (count($data['hits']) < PAGE_LIMIT) {
+                    echo "Raggiunta l'ultima pagina per il tipo '$p_type'.\n";
                     break;
                 }
                 $offset += PAGE_LIMIT; // Passa alla pagina successiva
-                echo "Elaborati " . count($data['hits']) . " progetti di tipo '$p_type'. Totale sincronizzato per tipo: $totalSyncedForType\n";
+                echo "Elaborati " . count($data['hits']) . " progetti di tipo '$p_type'. Totale sincronizzato per tipo: $totalSyncedForType. Passaggio all'offset: $offset\n";
             }
         }
     } catch (Exception $e) {
-        echo "Si è verificato un errore inaspettato durante la sincronizzazione: " . $e->getMessage() . "\n";
+        echo "ERRORE INATTESO: Si è verificato un errore inaspettato durante la sincronizzazione: " . $e->getMessage() . "\n";
     } finally {
         // La connessione PDO si chiude automaticamente quando lo script termina o l'oggetto PDO viene distrutto.
         // Non è necessario chiamare $pdo->close() esplicitamente.
