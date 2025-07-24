@@ -59,8 +59,8 @@ $servers = $stmt->fetchAll();
                         <th>Nome</th>
                         <th>ID</th>
                         <!-- <th>IP / Hostname</th> -->
+                        <!-- <th>Hostname</th> -->
                         <th>Hostname</th>
-                        <th>Dominio</th>
                         <th>Stato</th>
                         <th>Azioni</th>
                     </tr>
@@ -73,19 +73,9 @@ $servers = $stmt->fetchAll();
                         <!-- <td>
                             
                         </td> -->
-                        <td>
-                            <?php if (!empty($server['tunnel_url'])): 
-                                // Estraggo host e port da tunnel_url (es. tcp://0.tcp.ngrok.io:12345)
-                                $url = $server['tunnel_url'];
-                                $urlParts = parse_url(str_replace('tcp://', 'tcp://', $url));
-                                $host = $urlParts['host'] ?? '';
-                                $port = $urlParts['port'] ?? '';
-                            ?>
-                                <code><?= htmlspecialchars($host . ':' . $port) ?></code>
-                            <?php else: ?>
-                                <span class="text-muted small">Non disponibile</span>
-                            <?php endif; ?>
-                        </td>
+                        <!-- <td>
+                            
+                        </td> -->
                         <td>
                             <?php if (!empty($server['subdomain'])): ?>
                                 <a href="http://<?= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank" rel="noopener noreferrer">
