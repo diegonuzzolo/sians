@@ -47,17 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+
+include("includes/header.php");
 ?>
 
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8" />
-    <title>Aggiungi Server Minecraft</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-</head>
-<body>
-<div class="container mt-5">
+
     <h1>Aggiungi un nuovo Server Minecraft</h1>
 
     <?php if ($error): ?>
@@ -82,6 +77,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit" class="btn btn-primary">Crea Server</button>
         <a href="dashboard.php" class="btn btn-secondary ms-2">Annulla</a>
     </form>
-</div>
-</body>
-</html>
+<?php include("includes/footer.php"); ?>
