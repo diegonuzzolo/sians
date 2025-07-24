@@ -58,7 +58,7 @@ $servers = $stmt->fetchAll();
                     <tr>
                         <th>Nome</th>
                         <th>ID Proxmox</th>
-                        <th>IP / Hostname</th>
+                        <!-- <th>IP / Hostname</th> -->
                         <th>Tunnel ngrok TCP</th>
                         <th>Dominio</th>
                         <th>Stato</th>
@@ -70,10 +70,10 @@ $servers = $stmt->fetchAll();
                     <tr data-vmid="<?= htmlspecialchars($server['proxmox_vmid']) ?>" data-server-id="<?= htmlspecialchars($server['id']) ?>">
                         <td><?= htmlspecialchars($server['name']) ?></td>
                         <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
-                        <td>
+                        <!-- <td>
                             <?= !empty($server['ip_address']) ? htmlspecialchars($server['ip_address']) . '<br>' : '' ?>
                             <?= !empty($server['hostname']) ? '<small>' . htmlspecialchars($server['hostname']) . '</small><br>' : '' ?>
-                        </td>
+                        </td> -->
                         <td>
                             <?php if (!empty($server['tunnel_url'])): 
                                 // Estraggo host e port da tunnel_url (es. tcp://0.tcp.ngrok.io:12345)
