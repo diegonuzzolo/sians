@@ -77,8 +77,8 @@ function syncCurseforgeItems($category, $gameId=432, $classId) {
 
 // Esempio: aggiorna modpack e plugin
 try {
-    syncCurseforgeItems('modpack', 432, 6);  // 6 = modpack classId (verifica ufficiale)
-    syncCurseforgeItems('plugin', 432, 12); // 12 = plugin classId (verifica ufficiale)
+    syncCurseforgeItems('modpack', 432, 4471);  // 6 = modpack classId (verifica ufficiale)
+    syncCurseforgeItems('plugin', 432, 5); // 12 = plugin classId (verifica ufficiale)
     echo "Sincronizzazione completata.";
 } catch (Exception $e) {
     echo "Errore sincronizzazione: " . $e->getMessage();
