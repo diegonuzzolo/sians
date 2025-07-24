@@ -50,7 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
                 $stmt->execute([$_SESSION['user_id'], $serverId, $vm['id']]);
 
-                header("Location: dashboard.php");
+                // Reindirizza allo script che crea il tunnel e DNS
+                header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+
+
                 exit;
             }
         }
