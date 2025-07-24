@@ -57,6 +57,32 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Authorization: PVEAPIToken=$tokenId=$tokenSecret",
+    "Accept: application/json"
+]);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+if ($response === false) {
+    error_log('cURL error: ' . curl_error($ch));
+}
+curl_close($ch);
+
+var_dump($httpCode, $response);
+exit;
+
 curl_close($ch);
 
 if ($httpCode === 200) {
