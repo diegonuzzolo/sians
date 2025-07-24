@@ -1,214 +1,141 @@
 <?php
-include("config/config.php"); // Include il file di configurazione per le costanti del database
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Configurazione DB
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'minecraft_platform');
+define('DB_USER', 'diego');
+define('DB_PASSWORD', 'Lgu8330Serve6');
+define('DB_CHARSET', 'utf8mb4');
 
-define('DB_PORT', 3306);
-define('MODRINTH_API_BASE_URL', 'https://api.modrinth.com/v2');
-define('USER_AGENT', 'MinecraftPlatformSyncScriptPHP/1.0 (contact@example.com)');
-define('PAGE_LIMIT', 100);
+// API CurseForge key
+define('CURSEFORGE_API_KEY', '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC');
 
-$projectTypesToSync = ["mod", "modpack"];
-
-// --- Funzioni Database ---
+// Connessione DB
 function connect_db() {
-    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+    $dsn = "mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=".DB_CHARSET;
     $options = [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
     ];
     try {
-        $pdo = new PDO($dsn, DB_USER, DB_PASSWORD, $options);
-        echo "Connessione al database riuscita.\n";
-        return $pdo;
+        return new PDO($dsn, DB_USER, DB_PASSWORD, $options);
     } catch (PDOException $e) {
-        echo "ERRORE CRITICO: Errore durante la connessione al database: " . $e->getMessage() . "\n";
-        return null;
+        die("Errore connessione DB: " . $e->getMessage());
     }
 }
 
-function insert_or_update_item($pdo, $item_data) {
-    $sql = "
-    INSERT INTO modrinth_items (
-        id, title, slug, description, categories, downloads,
-        latest_version_id, date_created, date_modified, project_type, url, thumbnail_url
-    ) VALUES (
-        :id, :title, :slug, :description, :categories, :downloads,
-        :latest_version_id, :date_created, :date_modified, :project_type, :url, :thumbnail_url
-    ) ON DUPLICATE KEY UPDATE
-        title = VALUES(title),
-        slug = VALUES(slug),
-        description = VALUES(description),
-        categories = VALUES(categories),
-        downloads = VALUES(downloads),
-        latest_version_id = VALUES(latest_version_id),
-        date_created = VALUES(date_created),
-        date_modified = VALUES(date_modified),
-        project_type = VALUES(project_type),
-        url = VALUES(url),
-        thumbnail_url = VALUES(thumbnail_url);
-    ";
-    try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':id' => $item_data['id'],
-            ':title' => $item_data['title'],
-            ':slug' => $item_data['slug'],
-            ':description' => $item_data['description'],
-            ':categories' => $item_data['categories'],
-            ':downloads' => $item_data['downloads'],
-            ':latest_version_id' => $item_data['latest_version_id'],
-            ':date_created' => $item_data['date_created'],
-            ':date_modified' => $item_data['date_modified'],
-            ':project_type' => $item_data['project_type'],
-            ':url' => $item_data['url'],
-            ':thumbnail_url' => $item_data['thumbnail_url']
-        ]);
-        echo "Elemento sincronizzato: " . $item_data['title'] . " (ID: " . $item_data['id'] . ")\n";
-    } catch (PDOException $e) {
-        echo "ERRORE DB: Errore durante la sincronizzazione dell'elemento " . ($item_data['id'] ?? 'N/A') . ": " . $e->getMessage() . "\n";
-    }
+// Inserimento o aggiornamento progetto
+function insert_or_update_project(PDO $pdo, $project) {
+    $sql = "INSERT INTO curseforge_projects 
+        (id, name, slug, summary, downloads, project_type, game_versions, date_created, date_modified, url, thumbnail_url)
+        VALUES (:id, :name, :slug, :summary, :downloads, :project_type, :game_versions, :date_created, :date_modified, :url, :thumbnail_url)
+        ON DUPLICATE KEY UPDATE 
+          name = VALUES(name),
+          slug = VALUES(slug),
+          summary = VALUES(summary),
+          downloads = VALUES(downloads),
+          project_type = VALUES(project_type),
+          game_versions = VALUES(game_versions),
+          date_created = VALUES(date_created),
+          date_modified = VALUES(date_modified),
+          url = VALUES(url),
+          thumbnail_url = VALUES(thumbnail_url)";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':id' => $project['id'],
+        ':name' => $project['name'],
+        ':slug' => $project['slug'],
+        ':summary' => $project['summary'],
+        ':downloads' => $project['downloads'],
+        ':project_type' => $project['project_type'],
+        ':game_versions' => json_encode($project['game_versions']),
+        ':date_created' => $project['date_created'],
+        ':date_modified' => $project['date_modified'],
+        ':url' => $project['url'],
+        ':thumbnail_url' => $project['thumbnail_url'],
+    ]);
+    echo "Sincronizzato progetto ID {$project['id']}: {$project['name']}\n";
 }
 
-// --- Funzioni API Modrinth ---
-function fetch_modrinth_projects($project_type, $offset = 0, $limit = PAGE_LIMIT) {
-    $headers = [
-        "User-Agent: " . USER_AGENT,
-        "Accept: application/json"
+// Funzione per richiamare l’API CurseForge per un tipo di progetto
+function fetch_curseforge_projects(PDO $pdo, $projectType, $pageSize = 50) {
+    $page = 0;
+    $hasMore = true;
+
+    // Map project type a classId API CurseForge
+    $classIds = [
+        'modpack' => 4471,
+        'plugin' => 6, // I plugin generalmente sono mod, usiamo 6 per mod/plugin
     ];
 
-    $params = [
-        "facets" => json_encode([["project_type:" . $project_type]]),
-        "offset" => $offset,
-        "limit" => $limit,
-        "index" => "downloads" // MODIFICATO: ordina per popolarità
-    ];
-
-    $url = MODRINTH_API_BASE_URL . "/search?" . http_build_query($params);
-    echo "DEBUG: Richiesta API Modrinth URL: " . $url . "\n";
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_error = curl_error($ch);
-    $curl_errno = curl_errno($ch);
-    curl_close($ch);
-
-    if ($response === false) {
-        echo "ERRORE cURL: Codice errore: $curl_errno, Messaggio: $curl_error\n";
-        return null;
-    }
-
-    if ($http_code >= 400) {
-        echo "ERRORE HTTP: ($http_code) Risposta: " . $response . "\n";
-        return null;
-    }
-
-    $decoded_response = json_decode($response, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        echo "ERRORE JSON: " . json_last_error_msg() . ". Risposta RAW: " . $response . "\n";
-        return null;
-    }
-
-    echo "DEBUG: Recuperati " . (isset($decoded_response['hits']) ? count($decoded_response['hits']) : 0) . " progetti per '$project_type' (offset $offset).\n";
-    return $decoded_response;
-}
-
-// --- Sincronizzazione principale ---
-function sync_modrinth_data() {
-    $pdo = connect_db();
-    if (!$pdo) {
-        echo "Sincronizzazione interrotta per errore di connessione.\n";
+    if (!isset($classIds[$projectType])) {
+        echo "Tipo progetto sconosciuto: $projectType\n";
         return;
     }
+    $classId = $classIds[$projectType];
 
-    try {
-        global $projectTypesToSync;
+    while ($hasMore) {
+        $offset = $page * $pageSize;
 
-        foreach ($projectTypesToSync as $p_type) {
-            echo "\n--- Avvio sincronizzazione per: '$p_type' ---\n";
-            $offset = 0;
-            $totalSyncedForType = 0;
+        $url = "https://api.curseforge.com/v1/mods/search?"
+            . "gameId=432"  // Minecraft
+            . "&classId=$classId"
+            . "&pageSize=$pageSize"
+            . "&index=$offset";
 
-            while (true) {
-                $data = fetch_modrinth_projects($p_type, $offset, PAGE_LIMIT);
+        $headers = [
+            "x-api-key: " . CURSEFORGE_API_KEY,
+            "Accept: application/json",
+        ];
 
-                if (!$data || !isset($data['hits']) || empty($data['hits'])) {
-                    echo "Nessun altro progetto di tipo '$p_type' trovato o errore API.\n";
-                    break;
-                }
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
-                foreach ($data['hits'] as $project) {
-                    $dateCreated = null;
-                    if (isset($project['date_created'])) {
-                        try {
-                            $dt = new DateTime($project['date_created']);
-                            $dateCreated = $dt->format('Y-m-d H:i:s');
-                        } catch (Exception $e) {
-                            echo "AVVISO: Errore parsing date_created per ID {$project['project_id']}: {$e->getMessage()}\n";
-                        }
-                    }
-
-                    $dateModified = null;
-                    if (isset($project['date_modified'])) {
-                        try {
-                            $dt = new DateTime($project['date_modified']);
-                            $dateModified = $dt->format('Y-m-d H:i:s');
-                        } catch (Exception $e) {
-                            echo "AVVISO: Errore parsing date_modified per ID {$project['project_id']}: {$e->getMessage()}\n";
-                        }
-                    }
-
-                    $item_data = [
-                        'id' => $project['project_id'] ?? null,
-                        'title' => $project['title'] ?? null,
-                        'slug' => $project['slug'] ?? null,
-                        'description' => $project['description'] ?? null,
-                        'categories' => json_encode($project['categories'] ?? []),
-                        'downloads' => $project['downloads'] ?? null,
-                        'latest_version_id' => $project['latest_version'] ?? null,
-                        'date_created' => $dateCreated,
-                        'date_modified' => $dateModified,
-                        'project_type' => $project['project_type'] ?? null,
-                        'url' => isset($project['slug']) ? "https://modrinth.com/project/" . $project['slug'] : null,
-                        'thumbnail_url' => $project['icon_url'] ?? null
-                    ];
-
-                    if ($item_data['id'] !== null) {
-                        insert_or_update_item($pdo, $item_data);
-                        $totalSyncedForType++;
-                    } else {
-                        echo "AVVISO: Elemento senza ID valido, saltato. Dati: " . json_encode($project) . "\n";
-                    }
-                }
-
-                if (count($data['hits']) < PAGE_LIMIT) {
-                    echo "Raggiunta l'ultima pagina per '$p_type'.\n";
-                    break;
-                }
-
-                $offset += PAGE_LIMIT;
-                echo "Totale sincronizzato per '$p_type': $totalSyncedForType. Prossimo offset: $offset\n";
-            }
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($response === false || $http_code >= 400) {
+            echo "Errore API CurseForge: HTTP $http_code\n";
+            break;
         }
-    } catch (Exception $e) {
-        echo "ERRORE INATTESO: " . $e->getMessage() . "\n";
-    } finally {
-        echo "Sincronizzazione completata.\n";
+
+        $data = json_decode($response, true);
+        if (!$data || !isset($data['data']) || count($data['data']) === 0) {
+            echo "Nessun altro progetto di tipo $projectType trovato.\n";
+            $hasMore = false;
+            break;
+        }
+
+        foreach ($data['data'] as $mod) {
+            $project = [
+                'id' => $mod['id'],
+                'name' => $mod['name'],
+                'slug' => $mod['slug'] ?? null,
+                'summary' => $mod['summary'] ?? null,
+                'downloads' => $mod['downloadCount'] ?? 0,
+                'project_type' => $projectType,
+                'game_versions' => $mod['gameVersionLatestFiles'] ?? [], // array versioni Minecraft
+                'date_created' => isset($mod['dateCreated']) ? date('Y-m-d H:i:s', strtotime($mod['dateCreated'])) : null,
+                'date_modified' => isset($mod['dateModified']) ? date('Y-m-d H:i:s', strtotime($mod['dateModified'])) : null,
+                'url' => "https://www.curseforge.com/minecraft/" . ($projectType === 'modpack' ? "modpacks" : "mods") . "/" . $mod['slug'],
+                'thumbnail_url' => $mod['logo']['thumbnailUrl'] ?? null,
+            ];
+            insert_or_update_project($pdo, $project);
+        }
+
+        $page++;
     }
 }
 
-// --- Esecuzione principale ---
-if (php_sapi_name() == 'cli') {
-    sync_modrinth_data();
-} else {
-    echo "Questo script va eseguito da riga di comando.\n";
-}
-?>
+// Esecuzione sincronizzazione
+$pdo = connect_db();
+
+echo "Sincronizzazione Modpacks...\n";
+fetch_curseforge_projects($pdo, 'modpack');
+
+echo "Sincronizzazione Plugin...\n";
+fetch_curseforge_projects($pdo, 'plugin');
+
+echo "Sincronizzazione completata.\n";
