@@ -1,86 +1,229 @@
 <?php
 require 'config/config.php';  // $pdo PDO connection
 
-function modrinthApiGet($endpoint, $params=[]) {
-    $url = "https://api.modrinth.com/v2/$endpoint";
-    if (!empty($params)) {
-        $url .= '?' . http_build_query($params);
+define('MODRINTH_API_BASE_URL', 'https://api.modrinth.com/v2');
+// IMPORTANTE: L'API di Modrinth richiede un'intestazione User-Agent descrittiva.
+// Sostituiscila con qualcosa che identifichi la tua applicazione,
+// es. 'IlTuoNomeUtenteGitHub/IlTuoNomeProgetto/1.0 (tua_email@example.com)'
+define('USER_AGENT', 'MinecraftPlatformSyncScriptPHP/1.0 (contact@example.com)');
+
+// Tipi di progetto da sincronizzare. Modrinth supporta "mod", "modpack", "resourcepack", "shader".
+// Ci concentriamo su "mod" e "modpack" come da tua richiesta.
+$projectTypesToSync = ["mod", "modpack"];
+
+// Numero massimo di risultati per pagina per l'API di ricerca di Modrinth (max è 100)
+define('PAGE_LIMIT', 100);
+
+// --- Funzioni Database ---
+function connect_db() {
+    /**
+     * Stabilisce una connessione al database MySQL utilizzando PDO.
+     * Restituisce l'oggetto PDO se la connessione ha successo, altrimenti null.
+     */
+    $dsn = "mysql:host=" . DB_HOST . ";port=" . 3306 . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+    try {
+        $pdo = new PDO($dsn, DB_USER, DB_PASSWORD, $options);
+        echo "Connessione al database riuscita.\n";
+        return $pdo;
+    } catch (PDOException $e) {
+        echo "Errore durante la connessione al database: " . $e->getMessage() . "\n";
+        return null;
     }
-    $ch = curl_init($url);
+}
+
+function insert_or_update_item($pdo, $item_data) {
+    /**
+     * Inserisce un nuovo elemento o aggiorna uno esistente nella tabella modrinth_items.
+     * Utilizza la sintassi SQL 'INSERT ... ON DUPLICATE KEY UPDATE' per operazioni di upsert efficienti.
+     */
+    $sql = "
+    INSERT INTO modrinth_items (
+        id, title, slug, description, categories, downloads,
+        latest_version_id, date_created, date_modified, project_type, url, thumbnail_url
+    ) VALUES (
+        :id, :title, :slug, :description, :categories, :downloads,
+        :latest_version_id, :date_created, :date_modified, :project_type, :url, :thumbnail_url
+    ) ON DUPLICATE KEY UPDATE
+        title = VALUES(title),
+        slug = VALUES(slug),
+        description = VALUES(description),
+        categories = VALUES(categories),
+        downloads = VALUES(downloads),
+        latest_version_id = VALUES(latest_version_id),
+        date_created = VALUES(date_created),
+        date_modified = VALUES(date_modified),
+        project_type = VALUES(project_type),
+        url = VALUES(url),
+        thumbnail_url = VALUES(thumbnail_url);
+    ";
+
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':id' => $item_data['id'],
+            ':title' => $item_data['title'],
+            ':slug' => $item_data['slug'],
+            ':description' => $item_data['description'],
+            ':categories' => $item_data['categories'],
+            ':downloads' => $item_data['downloads'],
+            ':latest_version_id' => $item_data['latest_version_id'],
+            ':date_created' => $item_data['date_created'],
+            ':date_modified' => $item_data['date_modified'],
+            ':project_type' => $item_data['project_type'],
+            ':url' => $item_data['url'],
+            ':thumbnail_url' => $item_data['thumbnail_url']
+        ]);
+        echo "Elemento sincronizzato: " . $item_data['title'] . " (ID: " . $item_data['id'] . ")\n";
+    } catch (PDOException $e) {
+        echo "Errore durante la sincronizzazione dell'elemento " . ($item_data['id'] ?? 'N/A') . ": " . $e->getMessage() . "\n";
+    }
+}
+
+// --- Funzioni API Modrinth ---
+function fetch_modrinth_projects($project_type, $offset = 0, $limit = PAGE_LIMIT) {
+    /**
+     * Recupera i progetti dall'API di Modrinth utilizzando l'endpoint /search.
+     * Supporta la paginazione con i parametri 'offset' e 'limit'.
+     * I risultati sono ordinati per data 'updated' per dare priorità alle modifiche recenti.
+     */
+    $headers = [
+        "User-Agent: " . USER_AGENT,
+        "Accept: application/json"
+    ];
+
+    $params = [
+        "facets" => json_encode([["project_type:" . $project_type]]),
+        "offset" => $offset,
+        "limit" => $limit,
+        "index" => "updated" // Ordina per data di aggiornamento
+    ];
+
+    $url = MODRINTH_API_BASE_URL . "/search?" . http_build_query($params);
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accept: application/json'
-    ]);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30); // Timeout di 30 secondi
+
     $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL: ' . curl_error($ch));
-    }
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
     curl_close($ch);
 
-    $data = json_decode($response, true);
-    if (!$data) {
-        throw new Exception('Risposta API non valida');
+    if ($response === false) {
+        echo "Errore cURL durante il recupero dei dati da Modrinth per il tipo '$project_type', offset $offset: $curl_error\n";
+        return null;
     }
-    return $data;
+
+    if ($http_code >= 400) {
+        echo "Errore HTTP ($http_code) durante il recupero dei dati da Modrinth per il tipo '$project_type', offset $offset: " . $response . "\n";
+        return null;
+    }
+
+    return json_decode($response, true);
 }
 
-function syncModrinthItems($projectType = 'modpack', $limit = 50) {
-    global $pdo;
+function sync_modrinth_data() {
+    /**
+     * Funzione principale per orchestrare il processo di sincronizzazione.
+     * Si connette al database, itera attraverso i tipi di progetto specificati,
+     * recupera i dati da Modrinth pagina per pagina e sincronizza ogni elemento.
+     */
+    $pdo = connect_db();
+    if (!$pdo) {
+        return; // Esci se la connessione al database fallisce
+    }
 
-    $page = 0;
-    do {
-        $page++;
-        $data = modrinthApiGet('search', [
-            'facets' => json_encode(["project_type:$projectType"]),
-            'limit' => $limit,
-            'index' => $limit * ($page - 1)
-        ]);
+    try {
+        global $projectTypesToSync; // Accedi alla variabile globale
 
-        if (empty($data['hits'])) break;
+        foreach ($projectTypesToSync as $p_type) {
+            echo "\n--- Avvio sincronizzazione per il tipo di progetto: '$p_type' ---\n";
+            $offset = 0;
+            $totalSyncedForType = 0;
 
-        foreach ($data['hits'] as $item) {
-            $stmt = $pdo->prepare("INSERT INTO modrinth_items (id, title, slug, description, categories, downloads, latest_version_id, date_created, date_modified, project_type, url, thumbnail_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                title=VALUES(title),
-                slug=VALUES(slug),
-                description=VALUES(description),
-                categories=VALUES(categories),
-                downloads=VALUES(downloads),
-                latest_version_id=VALUES(latest_version_id),
-                date_created=VALUES(date_created),
-                date_modified=VALUES(date_modified),
-                project_type=VALUES(project_type),
-                url=VALUES(url),
-                thumbnail_url=VALUES(thumbnail_url),
-                updated_at=NOW()
-            ");
+            while (true) {
+                $data = fetch_modrinth_projects($p_type, $offset, PAGE_LIMIT);
 
-            $categoriesJson = json_encode($item['categories'] ?? []);
+                if (!$data || !isset($data['hits']) || empty($data['hits'])) {
+                    echo "Nessun altro progetto di tipo '$p_type' trovato o si è verificato un errore API.\n";
+                    break;
+                }
 
-            $stmt->execute([
-                $item['project_id'],
-                $item['title'],
-                $item['slug'],
-                $item['description'] ?? null,
-                $categoriesJson,
-                $item['downloads'] ?? 0,
-                $item['latest_version'] ?? null,
-                date('Y-m-d H:i:s', strtotime($item['date_created'])),
-                date('Y-m-d H:i:s', strtotime($item['date_modified'])),
-                $item['project_type'],
-                $item['project_url'] ?? null,
-                $item['icon_url'] ?? null
-            ]);
+                foreach ($data['hits'] as $project) {
+                    // Mappa i campi della risposta API di Modrinth alle colonne dello schema del tuo database
+                    // Nota: 'latest_version_id' nel tuo schema è mappato a 'latest_version' di Modrinth
+                    // (che è una stringa della versione del gioco Minecraft, es. "1.20.1").
+                    // Se hai bisogno dell'ID interno della versione di Modrinth, sarebbero necessarie chiamate API aggiuntive.
+
+                    $dateCreated = null;
+                    if (isset($project['date_created'])) {
+                        try {
+                            $dt = new DateTime($project['date_created']);
+                            $dateCreated = $dt->format('Y-m-d H:i:s');
+                        } catch (Exception $e) {
+                            echo "Avviso: Impossibile parsare date_created '{$project['date_created']}' per l'ID {$project['project_id']}: {$e->getMessage()}\n";
+                        }
+                    }
+
+                    $dateModified = null;
+                    if (isset($project['date_modified'])) {
+                        try {
+                            $dt = new DateTime($project['date_modified']);
+                            $dateModified = $dt->format('Y-m-d H:i:s');
+                        } catch (Exception $e) {
+                            echo "Avviso: Impossibile parsare date_modified '{$project['date_modified']}' per l'ID {$project['project_id']}: {$e->getMessage()}\n";
+                        }
+                    }
+
+                    $item_data = [
+                        'id' => $project['project_id'] ?? null,
+                        'title' => $project['title'] ?? null,
+                        'slug' => $project['slug'] ?? null,
+                        'description' => $project['description'] ?? null,
+                        // Le categorie sono un array; memorizzale come stringa JSON
+                        'categories' => json_encode($project['categories'] ?? []),
+                        'downloads' => $project['downloads'] ?? null,
+                        'latest_version_id' => $project['latest_version'] ?? null,
+                        'date_created' => $dateCreated,
+                        'date_modified' => $dateModified,
+                        'project_type' => $project['project_type'] ?? null,
+                        'url' => isset($project['slug']) ? "https://modrinth.com/project/" . $project['slug'] : null,
+                        'thumbnail_url' => $project['icon_url'] ?? null
+                    ];
+                    insert_or_update_item($pdo, $item_data);
+                    $totalSyncedForType++;
+                }
+
+                // Se il numero di hit è inferiore a PAGE_LIMIT, significa che abbiamo raggiunto l'ultima pagina
+                if (count($data['hits']) < PAGE_LIMIT) {
+                    break;
+                }
+                $offset += PAGE_LIMIT; // Passa alla pagina successiva
+                echo "Elaborati " . count($data['hits']) . " progetti di tipo '$p_type'. Totale sincronizzato per tipo: $totalSyncedForType\n";
+            }
         }
-    } while (count($data['hits']) === $limit);
+    } catch (Exception $e) {
+        echo "Si è verificato un errore inaspettato durante la sincronizzazione: " . $e->getMessage() . "\n";
+    } finally {
+        // La connessione PDO si chiude automaticamente quando lo script termina o l'oggetto PDO viene distrutto.
+        // Non è necessario chiamare $pdo->close() esplicitamente.
+        echo "Sincronizzazione completata. Connessione al database chiusa.\n";
+    }
 }
 
-// Esempio: sincronizza modpack e plugin
-try {
-    syncModrinthItems('modpack', 50);
-    syncModrinthItems('plugin', 50);
-    echo "Sincronizzazione Modrinth completata.";
-} catch (Exception $e) {
-    echo "Errore sincronizzazione: " . $e->getMessage();
+// --- Esecuzione principale ---
+if (php_sapi_name() == 'cli') {
+    // Esegui la sincronizzazione solo se lo script è chiamato da riga di comando
+    sync_modrinth_data();
+} else {
+    echo "Questo script è progettato per essere eseguito da riga di comando.\n";
 }
+
+?>

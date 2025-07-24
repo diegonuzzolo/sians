@@ -26,3 +26,8 @@ if (!defined('CLOUDFLARE_API_TOKEN')) define ('CLOUDFLARE_API_TOKEN', '5qZFVHEm6
 if (!defined('CLOUDFLARE_ZONE_ID')) define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 if (!defined('CLOUDFLARE_API_BASE')) define('CLOUDFLARE_API_BASE', 'https://api.cloudflare.com/client/v4');
 if (!defined('DOMAIN')) define ('DOMAIN', 'sians.it');
+define ('DB_HOST', 'localhost');
+define ('DB_NAME', 'minecraft_platform');
+define ('DB_USER', 'diego');
+define ('DB_PASSWORD', 'Lgu8330Serve6');
+define ('DB_CHARSET', 'utf8mb4');
