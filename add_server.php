@@ -54,8 +54,8 @@ exit;
     <?php endif; ?>
 
     <form method="POST" action="add_server.php">
-    <input type="text" name="server_name" placeholder="Nome server" required>
-    <button type="submit">Crea server</button>
+    <input type="text"  placeholder="Nome server" required>
+    <button name="server_name" type="submit">Crea server</button>
 </form>
 
 </div>
