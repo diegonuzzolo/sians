@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'config/config.php';
 require 'includes/auth.php';
 require 'includes/functions.php';
@@ -22,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Ottieni tunnel ngrok
             $tunnel = getNgrokTunnel();
+            var_dump($tunnel);
+exit;
             if (!$tunnel) {
                 $error = "Nessun tunnel ngrok TCP attivo trovato.";
             } else {
@@ -29,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $domain = $subdomain . '.' . DOMAIN;
 
                 // Inserisci il nuovo server
-                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, status, ip_address, proxmox_vmid, ngrok_tcp_host, ngrok_tcp_port) VALUES (?, ?, ?, 'spento', NULL, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, status, ip_address, proxmox_vmid, ngrok_host, ngrok_port) VALUES (?, ?, ?, 'spento', NULL, ?, ?, ?)");
                 $stmt->execute([
                     $_SESSION['user_id'],
                     $serverName,

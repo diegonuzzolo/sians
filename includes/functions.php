@@ -117,21 +117,22 @@ function startNgrokTcpTunnel($localPort) {
 
 function getNgrokTunnel() {
     $json = @file_get_contents('http://127.0.0.1:4040/api/tunnels');
-    $data = json_decode($json, true);
+    if ($json === false) return null;
 
-    if (!$data || !isset($data['tunnels'])) {
-        return false;
-    }
+    $data = json_decode($json, true);
+    if (!isset($data['tunnels'])) return null;
 
     foreach ($data['tunnels'] as $tunnel) {
         if (strpos($tunnel['proto'], 'tcp') !== false) {
+            $parts = parse_url($tunnel['public_url']);
+            if (!isset($parts['host']) || !isset($parts['port'])) continue;
+
             return [
-                'public_url' => $tunnel['public_url'], // es: tcp://1.tcp.ngrok.io:12345
-                'host' => parse_url($tunnel['public_url'], PHP_URL_HOST),
-                'port' => parse_url($tunnel['public_url'], PHP_URL_PORT),
+                'host' => $parts['host'],
+                'port' => $parts['port']
             ];
         }
     }
 
-    return false;
+    return null;
 }
