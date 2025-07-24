@@ -2,25 +2,22 @@
 session_start();
 require 'config/config.php';
 
-
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
 
-
 $userId = $_SESSION['user_id'];
 
 // Slot disponibili
-$stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
+$stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
 
 // Server utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname, s.ngrok_tcp_host, s.ngrok_tcp_port
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
                        FROM servers s
-                       JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
+                       JOIN minecraft_vms vm ON s.vm_id = vm.id
                        WHERE s.user_id = ?");
-
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll();
 ?>
@@ -38,24 +35,30 @@ $servers = $stmt->fetchAll();
       padding: 25px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
+    code {
+      background: #f1f1f1;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5">
-    <h3>I tuoi server Minecraft</h3>
+    <h3 class="mb-4">I tuoi server Minecraft</h3>
 
     <?php if (empty($servers)): ?>
         <p class="text-muted">Non hai ancora server attivi.</p>
     <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-bordered table-striped mt-3">
+            <table class="table table-bordered table-striped align-middle">
                 <thead class="table-dark">
                     <tr>
                         <th>Nome</th>
                         <th>ID Proxmox</th>
-                        <th>IP / Hostname / Ngrok</th>
+                        <th>IP / Hostname</th>
+                        <th>Tunnel ngrok TCP</th>
                         <th>Dominio</th>
                         <th>Stato</th>
                         <th>Azioni</th>
@@ -67,26 +70,25 @@ $servers = $stmt->fetchAll();
                         <td><?= htmlspecialchars($server['name']) ?></td>
                         <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
                         <td>
-                            <?php if (!empty($server['ip_address'])): ?>
-                                <?= htmlspecialchars($server['ip_address']) ?><br>
-                            <?php endif; ?>
-
-                            <?php if (!empty($server['hostname'])): ?>
-                                <small><?= htmlspecialchars($server['hostname']) ?></small><br>
-                            <?php endif; ?>
-
-                            <?php if (!empty($server['ngrok_tcp_host']) && !empty($server['ngrok_tcp_port'])): ?>
-                                <div>
-                                    <strong>Ngrok:</strong>
-                                    <code><?= htmlspecialchars($server['ngrok_tcp_host']) ?>:<?= htmlspecialchars($server['ngrok_tcp_port']) ?></code>
-                                </div>
+                            <?= !empty($server['ip_address']) ? htmlspecialchars($server['ip_address']) . '<br>' : '' ?>
+                            <?= !empty($server['hostname']) ? '<small>' . htmlspecialchars($server['hostname']) . '</small><br>' : '' ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($server['tunnel_url'])): 
+                                // Estraggo host e port da tunnel_url (es. tcp://0.tcp.ngrok.io:12345)
+                                $url = $server['tunnel_url'];
+                                $urlParts = parse_url(str_replace('tcp://', 'tcp://', $url));
+                                $host = $urlParts['host'] ?? '';
+                                $port = $urlParts['port'] ?? '';
+                            ?>
+                                <code><?= htmlspecialchars($host . ':' . $port) ?></code>
                             <?php else: ?>
-                                <div class="text-muted small">Ngrok non disponibile</div>
+                                <span class="text-muted small">Non disponibile</span>
                             <?php endif; ?>
                         </td>
                         <td>
                             <?php if (!empty($server['subdomain'])): ?>
-                                <a href="http://<?= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank">
+                                <a href="http://<?= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank" rel="noopener noreferrer">
                                     <?= htmlspecialchars($server['subdomain']) ?>.sians.it
                                 </a>
                             <?php else: ?>
@@ -94,14 +96,12 @@ $servers = $stmt->fetchAll();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge 
-                            <?= $server['status'] === 'attivo' ? 'bg-success' : 'bg-secondary' ?>">
+                            <span class="badge <?= $server['status'] === 'attivo' ? 'bg-success' : 'bg-secondary' ?>">
                                 <?= $server['status'] === 'attivo' ? 'Attivo' : 'Spento' ?>
                             </span>
                         </td>
                         <td>
-                            <!-- Azioni -->
-                            <form action="server_action.php" method="post" class="d-inline action-form">
+                            <form action="server_action.php" method="post" class="d-inline">
                                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
                                 <button name="action" value="<?= $server['status'] === 'attivo' ? 'stop' : 'start' ?>"
                                         class="btn btn-sm <?= $server['status'] === 'attivo' ? 'btn-warning' : 'btn-success' ?>"
@@ -109,6 +109,7 @@ $servers = $stmt->fetchAll();
                                     <?= $server['status'] === 'attivo' ? 'Ferma' : 'Avvia' ?>
                                 </button>
                             </form>
+
                             <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
                                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
                                 <button class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
@@ -123,8 +124,8 @@ $servers = $stmt->fetchAll();
 </div>
 
 <!-- Nuovo Server -->
-<div class="d-flex justify-content-center align-items-center">
-    <div class="card bg-light mb-3" style="width: 300px;">
+<div class="d-flex justify-content-center align-items-center my-4">
+    <div class="card bg-light" style="width: 320px;">
         <div class="card-body text-center">
             <h5 class="card-title">Nuovo Server</h5>
             <?php if ($slotDisponibili > 0): ?>
@@ -143,8 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach(row => {
         const vmid = row.dataset.vmid;
         const serverId = row.dataset.serverId;
-        const statusBadge = row.querySelector('td:nth-child(5) span'); // Stato è colonna 5
-        const form = row.querySelector('.action-form');
+        const statusBadge = row.querySelector('td:nth-child(6) span'); // Stato è colonna 6
+        const form = row.querySelector('form[action="server_action.php"]');
         const button = form.querySelector('button');
 
         let previousStatus = null;
