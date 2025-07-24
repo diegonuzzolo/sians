@@ -1,3 +1,36 @@
+
+
+<?php include 'includes/header.php'; ?>
+
+<div class="container mt-4">
+    <h2>Crea un nuovo server Minecraft</h2>
+
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+    <?php elseif (!empty($success)): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="server_name">Nome Server</label>
+            <input type="text" class="form-control" id="server_name" name="server_name"
+                   value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>" required>
+        </div>
+
+        <div class="form-group">
+            <label for="subdomain">Sottodominio (es. mc1)</label>
+            <input type="text" class="form-control" id="subdomain" name="subdomain"
+                   value="<?= htmlspecialchars($_POST['subdomain'] ?? '') ?>" required>
+            <small class="form-text text-muted">Il dominio sarà <strong><span id="subdomain-preview"><?= htmlspecialchars($_POST['subdomain'] ?? 'mcX') ?></span>.sians.it</strong></small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Crea server</button>
+    </form>
+</div>
+
+<?php include 'includes/footer.php'; ?>
+
 <?php
 require 'config/config.php';
 require 'includes/auth.php';
@@ -50,34 +83,3 @@ $stmt->execute([$userId, $serverId, $vm['id']]);
 header("Location: create_tunnel_and_dns.php?server_id=$serverId&subdomain=$subdomain");
 exit;
 ?>
-
-<?php include 'includes/header.php'; ?>
-
-<div class="container mt-4">
-    <h2>Crea un nuovo server Minecraft</h2>
-
-    <?php if (!empty($error)): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php elseif (!empty($success)): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php endif; ?>
-
-    <form method="POST">
-        <div class="form-group">
-            <label for="server_name">Nome Server</label>
-            <input type="text" class="form-control" id="server_name" name="server_name"
-                   value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>" required>
-        </div>
-
-        <div class="form-group">
-            <label for="subdomain">Sottodominio (es. mc1)</label>
-            <input type="text" class="form-control" id="subdomain" name="subdomain"
-                   value="<?= htmlspecialchars($_POST['subdomain'] ?? '') ?>" required>
-            <small class="form-text text-muted">Il dominio sarà <strong><span id="subdomain-preview"><?= htmlspecialchars($_POST['subdomain'] ?? 'mcX') ?></span>.sians.it</strong></small>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Crea server</button>
-    </form>
-</div>
-
-<?php include 'includes/footer.php'; ?>
