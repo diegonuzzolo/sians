@@ -71,8 +71,7 @@ $servers = $stmt->fetchAll();
                         <td><?= htmlspecialchars($server['name']) ?></td>
                         <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
                         <!-- <td>
-                            <?= #!empty($server['ip_address']) ? htmlspecialchars($server['ip_address']) . '<br>' : '' ?>
-                            <?=# !empty($server['hostname']) ? '<small>' . htmlspecialchars($server['hostname']) . '</small><br>' : '' ?>
+                            
                         </td> -->
                         <td>
                             <?php if (!empty($server['tunnel_url'])): 
