@@ -1,4 +1,23 @@
 <?php
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+require 'config/config.php';
+require 'includes/auth.php';
+
+// Verifica presenza dati POST
+$serverName = $_POST['server_name'] ?? null;
+$subdomain = $_POST['subdomain'] ?? null;
+
+if (!$serverName || !$subdomain) {
+    echo "Nome server o sottodominio mancante";
+    exit;
+}
+
+// Continua con la logica per creare il server...
+
 session_start();
 require 'config/config.php';
 require 'includes/auth.php';
