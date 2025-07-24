@@ -3,6 +3,52 @@ require 'config/config.php';
 require 'includes/auth.php';
 require 'includes/functions.php';
 
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $serverName = $_POST['name'] ?? null;
+    $subdomainInput = $_POST['subdomain'] ?? null;
+
+    if (!$serverName || !$subdomainInput) {
+        $error = "Nome server o sottodominio mancante.";
+    } else {
+        // Cerca una VM disponibile
+        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned = 0 LIMIT 1");
+        $stmt->execute();
+        $vm = $stmt->fetch();
+
+        if (!$vm) {
+            $error = "Nessuna VM disponibile.";
+        } else {
+            // Ottieni tunnel ngrok
+            $tunnel = getNgrokTunnel();
+            if (!$tunnel) {
+                $error = "Nessun tunnel ngrok TCP attivo trovato.";
+            } else {
+                $subdomain = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $subdomainInput));
+                $domain = $subdomain . '.' . DOMAIN;
+
+                // Inserisci il nuovo server
+                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, status, ip_address, proxmox_vmid, ngrok_tcp_host, ngrok_tcp_port) VALUES (?, ?, ?, 'spento', NULL, ?, ?, ?)");
+                $stmt->execute([
+                    $_SESSION['user_id'],
+                    $serverName,
+                    $domain,
+                    $vm['proxmox_vmid'],
+                    $tunnel['host'],
+                    $tunnel['port']
+                ]);
+
+                // Segna la VM come assegnata
+                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned = 1 WHERE id = ?");
+                $stmt->execute([$vm['id']]);
+
+                header("Location: dashboard.php");
+                exit;
+            }
+        }
+    }
+}
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -49,51 +95,6 @@ try {
     echo "Errore SQL: " . $e->getMessage();
 }
 
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $serverName = $_POST['name'] ?? null;
-    $subdomainInput = $_POST['subdomain'] ?? null;
-
-    if (!$serverName || !$subdomainInput) {
-        $error = "Nome server o sottodominio mancante.";
-    } else {
-        // Cerca una VM disponibile
-        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned = 0 LIMIT 1");
-        $stmt->execute();
-        $vm = $stmt->fetch();
-
-        if (!$vm) {
-            $error = "Nessuna VM disponibile.";
-        } else {
-            // Ottieni tunnel ngrok
-            $tunnel = getNgrokTunnel();
-            if (!$tunnel) {
-                $error = "Nessun tunnel ngrok TCP attivo trovato.";
-            } else {
-                $subdomain = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $subdomainInput));
-                $domain = $subdomain . '.' . DOMAIN;
-
-                // Inserisci il nuovo server
-                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, status, ip_address, proxmox_vmid, ngrok_tcp_host, ngrok_tcp_port) VALUES (?, ?, ?, 'spento', NULL, ?, ?, ?)");
-                $stmt->execute([
-                    $_SESSION['user_id'],
-                    $serverName,
-                    $domain,
-                    $vm['proxmox_vmid'],
-                    $tunnel['host'],
-                    $tunnel['port']
-                ]);
-
-                // Segna la VM come assegnata
-                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned = 1 WHERE id = ?");
-                $stmt->execute([$vm['id']]);
-
-                header("Location: dashboard.php");
-                exit;
-            }
-        }
-    }
-}
 ?>
 
 <?php include 'includes/header.php'; ?>
