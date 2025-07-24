@@ -3,7 +3,52 @@ require 'config/config.php';
 require 'includes/auth.php';
 require 'includes/functions.php';
 
-$error = '';
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Debug POST
+var_dump($_POST);
+
+// Leggi input
+$serverName = $_POST['server_name'] ?? null;
+if (!$serverName) {
+    http_response_code(400);
+    echo "ID server mancante";
+    exit;
+}
+
+// Trova VM libera
+$stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE is_assigned = 0 LIMIT 1");
+$stmt->execute();
+$vm = $stmt->fetch();
+
+if (!$vm) {
+    echo "Nessuna VM disponibile";
+    exit;
+}
+
+$proxmoxVmid = $vm['proxmox_vmid'];
+$userId = $_SESSION['user_id'] ?? null;
+
+try {
+    // Inserisci nuovo server
+    $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, proxmox_vmid, created_at) VALUES (?, ?, ?, NOW())");
+    $stmt->execute([$serverName, $userId, $proxmoxVmid]);
+
+    // Segna VM come assegnata
+    $stmt = $pdo->prepare("UPDATE minecraft_vms SET is_assigned = 1 WHERE proxmox_vmid = ?");
+    $stmt->execute([$proxmoxVmid]);
+
+    // Redirect
+    header("Location: dashboard.php");
+    exit;
+
+} catch (PDOException $e) {
+    echo "Errore SQL: " . $e->getMessage();
+}
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = $_POST['name'] ?? null;
