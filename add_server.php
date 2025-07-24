@@ -1,7 +1,11 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'config/config.php';
 require 'includes/auth.php';
-require 'includes/functions.php';
+require 'includes/header.php';
 
 $error = '';
 $success = '';
@@ -13,81 +17,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$serverName || !$subdomain || !$userId) {
         $error = "Tutti i campi sono obbligatori.";
-    } elseif (!preg_match('/^[a-z0-9-]+$/i', $subdomain)) {
-        $error = "Hostname non valido. Usa solo lettere, numeri e trattini.";
     } else {
         try {
-            // 1. Cerca VM libera
+            // Trova una VM libera
             $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
             $stmt->execute();
-            $vm = $stmt->fetch(PDO::FETCH_ASSOC);
+            $vm = $stmt->fetch();
 
             if (!$vm) {
-                $error = "Nessuna VM libera disponibile.";
+                $error = "Nessuna VM disponibile";
             } else {
-                // 2. Crea il server nel DB
-                $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, subdomain) VALUES (?, ?, ?, ?)");
-                if (!$stmt->execute([$serverName, $userId, $vm['id'], $subdomain])) {
-                    $error = "Errore nella creazione del server: " . implode(", ", $stmt->errorInfo());
-                } else {
-                    $serverId = $pdo->lastInsertId();
+                $vmId = $vm['id'];
+                $proxmoxVmid = $vm['proxmox_vmid'];
 
-                    // 3. Aggiorna VM come assegnata
-                    $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-                    if (!$stmt->execute([$userId, $serverId, $vm['id']])) {
-                        $error = "Errore nell'assegnazione della VM: " . implode(", ", $stmt->errorInfo());
-                    } else {
-                        // 4. Avvia tunnel ngrok sulla VM
-                        $vmIp = $vm['ip'];
-                        $sshKey = '/home/diego/.ssh/id_rsa';
-                        $sshUser = 'diego';
+                // Inserisci nuovo server
+                $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, subdomain) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$serverName, $userId, $vmId, $proxmoxVmid, $subdomain]);
+                $serverId = $pdo->lastInsertId();
 
-                        $commandStartNgrok = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'nohup ngrok tcp 25565 > /dev/null 2>&1 &'";
+                // Assegna la VM
+                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+                $stmt->execute([$userId, $serverId, $vmId]);
 
-                        exec($commandStartNgrok, $outputStart, $exitStart);
-                        if ($exitStart !== 0) {
-                            $error = "Errore nell'avviare ngrok sulla VM $vmIp.";
-                        } else {
-                            sleep(5);
-                            $commandGetTunnel = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'curl -s http://127.0.0.1:4040/api/tunnels'";
-                            $json = shell_exec($commandGetTunnel);
-                            $data = json_decode($json, true);
-
-                            if (!isset($data['tunnels']) || count($data['tunnels']) == 0) {
-                                $error = "Nessun tunnel ngrok attivo trovato sulla VM $vmIp.";
-                            } else {
-                                $tunnelUrl = null;
-                                foreach ($data['tunnels'] as $tunnel) {
-                                    if ($tunnel['proto'] === 'tcp') {
-                                        $tunnelUrl = $tunnel['public_url'];
-                                        break;
-                                    }
-                                }
-
-                                if (!$tunnelUrl) {
-                                    $error = "Nessun tunnel TCP trovato.";
-                                } else {
-                                    $stmt = $pdo->prepare("UPDATE servers SET tunnel_url = ? WHERE id = ?");
-                                    if (!$stmt->execute([$tunnelUrl, $serverId])) {
-                                        $error = "Errore nell'aggiornamento del tunnel: " . implode(", ", $stmt->errorInfo());
-                                    } else {
-                                        $success = "Server creato con successo. Tunnel attivo: $tunnelUrl";
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                // Reindirizza a tunnel/DNS
+                header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+                exit;
             }
         } catch (PDOException $e) {
             $error = "Errore database: " . $e->getMessage();
         }
     }
 }
-
-include 'includes/header.php';
 ?>
-
+<?php include 'includes/header.php';?>
 <div class="container mt-5">
     <h2>Aggiungi un nuovo Server Minecraft</h2>
 
