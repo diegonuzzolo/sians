@@ -31,8 +31,6 @@ function curseforgeApiGet($endpoint, $params=[]) {
 function syncCurseforgeItems($category, $gameId=432, $classId) {
     global $pdo;
 
-    // CurseForge gameId 432 = Minecraft
-    // classId: 6=modpacks, 12=plugins (esempio, verifica API)
     $page = 0;
     $pageSize = 50;
 
@@ -49,10 +47,10 @@ function syncCurseforgeItems($category, $gameId=432, $classId) {
 
         foreach ($items as $item) {
             $latestFile = $item['latestFiles'][0] ?? null;
-            $stmt = $pdo->prepare("INSERT INTO curseforge_items (id, name, slug, summary, category, latest_file_id, latest_file_name, latest_file_date)
+            $stmt = $pdo->prepare("INSERT INTO curseforge_items (id, title, slug, summary, category, latest_file_id, latest_file_name, latest_file_date)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
-                name=VALUES(name),
+                title=VALUES(title),
                 slug=VALUES(slug),
                 summary=VALUES(summary),
                 category=VALUES(category),
@@ -75,10 +73,10 @@ function syncCurseforgeItems($category, $gameId=432, $classId) {
     } while (count($items) === $pageSize);
 }
 
-// Esempio: aggiorna modpack e plugin
+// Esegui sincronizzazione
 try {
-    syncCurseforgeItems('modpack', 432, 4471);  // 6 = modpack classId (verifica ufficiale)
-    syncCurseforgeItems('plugin', 432, 5); // 12 = plugin classId (verifica ufficiale)
+    syncCurseforgeItems('modpack', 432, 4471); // Modpacks
+    syncCurseforgeItems('plugin', 432, 5);     // Bukkit Plugins
     echo "Sincronizzazione completata.";
 } catch (Exception $e) {
     echo "Errore sincronizzazione: " . $e->getMessage();
