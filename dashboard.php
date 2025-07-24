@@ -59,8 +59,8 @@ $servers = $stmt->fetchAll();
                         <th>Nome</th>
                         <th>ID</th>
                         <!-- <th>IP / Hostname</th> -->
-                        <th>Hostname</th>
-                        <th>Dominio</th>
+                        <th>Hostname / IP</th>
+                        <!-- <th>Dominio</th> -->
                         <th>Stato</th>
                         <th>Azioni</th>
                     </tr>
@@ -86,20 +86,20 @@ $servers = $stmt->fetchAll();
                                 <span class="text-muted small">Non disponibile</span>
                             <?php endif; ?>
                         </td>
-                        <td>
-                            <?php if (!empty($server['subdomain'])): ?>
-                                <a href="http://<?= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank" rel="noopener noreferrer">
-                                    <?= htmlspecialchars($server['subdomain']) ?>.sians.it
+                        <!-- <td>
+                            <?#php if (!empty($server['subdomain'])): ?>
+                                <a href="http://<?#= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank" rel="noopener noreferrer">
+                                    <?#= htmlspecialchars($server['subdomain']) ?>.sians.it
                                 </a>
-                            <?php else: ?>
+                            <?#php else: ?>
                                 <span class="text-muted">In attesa...</span>
-                            <?php endif; ?>
+                            <?#php endif; ?>
                         </td>
                         <td>
-                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
-                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+                            <span class="badge <?#= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
+                                <?#= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
                             </span>
-                        </td>
+                        </td> -->
                         <td>
                             <!-- Form Start/Stop -->
                             <form action="server_action.php" method="post" class="d-inline">
