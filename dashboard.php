@@ -5,7 +5,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 session_start();
-require 'config/config.php';
+
 
 echo "Debug: script avviato<br>";
 
@@ -14,7 +14,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 session_start();
-require 'config/config.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
