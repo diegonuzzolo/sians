@@ -86,23 +86,32 @@ function createOrUpdateCloudflareDnsRecord(string $subdomain, string $targetHost
 }
 
 function startNgrokTcpTunnel($localPort) {
-    $cmd = "sudo -u www-data HOME=/var/www /usr/local/bin/ngrok tcp $localPort --log=stdout > /tmp/ngrok_$localPort.log 2>&1 & echo $!";
-    $output = shell_exec($cmd);
-    if (!$output) {
-        error_log("Errore avvio ngrok. Comando eseguito: $cmd");
+    // Avvia ngrok in background
+    $cmd = "sudo -u www-data /usr/local/bin/ngrok tcp $localPort --log=stdout --log-level=info --log-format=json 2>&1";
+
+    // Lancia il comando e cattura output
+    exec($cmd, $output, $return_var);
+
+    if ($return_var !== 0) {
+        // Errore esecuzione
         return false;
     }
 
-    // Aspetta un po’ per dare tempo a ngrok di avviarsi
-    sleep(2);
-
-    // Controlla se il processo è in esecuzione
-    $pid = trim($output);
-    if (!is_numeric($pid)) {
-        error_log("PID ngrok non valido: $output");
-        return false;
+    // Cerca nel log l’endpoint TCP esposto (ngrok scrive su stdout in JSON)
+    foreach ($output as $line) {
+        $json = json_decode($line, true);
+        if ($json && isset($json['msg']) && $json['msg'] === 'started tunnel') {
+            // L’endpoint è dentro 'url' es: tcp://1.tcp.ngrok.io:12345
+            if (preg_match('#tcp://([^:]+):(\d+)#', $json['url'], $matches)) {
+                return [
+                    'host' => $matches[1],
+                    'port' => intval($matches[2]),
+                ];
+            }
+        }
     }
 
-    return $pid;
+    return false;
 }
+
 
