@@ -113,22 +113,26 @@ $servers = $stmt->fetchAll();
                                 <?= $server['status'] === 'attivo' ? 'Attivo' : 'Spento' ?>
                             </span>
                         </td>
-                        <td>
-                            <form action="server_action.php" method="post" class="d-inline">
-                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                                <button name="action" value="<?= $server['status'] === 'attivo' ? 'stop' : 'start' ?>"
-                                        class="btn btn-sm <?= $server['status'] === 'attivo' ? 'btn-warning' : 'btn-success' ?>"
-                                        title="<?= $server['status'] === 'attivo' ? 'Ferma' : 'Avvia' ?> Server">
-                                    <?= $server['status'] === 'attivo' ? 'Ferma' : 'Avvia' ?>
-                                </button>
-                            </form>
+                    <td>
+    <!-- Form start/stop -->
+    <form action="server_action.php" method="post" class="d-inline">
+        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+        <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
+                title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
+            <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+        </button>
+    </form>
 
-                            <form action="server_action.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
-    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-    <button name="action" value="delete" class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
-</form>
+    <!-- Form delete -->
+    <form action="server_action.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
+        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+        <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" title="Elimina Server">
+            Elimina
+        </button>
+    </form>
+</td>
 
-                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

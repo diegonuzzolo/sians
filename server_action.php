@@ -17,7 +17,7 @@ $userId = $_SESSION['user_id'];
 $serverId = intval($_POST['server_id']);
 $action = $_POST['action']; // 'start', 'stop', 'delete'
 
-// Recupera il server per verificarne la proprietà e info VM
+// Recupera server per verifica e dati VM
 $stmt = $pdo->prepare("SELECT id, subdomain, proxmox_vmid FROM servers WHERE id = ? AND user_id = ?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -77,14 +77,12 @@ switch ($action) {
         break;
 
     case 'delete':
-        // Spegni VM (soft shutdown) - opzionale, o usa stop
-        $urlShutdown = "$host/api2/json/nodes/$node/qemu/$vmid/status/shutdown";
-        proxmoxApiRequest('POST', $urlShutdown);
-        sleep(5); // attesa
+        // Spegni VM
+        proxmoxApiRequest('POST', "$host/api2/json/nodes/$node/qemu/$vmid/status/shutdown");
+        sleep(5);
 
         // Elimina VM
-        $urlDelete = "$host/api2/json/nodes/$node/qemu/$vmid";
-        $delRes = proxmoxApiRequest('DELETE', $urlDelete);
+        $delRes = proxmoxApiRequest('DELETE', "$host/api2/json/nodes/$node/qemu/$vmid");
         error_log("Proxmox delete VM response: HTTP {$delRes['code']}, body: {$delRes['response']}");
 
         if ($delRes['code'] !== 200) {
@@ -94,60 +92,50 @@ switch ($action) {
 
         // Elimina record DNS Cloudflare
         if (!empty($server['subdomain'])) {
-            if (!function_exists('deleteCloudflareDnsRecord')) {
-                function deleteCloudflareDnsRecord($subdomain) {
-                    $zoneId = CLOUDFLARE_ZONE_ID;
-                    $apiToken = CLOUDFLARE_API_TOKEN;
-                    $apiBase = CLOUDFLARE_API_BASE;
+            $zoneId = CLOUDFLARE_ZONE_ID;
+            $apiToken = CLOUDFLARE_API_TOKEN;
+            $apiBase = CLOUDFLARE_API_BASE;
+            $subdomain = $server['subdomain'];
 
-                    $url = "$apiBase/zones/$zoneId/dns_records?type=CNAME&name=$subdomain." . DOMAIN;
+            $url = "$apiBase/zones/$zoneId/dns_records?type=CNAME&name=$subdomain." . DOMAIN;
 
-                    $ch = curl_init($url);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        "Authorization: Bearer $apiToken",
-                        "Content-Type: application/json"
-                    ]);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    $response = curl_exec($ch);
-                    curl_close($ch);
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer $apiToken",
+                "Content-Type: application/json"
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            curl_close($ch);
 
-                    $data = json_decode($response, true);
+            $data = json_decode($response, true);
 
-                    if (!isset($data['result']) || count($data['result']) === 0) {
-                        return true;
-                    }
+            if (isset($data['result'][0]['id'])) {
+                $dnsRecordId = $data['result'][0]['id'];
+                $delUrl = "$apiBase/zones/$zoneId/dns_records/$dnsRecordId";
 
-                    $dnsRecordId = $data['result'][0]['id'];
+                $ch = curl_init($delUrl);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    "Authorization: Bearer $apiToken",
+                    "Content-Type: application/json"
+                ]);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                $delResponse = curl_exec($ch);
+                curl_close($ch);
 
-                    $delUrl = "$apiBase/zones/$zoneId/dns_records/$dnsRecordId";
-
-                    $ch = curl_init($delUrl);
-                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        "Authorization: Bearer $apiToken",
-                        "Content-Type: application/json"
-                    ]);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    $delResponse = curl_exec($ch);
-                    curl_close($ch);
-
-                    $delData = json_decode($delResponse, true);
-
-                    return isset($delData['success']) && $delData['success'] === true;
+                $delData = json_decode($delResponse, true);
+                if (!($delData['success'] ?? false)) {
+                    error_log("Errore eliminazione DNS per $subdomain");
                 }
-            }
-
-            $dnsDeleted = deleteCloudflareDnsRecord($server['subdomain']);
-            if (!$dnsDeleted) {
-                error_log("Errore eliminazione DNS per {$server['subdomain']}");
             }
         }
 
-        // Disassocia VM in DB
+        // Disassocia VM
         $updateVmStmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = NULL, assigned_server_id = NULL WHERE proxmox_vmid = ?");
         $updateVmStmt->execute([$vmid]);
 
-        // Elimina server dal DB
+        // Elimina server
         $delStmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");
         $delStmt->execute([$serverId]);
 
@@ -160,7 +148,6 @@ switch ($action) {
 }
 
 if (isset($newStatus)) {
-    // Aggiorna stato nel DB
     $updateStmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $updateStmt->execute([$newStatus, $serverId]);
 
