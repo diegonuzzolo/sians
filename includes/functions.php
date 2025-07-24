@@ -2,7 +2,7 @@
 
 function avviaTunnelNgrokTcp(int $portaLocale = 25565): ?array {
     // Comando per avviare ngrok in background con output JSON
-    $cmd = "sudo -u www-data /usr/local/bin/ngrok   tcp $portaLocale --log=stdout --log-format=json > /tmp/ngrok.log 2>&1 & echo $!";
+    $cmd = "ngrok tcp $portaLocale --log=stdout --log-format=json > /tmp/ngrok.log 2>&1 & echo $!";
     $pid = trim(shell_exec($cmd));
     if (!$pid) return null;
 
@@ -109,7 +109,7 @@ function createOrUpdateCloudflareDnsRecord(string $subdomain, string $targetHost
 
 function startNgrokTcpTunnel(int $localPort = 25565): ?array {
     // Comando per avviare ngrok in background (modifica il path se serve)
-    $cmd = "sudo -u www-data /usr/local/bin/ngrok tcp $localPort --log=stdout > /dev/null 2>&1 &";
+    $cmd = "ngrok   tcp $localPort --log=stdout > /dev/null 2>&1 &";
 
     // Avvia il processo ngrok
     exec($cmd);

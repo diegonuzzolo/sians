@@ -10,8 +10,8 @@ if (!$subdomain || !$vmid) {
     exit;
 }
 
-// 1. Avvia il tunnel sudo -u www-data ngrok 
-$cmd = "sudo -u www-data ngrok  tcp 127.0.0.1:25565 --log=stdout";
+// 1. Avvia il tunnel ngrok 
+$cmd = "ngrok  tcp 127.0.0.1:25565 --log=stdout";
 $descriptorspec = [
     1 => ['pipe', 'w'],
     2 => ['pipe', 'w'],
