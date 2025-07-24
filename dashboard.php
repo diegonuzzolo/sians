@@ -16,10 +16,11 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id I
 $slotDisponibili = $stmt->fetchColumn();
 
 // Server utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.custom_subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname, s.ngrok_host, s.ngrok_port
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip_address, vm.hostname, s.ngrok_tcp_host, s.ngrok_tcp_port
                        FROM servers s
                        JOIN minecraft_vms vm ON s.proxmox_vmid = vm.proxmox_vmid
                        WHERE s.user_id = ?");
+
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll();
 ?>
@@ -93,18 +94,19 @@ $servers = $stmt->fetchAll();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
-                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+                            <span class="badge 
+                            <?= $server['status'] === 'attivo' ? 'bg-success' : 'bg-secondary' ?>">
+                                <?= $server['status'] === 'attivo' ? 'Attivo' : 'Spento' ?>
                             </span>
                         </td>
                         <td>
                             <!-- Azioni -->
                             <form action="server_action.php" method="post" class="d-inline action-form">
                                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                                        class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
-                                        title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
-                                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                                <button name="action" value="<?= $server['status'] === 'attivo' ? 'stop' : 'start' ?>"
+                                        class="btn btn-sm <?= $server['status'] === 'attivo' ? 'btn-warning' : 'btn-success' ?>"
+                                        title="<?= $server['status'] === 'attivo' ? 'Ferma' : 'Avvia' ?> Server">
+                                    <?= $server['status'] === 'attivo' ? 'Ferma' : 'Avvia' ?>
                                 </button>
                             </form>
                             <form action="delete_server.php" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');">
@@ -163,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     previousStatus = data.status;
 
                     // Badge
-                    if (data.status === 'running') {
+                    if (data.status === 'attivo') {
                         statusBadge.textContent = 'Attivo';
                         statusBadge.className = 'badge bg-success';
                         // Bottone: FERMA
