@@ -7,6 +7,38 @@ require 'config/config.php';
 require 'includes/auth.php';
 require 'includes/functions.php';
 
+
+$serverName = $_POST['server_name'] ?? null;
+$userId = $_SESSION['user_id'] ?? null;
+
+if (!$serverName || !$userId) {
+    http_response_code(400);
+    echo "Parametri mancanti";
+    exit;
+}
+
+// 1. Cerca VM libera con proxmox_vmid incluso
+$stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
+$stmt->execute();
+$vm = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$vm) {
+    echo "Nessuna VM libera disponibile";
+    exit;
+}
+
+$vmId = $vm['id'];
+$proxmoxVmid = $vm['proxmox_vmid'];
+
+// 2. Inserisci nuovo server con proxmox_vmid
+$stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid) VALUES (?, ?, ?, ?)");
+$stmt->execute([$serverName, $userId, $vmId, $proxmoxVmid]);
+$serverId = $pdo->lastInsertId();
+
+// 3. Aggiorna VM come assegnata
+$stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+$stmt->execute([$userId, $serverId, $vmId]);
+
 $error = '';
 $success = '';
 
