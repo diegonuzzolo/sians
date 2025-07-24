@@ -2,6 +2,13 @@
 session_start();
 require 'config/config.php';
 
+// Abilita error reporting (rimuovi in produzione)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+$error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -11,15 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $stmt = $pdo->prepare("SELECT id, password_hash, role FROM users WHERE username = ?");
         $stmt->execute([$username]);
-        $user = $stmt->fetch();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && password_verify($password, $user['password_hash'])) {
+        if (!$user) {
+            $error = "Utente non trovato";
+        } elseif (!password_verify($password, $user['password_hash'])) {
+            $error = "Password errata";
+        } else {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role'];
             header("Location: dashboard.php");
             exit;
-        } else {
-            $error = "Username o password errati";
         }
     }
 }
@@ -37,10 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
                 <?php endif; ?>
 
-                <form method="post">
+                <form method="post" novalidate>
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
-                        <input name="username" id="username" class="form-control" required>
+                        <input name="username" id="username" class="form-control" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
                     </div>
 
                     <div class="mb-3">
@@ -62,4 +71,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <?php include 'includes/footer.php'; ?>
-
