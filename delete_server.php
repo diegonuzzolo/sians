@@ -1,14 +1,17 @@
 <?php
-session_start();
-require 'config/config.php';
-require 'includes/auth.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once 'config/config.php';
+require_once 'includes/auth.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['server_id'])) {
     http_response_code(400);
     exit('Richiesta non valida');
 }
@@ -26,16 +29,23 @@ if (!$server) {
     exit('Server non trovato o accesso negato');
 }
 
-$subdomain = $server['subdomain'];
+$subdomain = trim($server['subdomain'] ?? '');
 
 // Funzione per cancellare record DNS Cloudflare
-function deleteCloudflareDnsRecord($subdomain) {
+function deleteCloudflareDnsRecord(string $subdomain): bool {
+    if (!$subdomain) {
+        // Nessun subdomain da eliminare
+        return true;
+    }
+
     $zoneId = CLOUDFLARE_ZONE_ID;
     $apiToken = CLOUDFLARE_API_TOKEN;
     $apiBase = CLOUDFLARE_API_BASE;
 
-    // Ottieni lista record DNS per trovare ID del record da eliminare
-    $url = "$apiBase/zones/$zoneId/dns_records?type=CNAME&name=$subdomain." . DOMAIN;
+    $fqdn = $subdomain . '.' . DOMAIN;
+
+    // Ottieni lista record DNS
+    $url = "$apiBase/zones/$zoneId/dns_records?type=CNAME&name=$fqdn";
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -44,16 +54,20 @@ function deleteCloudflareDnsRecord($subdomain) {
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
+    if ($response === false) {
+        error_log('Cloudflare API curl error: ' . curl_error($ch));
+        curl_close($ch);
+        return false;
+    }
     curl_close($ch);
 
     $data = json_decode($response, true);
-
     if (!isset($data['result']) || count($data['result']) === 0) {
         // Nessun record trovato, niente da eliminare
         return true;
     }
 
-    // Prendi l'ID del record DNS da eliminare
+    // Prendi l'ID del primo record DNS da eliminare
     $dnsRecordId = $data['result'][0]['id'];
 
     // Elimina il record DNS
@@ -67,19 +81,29 @@ function deleteCloudflareDnsRecord($subdomain) {
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $delResponse = curl_exec($ch);
+    if ($delResponse === false) {
+        error_log('Cloudflare API curl error during delete: ' . curl_error($ch));
+        curl_close($ch);
+        return false;
+    }
     curl_close($ch);
 
     $delData = json_decode($delResponse, true);
 
-    return isset($delData['success']) && $delData['success'] === true;
+    if (isset($delData['success']) && $delData['success'] === true) {
+        return true;
+    } else {
+        error_log('Cloudflare API delete response error: ' . print_r($delData, true));
+        return false;
+    }
 }
 
-// Elimina record DNS se esiste
+// Elimina record DNS Cloudflare se necessario
 if ($subdomain) {
     $dnsDeleted = deleteCloudflareDnsRecord($subdomain);
     if (!$dnsDeleted) {
-        // Puoi loggare o gestire errore a piacere
         error_log("Errore durante l'eliminazione del record DNS per $subdomain");
+        // Qui potresti decidere se bloccare la cancellazione oppure continuare comunque
     }
 }
 
@@ -91,5 +115,6 @@ $updateVmStmt->execute([$server['proxmox_vmid']]);
 $delStmt = $pdo->prepare("DELETE FROM servers WHERE id = ? AND user_id = ?");
 $delStmt->execute([$serverId, $userId]);
 
+// Redirect con messaggio di successo
 header('Location: dashboard.php?msg=deleted');
 exit;
