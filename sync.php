@@ -1,5 +1,5 @@
 <?php
-
+include("config/config.php"); // Include il file di configurazione per le costanti del database
 // Abilita la visualizzazione di tutti gli errori PHP per il debug
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
