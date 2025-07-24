@@ -94,12 +94,12 @@ $servers = $stmt->fetchAll();
                             <?#php else: ?>
                                 <span class="text-muted">In attesa...</span>
                             <?#php endif; ?>
-                        </td>
-                        <td>
-                            <span class="badge <?#= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
-                                <?#= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
-                            </span>
                         </td> -->
+                        <td>
+                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
+                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+                            </span>
+                        </td>
                         <td>
                             <!-- Form Start/Stop -->
                             <form action="server_action.php" method="post" class="d-inline">
