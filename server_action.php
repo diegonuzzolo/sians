@@ -18,15 +18,6 @@ if (!$serverName || !$subdomain) {
 
 // Continua con la logica per creare il server...
 
-session_start();
-require 'config/config.php';
-require 'includes/auth.php';
-
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); // Metodo non consentito
     exit('Metodo non valido');
