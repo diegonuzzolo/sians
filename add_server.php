@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$serverName || !$subdomainInput) {
         $error = "Nome server o sottodominio mancante.";
     } else {
-        // Cerca una VM disponibile
-        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned = 0 LIMIT 1");
+        // Cerca una VM disponibile (non assegnata a nessun utente/server)
+        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
         $stmt->execute();
         $vm = $stmt->fetch();
 
@@ -26,8 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Ottieni tunnel ngrok
             $tunnel = getNgrokTunnel();
-            var_dump($tunnel);
-exit;
             if (!$tunnel) {
                 $error = "Nessun tunnel ngrok TCP attivo trovato.";
             } else {
@@ -35,7 +33,7 @@ exit;
                 $domain = $subdomain . '.' . DOMAIN;
 
                 // Inserisci il nuovo server
-                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, status, ip_address, proxmox_vmid, ngrok_host, ngrok_port) VALUES (?, ?, ?, 'spento', NULL, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, subdomain, status, ip_address, proxmox_vmid, ngrok_tcp_host, ngrok_tcp_port) VALUES (?, ?, ?, 'spento', NULL, ?, ?, ?)");
                 $stmt->execute([
                     $_SESSION['user_id'],
                     $serverName,
@@ -45,9 +43,12 @@ exit;
                     $tunnel['port']
                 ]);
 
-                // Segna la VM come assegnata
-                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned = 1 WHERE id = ?");
-                $stmt->execute([$vm['id']]);
+                // Ottieni l'ID del server appena creato
+                $serverId = $pdo->lastInsertId();
+
+                // Segna la VM come assegnata all'utente e al server
+                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id'], $serverId, $vm['id']]);
 
                 header("Location: dashboard.php");
                 exit;
