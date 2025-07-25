@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+require 'config/config.php'; // Connessione PDO
 require 'includes/auth.php';
 
 $error = '';
@@ -19,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$serverName || !$subdomain || !$userId) {
         $error = "Nome server, sottodominio e login sono obbligatori.";
     } else {
-        // Cerca VM libera
         $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
         $stmt->execute();
         $vm = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -27,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$vm) {
             $error = "Nessuna VM libera disponibile.";
         } else {
-            // Inserisci server nel DB
             $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, subdomain, status) VALUES (?, ?, ?, ?, ?, 'created')");
             $successInsert = $stmt->execute([
                 $serverName,
@@ -42,27 +41,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $serverId = $pdo->lastInsertId();
 
-                // Aggiorna VM assegnata
                 $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
                 $stmt->execute([$userId, $serverId, $vm['id']]);
 
-                // Esegui install_server.php **da remoto** via SSH
                 $sshUser = 'diego';
-                $sshKey = '/var/www/.ssh/id_rsa'; // Percorso chiave privata sul server web
-                $vmIp = $vm['ip']; // IP della VM
-                $remoteScript = "/var/www/html/install_server.php"; // Percorso script PHP sulla VM
-
-                // Costruisco comando PHP CLI da eseguire sulla VM, con argomenti nel giusto ordine
+                $sshKey = '/var/www/.ssh/id_rsa';
+                $vmIp = $vm['ip'];
+                $remoteScript = "/var/www/html/install_server.php";
                 $installCommand = "php $remoteScript $vmIp $serverId $version";
-
-                // Comando SSH completo
-
                 exec($installCommand, $output, $exitCode);
 
                 if ($exitCode !== 0) {
                     $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
                 } else {
-                    // Redirect a create_tunnel_and_dns.php dopo installazione OK
                     header("Location: create_tunnel_and_dns.php?server_id=$serverId");
                     exit;
                 }
@@ -74,16 +65,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 include("includes/header.php");
 ?>
 
-    <h1>Aggiungi un nuovo Server Minecraft</h1>
+<h1>Aggiungi un nuovo Server Minecraft</h1>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
+<?php if ($error): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+<?php endif; ?>
 
-    <form method="POST" action="create_server.php">
+<form method="POST" action="add_server.php">
     <div class="mb-3">
         <label for="server_name" class="form-label">Nome Server</label>
         <input type="text" name="server_name" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="subdomain" class="form-label">Sottodominio</label>
+        <input type="text" name="subdomain" class="form-control" required>
     </div>
 
     <div class="mb-3">
