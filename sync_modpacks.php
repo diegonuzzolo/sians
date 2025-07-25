@@ -26,7 +26,7 @@ foreach ($modpackIds as $modpackId) {
 
     // Controlla se già presente
     $stmt = $db->prepare("SELECT id FROM modpacks WHERE curseforge_id = ?");
-$stmt->execute([$modpackId]);
+    $stmt->execute([$modpackId]);
 
     if ($stmt->fetch()) {
         echo "✅ Modpack già presente, salto.\n";
@@ -40,6 +40,8 @@ $stmt->execute([$modpackId]);
         echo "❌ Errore nel recupero dati.\n";
         continue;
     }
+
+    $projectId = $mod['id']; // 👈 Project ID dal JSON
 
     // Ottieni ultima file release
     $files = curseApi("/v1/mods/$modpackId/files");
@@ -76,10 +78,10 @@ $stmt->execute([$modpackId]);
     }
 
     $downloadUrl = $file['downloadUrl'] ?? null;
-if (!$downloadUrl) {
-    echo "❌ Nessun downloadUrl disponibile per il file {$file['id']}.\n";
-    continue; // Skippa questo modpack
-}
+    if (!$downloadUrl) {
+        echo "❌ Nessun downloadUrl disponibile per il file {$file['id']}.\n";
+        continue;
+    }
 
     $filename = $file['fileName'];
     $dateModified = $file['fileDate'];
@@ -87,6 +89,7 @@ if (!$downloadUrl) {
     // Inserisci nel DB
     $stmt = $db->prepare("
         INSERT INTO modpacks (
+            projectId,
             gameVersionId, minecraftGameVersionId, forgeVersion, name, type,
             downloadUrl, filename, installMethod, latest, recommended, approved,
             dateModified, mavenVersionString, versionJson, librariesInstallLocation,
@@ -97,6 +100,7 @@ if (!$downloadUrl) {
             mcGameVersionStatus, mcGameVersionTypeStatus,
             installProfileJson
         ) VALUES (
+            :projectId,
             0, 0, :forgeVersion, :name, 1,
             :downloadUrl, :filename, 1, 0, 0, 1,
             :dateModified, '', :versionJson, '', :minecraftVersion, :additionalFilesJson,
@@ -106,6 +110,7 @@ if (!$downloadUrl) {
     ");
 
     $stmt->execute([
+        ':projectId' => $projectId,
         ':forgeVersion' => $forgeVersion,
         ':name' => $mod['name'],
         ':downloadUrl' => $downloadUrl,

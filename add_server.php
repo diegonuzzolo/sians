@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $userId = $_SESSION['user_id'] ?? null;
     $type = trim($_POST['type'] ?? '');
     $version = trim($_POST['version'] ?? '');
+    $modpackId = !empty($_POST['modpack_id']) ? intval($_POST['modpack_id']) : null;
 
     if (!$serverName || !$subdomain || !$userId) {
         $error = "Nome server, sottodominio e login sono obbligatori.";
@@ -24,14 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Nessuna VM libera disponibile.";
         } else {
             // Inserisci server nel DB
-            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, subdomain, status) VALUES (?, ?, ?, ?, ?, 'created')");
-            $successInsert = $stmt->execute([
-                $serverName,
-                $userId,
-                $vm['id'],
-                $vm['proxmox_vmid'],
-                $subdomain
-            ]);
+            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, subdomain, status, modpack_id) VALUES (?, ?, ?, ?, ?, 'created', ?)");
+$successInsert = $stmt->execute([
+    $serverName,
+    $userId,
+    $vm['id'],
+    $vm['proxmox_vmid'],
+    $subdomain,
+    $modpackId
+]);
+
 
             if (!$successInsert) {
                 $error = "Errore durante la creazione del server.";
@@ -59,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
                 } else {
                     // Redirect a create_tunnel_and_dns.php dopo installazione OK
-                    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+                    header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=$type&modpack_id=$modpackId");
+
                     exit;
                 }
             }
@@ -96,9 +100,30 @@ include("includes/header.php");
         <select name="type" id="type" class="form-select" required>
             <option value="vanilla">Vanilla</option>
             <option value="paper">Bukkit</option>
-            <option value="spigot">Modpack</option>
+            <option value="modpack">Modpack</option>
         </select>
     </div>
+    <div class="mb-3" id="modpack_selector" style="display:none;">
+    <label for="modpack_id" class="form-label">Modpack</label>
+    <select name="modpack_id" id="modpack_id" class="form-select">
+        <option value="">-- Seleziona un Modpack --</option>
+        <?php
+        $stmt = $pdo->query("SELECT id, name, version FROM modpacks ORDER BY name");
+        while ($modpack = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $label = htmlspecialchars($modpack['name'] . " (" . $modpack['version'] . ")");
+            echo "<option value=\"{$modpack['id']}\">$label</option>";
+        }
+        ?>
+    </select>
+</div>
+
+<script>
+document.getElementById('type').addEventListener('change', function () {
+    const show = this.value === 'modpack';
+    document.getElementById('modpack_selector').style.display = show ? 'block' : 'none';
+});
+</script>
+
 
     <div class="mb-3">
         <label for="version" class="form-label">Versione Minecraft</label>
@@ -133,9 +158,10 @@ include("includes/header.php");
             ?>
         </select>
     </div>
-
+            
     <button type="submit" class="btn btn-primary">Crea Server</button>
     <a href="dashboard.php" class="btn btn-secondary ms-2">Annulla</a>
+
 </form>
 
 <?php include("includes/footer.php"); ?>
