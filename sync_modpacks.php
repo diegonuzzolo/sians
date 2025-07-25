@@ -25,8 +25,9 @@ foreach ($modpackIds as $modpackId) {
     echo "\n⏳ Elaborazione modpack ID $modpackId...\n";
 
     // Controlla se già presente
-    $stmt = $db->prepare("SELECT id FROM modpacks WHERE name LIKE ?");
-    $stmt->execute(["%$modpackId%"]);
+    $stmt = $db->prepare("SELECT id FROM modpacks WHERE curseforge_id = ?");
+$stmt->execute([$modpackId]);
+
     if ($stmt->fetch()) {
         echo "✅ Modpack già presente, salto.\n";
         continue;
