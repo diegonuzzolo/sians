@@ -140,63 +140,7 @@ $servers = $stmt->fetchAll();
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const rows = document.querySelectorAll('tbody tr');
 
-    rows.forEach(row => {
-        const vmid = row.dataset.vmid;
-        const serverId = row.dataset.serverId;
-        const statusBadge = row.querySelector('td:nth-child(6) span'); // Stato è colonna 6
-        const form = row.querySelector('form[action="server_action.php"]');
-        const button = form.querySelector('button');
-
-        let previousStatus = null;
-
-        async function updateStatus() {
-            try {
-                const res = await fetch(`get_vm_status.php?vmid=${vmid}`);
-                if (!res.ok) throw new Error('Errore rete');
-                const data = await res.json();
-
-                if (data.status) {
-                    if (previousStatus && previousStatus !== data.status) {
-                        row.style.transition = 'background-color 0.5s';
-                        row.style.backgroundColor = '#fff3cd';
-                        setTimeout(() => row.style.backgroundColor = '', 2000);
-                    }
-
-                    previousStatus = data.status;
-
-                    // Badge
-                    if (data.status === 'running') {
-                        statusBadge.textContent = 'Attivo';
-                        statusBadge.className = 'badge bg-success';
-                        // Bottone: FERMA
-                        button.textContent = 'Ferma';
-                        button.className = 'btn btn-warning btn-sm';
-                        button.value = 'stop';
-                        button.title = 'Ferma Server';
-                    } else {
-                        statusBadge.textContent = 'Spento';
-                        statusBadge.className = 'badge bg-secondary';
-                        // Bottone: AVVIA
-                        button.textContent = 'Avvia';
-                        button.className = 'btn btn-success btn-sm';
-                        button.value = 'start';
-                        button.title = 'Avvia Server';
-                    }
-                }
-            } catch (err) {
-                console.error('Errore nel polling stato VM:', err);
-            }
-        }
-
-        updateStatus();
-        setInterval(updateStatus, 5000); // ogni 5 secondi
-    });
-});
-</script>
 
 </body>
 </html>
