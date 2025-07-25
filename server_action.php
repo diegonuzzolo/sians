@@ -58,7 +58,7 @@ $privateKeyPath = '/home/diego/.ssh/id_rsa';
 
 // Costruisco comando SSH
 $sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "%s"',
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s:"%s"',
     escapeshellarg($privateKeyPath),
     escapeshellarg($sshUser),
     escapeshellarg($ip),
