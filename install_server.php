@@ -49,7 +49,7 @@ try {
         "echo 'motd=Server Vanilla $minecraftVersion' > server.properties",
         "echo 'server-port=25565' >> server.properties",
         "echo 'enable-command-block=true' >> server.properties",
-        "echo 'screen -dmS minecraft java -Xmx2G -Xms2G -jar server.jar nogui>start.sh",
+        "echo 'screen -dmS minecraft java -Xmx2G -Xms2G -jar server.jar nogui'>start.sh",
         "echo 'screen -S minecraft -X quit'>stop.sh",
         "echo 'chmod +x start.sh stop.sh'",
     ];
