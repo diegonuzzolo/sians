@@ -65,7 +65,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 include("includes/header.php");
 ?>
 
-<h1>Aggiungi un nuovo Server Minecraft</h1>
 
 <?php if ($error): ?>
     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
