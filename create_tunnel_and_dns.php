@@ -15,10 +15,10 @@ if ($serverId <= 0) {
 
 // Recupera server e IP della VM
 $stmt = $pdo->prepare("
-    SELECT s.*, v.ip 
-    FROM servers s
-    JOIN minecraft_vms v ON s.vm_id = v.id
-    WHERE s.id = ?
+    SELECT servers.*, minecraft_vms.ip 
+    FROM servers 
+    JOIN minecraft_vms ON servers.vm_id = minecraft_vms.id
+    WHERE servers.id = ?
 ");
 $stmt->execute([$serverId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
