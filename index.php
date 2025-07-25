@@ -78,8 +78,7 @@ $vmStorageSpeed = 7500; // MB/s
 
 <!-- Hero Section -->
 <div class="container-fluid hero-banner">
-    <div class="overlay"></div>
-    <div class="text-center">
+  <div class="text-center">
       <div class="hero-buttons">
           <?php if (!isset($_SESSION['user_id'])): ?>
             <a href="register.php" class="btn btn-success">Registrati</a>
@@ -89,6 +88,7 @@ $vmStorageSpeed = 7500; // MB/s
                 <?php endif; ?>
             </div>
         </div>
+    </div>
     
 <!-- Slot disponibili -->
 <div class="container my-5 text-center">
