@@ -8,7 +8,7 @@ $ids = [];
 for ($page = 0; $page < $maxPages; $page++) {
     #echo "Pagina $page...\n";
 
-    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=4471&sortField=2&sortOrder=desc&pageSize=$pageSize&page=$page";
+    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=4471&sortField=2&sortOrder=desc&pageSize=1";
 
     $curl = curl_init();
     curl_setopt_array($curl, [
