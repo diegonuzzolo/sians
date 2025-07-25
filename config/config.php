@@ -31,3 +31,18 @@ define ('DB_NAME', 'minecraft_platform');
 define ('DB_USER', 'diego');
 define ('DB_PASSWORD', 'Lgu8330Serve6');
 define ('DB_CHARSET', 'utf8mb4');
+
+
+
+try {
+    $pdo = new PDO(
+        "mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4",
+        DB_USER,
+        DB_PASSWORD
+    );
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    echo "✅ Connessione DB OK\n";
+} catch (PDOException $e) {
+    die("❌ Errore connessione DB: " . $e->getMessage());
+}
