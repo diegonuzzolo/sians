@@ -35,17 +35,12 @@ if (!$server) {
     exit('Server non trovato');
 }
 
-$ip = $server['ip_address'] ?? null;
-$sshUser = $server['ssh_user'] ?? null;
-
-if (!$ip || !$sshUser) {
-    error_log("[server_action] Dati mancanti: ip=$ip, sshUser=$sshUser");
-    exit('Dati server incompleti');
-}
+$ip = $server['ip_address'];
+$sshUser = $server['ssh_user'];
 
 $cmds = [
-    'start' => "cd ~/server && bash start.sh",
-    'stop'  => "cd ~/server && bash stop.sh"
+    'start' => "cd ~/server && screen -dmS mcserver java -Xmx2G -Xms2G -jar server.jar nogui",
+    'stop'  => "screen -S mcserver -X stuff \"stop$(printf '\\r')\""
 ];
 
 if (!isset($cmds[$action])) {
@@ -55,21 +50,19 @@ if (!isset($cmds[$action])) {
 }
 
 $privateKeyPath = '/home/diego/.ssh/id_rsa';
+$wrappedCmd = sprintf("timeout 15 bash -c %s", escapeshellarg($cmds[$action]));
 
-// Costruisco comando SSH
 $sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s:"%s"',
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "%s"',
     escapeshellarg($privateKeyPath),
     escapeshellarg($sshUser),
     escapeshellarg($ip),
-    $cmds[$action]
+    $wrappedCmd
 );
 
 error_log("[server_action] Esecuzione comando SSH: $sshCommand");
 
-// Eseguo e catturo output e exit code
 exec($sshCommand . " 2>&1", $output, $exitCode);
-
 error_log("[server_action] Exit code: $exitCode");
 error_log("[server_action] Output:\n" . implode("\n", $output));
 
