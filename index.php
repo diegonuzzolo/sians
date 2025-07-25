@@ -76,9 +76,10 @@ $vmStorageSpeed = 7500; // MB/s
   .text-gold { color: #facc15; }
 </style>
 
-<!-- Hero Section --><br><br><br>
+<!-- Hero Section -->
 <div class="container-fluid hero-banner">
   <div class="text-center">
+    <br><br><br><br>
     <h1 class="mb-4">Crea il tuo server Minecraft</h1>
     <div class="hero-buttons">
       <?php if (!isset($_SESSION['user_id'])): ?>
