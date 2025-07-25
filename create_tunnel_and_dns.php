@@ -71,8 +71,9 @@ if (!$tunnelUrl) {
 }
 
 // 💾 Salva nel DB
-$updateStmt = $pdo->prepare("UPDATE servers SET tunnel_url = ?, status = 'online' WHERE id = ?");
+$updateStmt = $pdo->prepare("UPDATE servers SET tunnel_url = ?, status = 'running' WHERE id = ?");
 $updateStmt->execute([$tunnelUrl, $serverId]);
+
 
 // ✅ Output finale
 echo "<h3>Tunnel creato con successo!</h3>";
