@@ -5,6 +5,21 @@ session_start();
 require 'config/config.php'; // Make sure this path is correct for your setup
 require 'includes/auth.php'; // Make sure this path is correct for your setup
 
+
+
+
+try {
+    $pdo = new PDO(
+        "mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4",
+        DB_USER,
+        DB_PASSWORD
+    );
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+   # echo "✅ Connessione DB OK\n";
+} catch (PDOException $e) {
+    die("❌ Errore connessione DB: " . $e->getMessage());
+}
 // --- 1. Authentication and Request Validation ---
 if (!isset($_SESSION['user_id'])) {
     http_response_code(403);
