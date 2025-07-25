@@ -8,17 +8,24 @@ function fetchPlugins($page = 0) {
 
     $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page";
 
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "header" => "x-api-key: $apiKey"
-        ]
-    ];
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "x-api-key: $apiKey"
+    ]);
 
-    $context = stream_context_create($opts);
-    $response = file_get_contents($url, false, $context);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        echo "❌ Errore HTTP $httpCode durante la richiesta a CurseForge\n";
+        return [];
+    }
+
     return json_decode($response, true)['data'] ?? [];
 }
+
 
 function fixDate($isoDate) {
     try {
