@@ -53,8 +53,7 @@ $vmStorageSpeed = 7500; // MB/s
   }
 h1{
     position: relative;
-    bottom: 20%;
-    left: 50%;
+
 }
   .info-box {
     background-color: #1e293b;
