@@ -52,7 +52,7 @@ $vmStorageSpeed = 7500; // MB/s
     transform: scale(1.05);
   }
 h1{
-    position: absolute;
+    position: relative;
     bottom: 20%;
     left: 50%;
 }
