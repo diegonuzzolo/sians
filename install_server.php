@@ -40,19 +40,39 @@ try {
     echo "✅ URL server.jar: $serverJarUrl\n";
 
     // ✅ Comandi da eseguire sulla VM
-    $commands = [
-        "mkdir -p $remoteBaseDir",
-        "cd $remoteBaseDir",
-        "wget -O server.jar '$serverJarUrl'",
-        "chmod +x server.jar",
-        "echo 'eula=true' > eula.txt",
-        "echo 'motd=Server Vanilla $minecraftVersion' > server.properties",
-        "echo 'server-port=25565' >> server.properties",
-        "echo 'enable-command-block=true' >> server.properties",
-        "echo 'screen -dmS minecraft java -Xmx2G -Xms2G -jar server.jar nogui'>start.sh",
-        "echo 'screen -S minecraft -X quit'>stop.sh",
-        "echo 'chmod +x start.sh stop.sh'",
-    ];
+  $serverProperties = <<<EOT
+server-port=25565
+max-players=20
+motd=Server Vanilla $minecraftVersion
+enable-command-block=true
+level-name=world
+online-mode=true
+difficulty=1
+spawn-monsters=true
+spawn-npcs=true
+spawn-animals=true
+pvp=true
+allow-nether=true
+max-build-height=256
+view-distance=10
+white-list=false
+generate-structures=true
+hardcore=false
+enable-rcon=false
+gamemode=0
+EOT;
+
+$commands = [
+    "mkdir -p $remoteBaseDir",
+    "cd $remoteBaseDir",
+    "wget -O server.jar '$serverJarUrl'",
+    "chmod +x server.jar",
+    "echo 'eula=true' > eula.txt",
+    "echo " . escapeshellarg($serverProperties) . " > server.properties",
+    "echo 'screen -dmS minecraft java -Xmx2G -Xms2G -jar server.jar nogui' > start.sh",
+    "echo 'screen -S minecraft -X quit' > stop.sh",
+    "chmod +x start.sh stop.sh",
+];
 
     $fullCommand = implode(" && ", $commands);
     $sshCommand = "ssh -o StrictHostKeyChecking=no $remoteUser@$vmIp \"$fullCommand\"";
