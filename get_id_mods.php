@@ -4,7 +4,7 @@ $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC'; // <--
 $outputFile = 'mod_list.json';
 
 $index = 0;
-$pageSize = 200;
+$pageSize = 50;
 $allMods = [];
 
 do {
