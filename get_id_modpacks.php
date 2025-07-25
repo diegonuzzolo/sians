@@ -6,7 +6,7 @@ $maxPages = 1000;
 $ids = [];
 
 for ($page = 0; $page < $maxPages; $page++) {
-    echo "Pagina $page...\n";
+    #echo "Pagina $page...\n";
 
     $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=4471&pageSize=$pageSize&page=$page";
 
@@ -37,7 +37,7 @@ for ($page = 0; $page < $maxPages; $page++) {
 
     foreach ($data['data'] as $mod) {
         $ids[] = $mod['id'];
-        echo "- ID: {$mod['id']}\n";
+        echo "{$mod['id']},\n";
     }
 
     usleep(500000); // 0.5 secondi per sicurezza (evita rate limit)
