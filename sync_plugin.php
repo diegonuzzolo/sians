@@ -1,10 +1,8 @@
 <?php
-// ✅ Configurazione
-$apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
+$apiKey = 'INSERISCI_LA_TUA_API_KEY';
 $db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu8330Serve6');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// 🔁 Funzione per scaricare i plugin Bukkit ordinati per download
 function fetchPlugins($page = 0) {
     global $apiKey;
 
@@ -22,7 +20,14 @@ function fetchPlugins($page = 0) {
     return json_decode($response, true)['data'] ?? [];
 }
 
-// 🔄 Loop paginato
+function fixDate($isoDate) {
+    try {
+        return (new DateTime($isoDate))->format('Y-m-d H:i:s');
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
 $page = 0;
 $total = 0;
 
@@ -58,11 +63,11 @@ while (true) {
             ':download_url' => $plugin['latestFiles'][0]['downloadUrl'] ?? null,
             ':logo_url' => $plugin['logo']['thumbnailUrl'] ?? null,
             ':website_url' => $plugin['links']['websiteUrl'] ?? null,
-            ':date_created' => $plugin['dateCreated'],
-            ':date_modified' => $plugin['dateModified'],
+            ':date_created' => fixDate($plugin['dateCreated']),
+            ':date_modified' => fixDate($plugin['dateModified']),
             ':download_count' => $plugin['downloadCount'],
-            ':game_versions' => json_encode($plugin['gameVersions']),
-            ':latest_files' => json_encode($plugin['latestFiles']),
+            ':game_versions' => json_encode($plugin['gameVersions'] ?? []),
+            ':latest_files' => json_encode($plugin['latestFiles'] ?? []),
         ]);
 
         $total++;
@@ -70,7 +75,7 @@ while (true) {
 
     echo "✅ Pagina $page sincronizzata, totale plugin: $total\n";
     $page++;
-    sleep(1); // ⏳ evita rate limit
+    sleep(1); // anti rate-limit
 }
 
 echo "🎉 Sincronizzazione completata: $total plugin popolari importati.\n";
