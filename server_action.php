@@ -44,8 +44,8 @@ if (!$ip || !$sshUser) {
 }
 
 $cmds = [
-    'start' => "cd ~/server && ./start.sh",
-    'stop'  => "cd ~/server && ./stop.sh"
+    'start' => "cd ~/server && bash start.sh",
+    'stop'  => "cd ~/server && bash stop.sh"
 ];
 
 if (!isset($cmds[$action])) {
