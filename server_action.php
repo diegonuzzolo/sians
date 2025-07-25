@@ -39,7 +39,7 @@ $ip = $server['ip_address'];
 $sshUser = $server['ssh_user'];
 
 $cmds = [
-    'start' => "cd ~/server && screen -dmS mcserver java -Xmx2G -Xms2G -jar server.jar nogui",
+    'start' => "cd ~/server && screen -dmS mcserver java -Xmx10G -Xms10G -jar server.jar nogui",
     'stop'  => "screen -S mcserver -X stuff \"stop$(printf '\\r')\""
 ];
 
