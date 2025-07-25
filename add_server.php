@@ -5,7 +5,6 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require 'includes/auth.php';
-require 'includes/header.php'; // questo NON deve fare redirect
 
 $error = '';
 $success = '';
@@ -131,7 +130,7 @@ include("includes/header.php");
     </div>
 
     <button type="submit" class="btn btn-primary">Crea Server</button>
-    
+    <a href="dashboard.php" class="btn btn-secondary ms-2">Annulla</a>
 </form>
 
 <?php include("includes/footer.php"); ?>
