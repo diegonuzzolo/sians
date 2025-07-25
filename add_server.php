@@ -44,7 +44,6 @@ $version = trim($_POST['version'] ?? '');
                 $stmt->execute([$userId, $serverId, $vm['id']]);
 
                 // Redirect alla pagina di gestione tunnel/DNS (opzionale)
-                header("Location: create_tunnel_and_dns.php?server_id=$serverId");
                    header("Location: install_server.php?server_id=$serverId&type=$type&version=$version");
     exit;
             }

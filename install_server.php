@@ -91,3 +91,6 @@ $commands = [
     echo $e->getMessage() . "\n";
     exit(1);
 }
+header(
+    "Location: create_tunnel_and_dns.php?server_id=$serverId"
+);exit;
