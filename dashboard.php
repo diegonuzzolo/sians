@@ -67,7 +67,7 @@ $servers = $stmt->fetchAll();
       transform: scale(1.05);
     }
     .ip-box {
-      background-color: #334155;
+      background-color: #ffffffff;
       padding: 6px 10px;
       border-radius: 6px;
       font-size: 0.9rem;
