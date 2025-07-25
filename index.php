@@ -31,12 +31,40 @@ $vmStorageSpeed = 7500; // MB/s
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+  }
+
+  .scroll-indicator {
+    position: absolute;
+    bottom: 30px;
+    width: 60px;
+    height: 60px;
+    border: 2px solid #facc15;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    animation: pulse 2s infinite;
+    background: rgba(0,0,0,0.4);
+  }
+
+  .scroll-indicator i {
+    color: #facc15;
+    font-size: 1.5rem;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.7; }
   }
 
   .hero-banner h1 {
     font-size: 3rem;
     color: #facc15;
     text-shadow: 2px 2px 6px #000;
+    margin-bottom: 10px;
   }
 
   .hero-buttons .btn {
@@ -78,11 +106,24 @@ $vmStorageSpeed = 7500; // MB/s
 
 <!-- Hero Section -->
 <div class="container-fluid hero-banner">
+  <h1>Crea il tuo Server Minecraft</h1>
+  <div class="hero-buttons">
+    <?php if (!isset($_SESSION['user_id'])): ?>
+      <a href="register.php" class="btn btn-warning">Registrati</a>
+      <a href="login.php" class="btn btn-outline-light">Accedi</a>
+    <?php else: ?>
+      <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
+    <?php endif; ?>
+  </div>
 
-    </div>
-    
-<!-- Slot disponibili -->
-<div class="container my-5 text-center">
+  <!-- Scroll Indicator -->
+  <div class="scroll-indicator" onclick="scrollToContent()">
+    <i class="bi bi-arrow-down"></i>
+  </div>
+</div>
+
+<!-- Sezione Slot disponibili -->
+<div class="container my-5 text-center" id="scroll-target">
   <h2 class="text-gold">Slot Disponibili</h2>
   <div class="display-5 text-success fw-bold"><?= htmlspecialchars($slotDisponibili) ?></div>
   <p class="text-muted">Slot ancora liberi per creare nuovi server personalizzati.</p>
@@ -145,7 +186,7 @@ $vmStorageSpeed = 7500; // MB/s
   </div>
 </div>
 
-<!-- Script banner mobile -->
+<!-- Script banner mobile & scroll -->
 <script>
   window.addEventListener("load", function () {
     const isMobile = window.innerWidth < 768;
@@ -154,6 +195,10 @@ $vmStorageSpeed = 7500; // MB/s
       banner.style.backgroundImage = "url('assets/banner-mobile.png')";
     }
   });
+
+  function scrollToContent() {
+    document.getElementById('scroll-target').scrollIntoView({ behavior: 'smooth' });
+  }
 </script>
 
 <?php include 'includes/footer.php'; ?>
