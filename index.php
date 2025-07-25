@@ -82,8 +82,8 @@ $vmStorageSpeed = 7500; // MB/s
 
   #hero-content {
     position: absolute;
-    top: 100%;
-    left: 100%;
+    bottom: 80%;
+    left: 60%;
   }
 
   .info-box {
