@@ -2,16 +2,16 @@
 require 'config/config.php';
 require 'includes/auth.php';
 
-if (!isset($_GET['server_id'])) {
-    http_response_code(400);
-    die("Parametro server_id mancante");
-}
+// if (!isset($_GET['server_id'])) {
+//     http_response_code(400);
+//     die("Parametro server_id mancante");
+// }
 
-$serverId = intval($_GET['server_id']);
-if ($serverId <= 0) {
-    http_response_code(400);
-    die("server_id non valido");
-}
+// $serverId = intval($_GET['server_id']);
+// if ($serverId <= 0) {
+//     http_response_code(400);
+//     die("server_id non valido");
+// }
 
 // Recupera server e IP della VM
 $stmt = $pdo->prepare("
