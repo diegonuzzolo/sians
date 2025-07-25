@@ -67,7 +67,7 @@ $servers = $stmt->fetchAll();
       transform: scale(1.05);
     }
     .ip-box {
-      background-color: #ffffffff;
+      background-color: #334155;
       padding: 6px 10px;
       border-radius: 6px;
       font-size: 0.9rem;
@@ -89,10 +89,8 @@ $servers = $stmt->fetchAll();
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5">
-  <h2 class="text-center mb-4"><i class="fa-brands fa-minecraft"></i> I Tuoi Server</h2>
 
   <?php if (empty($servers)): ?>
-    <p class="text-center text-muted">Non hai ancora nessun server. Crea il primo ora!</p>
   <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
