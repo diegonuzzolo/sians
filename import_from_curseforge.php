@@ -3,7 +3,7 @@ require_once 'config/config.php';
 require_once 'sync_functions.php';
 
 $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
-$projectId = 925200; // es. RLCraft
+$projectId = 389615; // es. RLCraft
 
 $endpoint = "https://api.curseforge.com/v1/mods/$projectId/files";
 
