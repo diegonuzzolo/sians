@@ -127,18 +127,30 @@ $servers = $stmt->fetchAll();
 </div>
 
 <!-- Nuovo Server -->
-<div class="d-flex justify-content-center align-items-center my-4">
-    <div class="card bg-light" style="width: 320px;">
-        <div class="card-body text-center">
-            <h5 class="card-title">Nuovo Server</h5>
-            <?php if ($slotDisponibili > 0): ?>
-                <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
-            <?php else: ?>
-                <p class="text-danger mt-2">Nessuno slot disponibile</p>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
+<form method="POST" action="add_server.php">
+  <label>Nome server:</label>
+  <input type="text" name="name" required><br>
+
+  <label>Tipo di server:</label>
+  <select name="type" required>
+    <option value="vanilla">Vanilla</option>
+    <option value="paper">Paper</option>
+    <option value="spigot">Spigot</option>
+    <option value="forge">Forge</option>
+    <option value="fabric">Fabric</option>
+  </select><br>
+
+  <label>Versione Minecraft:</label>
+  <select name="version" required>
+    <option value="1.20.1">1.20.1</option>
+    <option value="1.19.4">1.19.4</option>
+    <option value="1.18.2">1.18.2</option>
+    <!-- Aggiungi altre versioni a mano -->
+  </select><br>
+
+  <input type="submit" value="Crea server">
+</form>
+
 
 
 
