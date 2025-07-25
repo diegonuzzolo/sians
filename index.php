@@ -139,9 +139,24 @@ $vmStorageSpeed = 7500;
       font-size: 1.2rem;
     }
   }
+  .mobile-buttons .btn {
+  font-size: 1.1rem;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
 </style>
 
 <div class="container-fluid hero-banner">
+  <div class="mobile-buttons text-center d-md-none mt-4">
+  <?php if (!isset($_SESSION['user_id'])): ?>
+    <a href="register.php" class="btn btn-warning w-75 my-2">Registrati</a>
+    <a href="login.php" class="btn btn-outline-light w-75 my-2">Accedi</a>
+  <?php else: ?>
+    <a href="dashboard.php" class="btn btn-success w-75 my-2">Vai alla Dashboard</a>
+  <?php endif; ?>
+</div>
 
 
   <div id="freccetta" class="scroll-indicator" onclick="scrollToContent()">
