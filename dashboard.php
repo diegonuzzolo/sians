@@ -10,11 +10,9 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = $_SESSION['user_id'];
 
-// Slot disponibili
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
 
-// Server utente
 $stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
                        FROM servers s
                        JOIN minecraft_vms vm ON s.vm_id = vm.id
@@ -25,61 +23,65 @@ $servers = $stmt->fetchAll();
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Dashboard - Server Minecraft</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <title>Dashboard Minecraft</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
-      background-color: #0f172a;
-      color: #e2e8f0;
+      background: linear-gradient(to right, #0f172a, #1e293b);
+      color: #f1f5f9;
       font-family: 'Segoe UI', sans-serif;
     }
-    .server-box {
-      background: #1e293b;
-      border-radius: 12px;
-      padding: 25px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
-    .table-dark th {
-      background-color: #334155 !important;
-      color: #e2e8f0 !important;
-    }
-    .badge {
-      font-size: 0.9em;
-    }
-    .btn {
-      border-radius: 8px;
-    }
-    .card.bg-light {
-      background-color: #1e293b !important;
-      border: 1px solid #334155;
-    }
-    .card-title {
+    h2 {
       color: #facc15;
+      font-weight: 600;
     }
-    .btn-success {
+    .server-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: all 0.2s ease-in-out;
+    }
+    .server-card:hover {
+      box-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
+      transform: scale(1.01);
+    }
+    .server-status {
+      font-weight: bold;
+    }
+    .badge-running {
       background-color: #22c55e;
-      border-color: #22c55e;
     }
-    .btn-danger {
-      background-color: #ef4444;
-      border-color: #ef4444;
+    .badge-stopped {
+      background-color: #64748b;
     }
-    .btn-warning {
-      background-color: #f59e0b;
-      border-color: #f59e0b;
+    .action-btn {
+      margin-right: 5px;
+      border-radius: 8px;
+      transition: all 0.2s ease-in-out;
     }
-    .btn:hover {
-      filter: brightness(1.1);
+    .action-btn:hover {
+      transform: scale(1.05);
     }
-    code {
-      background: #334155;
-      padding: 4px 8px;
+    .ip-box {
+      background-color: #334155;
+      padding: 6px 10px;
       border-radius: 6px;
-      color: #f8fafc;
+      font-size: 0.9rem;
     }
-    a.btn {
-      font-weight: 500;
+    .card-create {
+      background: linear-gradient(to right, #0ea5e9, #22d3ee);
+      color: #0f172a;
+      font-weight: bold;
+      transition: 0.3s;
+      border-radius: 10px;
+    }
+    .card-create:hover {
+      background: linear-gradient(to right, #06b6d4, #38bdf8);
+      transform: scale(1.03);
     }
   </style>
 </head>
@@ -87,81 +89,65 @@ $servers = $stmt->fetchAll();
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5">
-    <h2 class="mb-4 text-center text-warning">🎮 I tuoi server Minecraft</h2>
+  <h2 class="text-center mb-4"><i class="fa-brands fa-minecraft"></i> I Tuoi Server</h2>
 
-    <?php if (empty($servers)): ?>
-        <p class="text-muted text-center">Non hai ancora server attivi.</p>
-    <?php else: ?>
-        <div class="table-responsive">
-            <table class="table table-dark table-hover table-bordered align-middle">
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>ID VM</th>
-                        <th>IP Tunnel</th>
-                        <th>Stato</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($servers as $server): ?>
-                    <tr data-vmid="<?= htmlspecialchars($server['proxmox_vmid']) ?>" data-server-id="<?= htmlspecialchars($server['id']) ?>">
-                        <td><?= htmlspecialchars($server['name']) ?></td>
-                        <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
-                        <td>
-                            <?php if (!empty($server['tunnel_url'])):
-                                $url = $server['tunnel_url'];
-                                $urlParts = parse_url(str_replace('tcp://', 'tcp://', $url));
-                                $host = $urlParts['host'] ?? '';
-                                $port = $urlParts['port'] ?? '';
-                            ?>
-                                <code><?= htmlspecialchars($host . ':' . $port) ?></code>
-                            <?php else: ?>
-                                <span class="text-muted small">In attesa tunnel</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
-                                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
-                            </span>
-                        </td>
-                        <td>
-                            <!-- Start/Stop -->
-                            <form action="server_action.php" method="post" class="d-inline">
-                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                                        class="btn btn-sm <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?>"
-                                        title="<?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?> Server">
-                                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                                </button>
-                            </form>
+  <?php if (empty($servers)): ?>
+    <p class="text-center text-muted">Non hai ancora nessun server. Crea il primo ora!</p>
+  <?php else: ?>
+    <div class="row">
+      <?php foreach ($servers as $server): ?>
+        <div class="col-md-6 col-lg-4">
+          <div class="server-card">
+            <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
+            <p class="mb-1"><strong>ID VM:</strong> <?= htmlspecialchars($server['proxmox_vmid']) ?></p>
+            <p class="mb-1"><strong>IP:</strong> 
+              <?php if (!empty($server['tunnel_url'])):
+                $url = $server['tunnel_url'];
+                $parts = parse_url(str_replace('tcp://', 'tcp://', $url));
+                $host = $parts['host'] ?? '';
+                $port = $parts['port'] ?? '';
+              ?>
+                <span class="ip-box"><?= htmlspecialchars($host . ':' . $port) ?></span>
+              <?php else: ?>
+                <span class="text-muted">Non disponibile</span>
+              <?php endif; ?>
+            </p>
+            <p class="mb-2"><strong>Stato:</strong> 
+              <span class="badge <?= $server['status'] === 'running' ? 'badge-running' : 'badge-stopped' ?>">
+                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+              </span>
+            </p>
 
-                            <!-- Delete -->
-                            <form method="POST" action="delete_server.php" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');" class="d-inline">
-                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                                <button type="submit" class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
-                            </form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="d-flex justify-content-between">
+              <form method="post" action="server_action.php">
+                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                        class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                  <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                </button>
+              </form>
+
+              <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+              </form>
+            </div>
+          </div>
         </div>
-    <?php endif; ?>
-</div>
-
-<!-- Box per creare un nuovo server -->
-<div class="d-flex justify-content-center align-items-center my-4">
-    <div class="card bg-light shadow-lg" style="width: 320px;">
-        <div class="card-body text-center">
-            <h5 class="card-title">+ Nuovo Server</h5>
-            <?php if ($slotDisponibili > 0): ?>
-                <a href="add_server.php" class="btn btn-success w-100">Crea Nuovo Server</a>
-            <?php else: ?>
-                <p class="text-danger mt-2">❌ Nessuno slot disponibile</p>
-            <?php endif; ?>
-        </div>
+      <?php endforeach; ?>
     </div>
+  <?php endif; ?>
+
+  <!-- Card per creare nuovo server -->
+  <div class="text-center mt-5">
+    <?php if ($slotDisponibili > 0): ?>
+      <a href="add_server.php" class="btn btn-lg card-create px-5 py-3">
+        <i class="fa-solid fa-plus me-2"></i> Crea Nuovo Server
+      </a>
+    <?php else: ?>
+      <p class="text-danger mt-3 fw-bold">❌ Nessun slot disponibile al momento</p>
+    <?php endif; ?>
+  </div>
 </div>
 
 </body>
