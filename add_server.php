@@ -71,30 +71,46 @@ include("includes/header.php");
     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
 <?php endif; ?>
 
-<form method="POST" action="create_server.php">
-    <div class="row">
-        <div class="mb-3 col-md-6">
-            <label for="server_name" class="form-label">Nome Server</label>
-            <input type="text" name="server_name" class="form-control" required>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<form method="POST" action="add_server.php" class="p-4 bg-light rounded shadow-sm" style="max-width:700px; margin:auto;">
+    <h2 class="mb-4 text-center fw-bold">Crea un nuovo Server Minecraft</h2>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6 position-relative">
+            <label for="server_name" class="form-label fw-semibold">Nome Server</label>
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white"><i class="bi bi-hdd-network"></i></span>
+                <input type="text" name="server_name" id="server_name" class="form-control" placeholder="Es. MondoMagico" required>
+            </div>
+            <div class="form-text">Un nome unico per il tuo server.</div>
         </div>
 
-        <!-- <div class="mb-3 col-md-6">
-            <label for="subdomain" class="form-label">Sottodominio</label>
-            <input type="text" name="subdomain" class="form-control" required>
-        </div> -->
+        <div class="col-md-6 position-relative">
+            <label for="subdomain" class="form-label fw-semibold">Sottodominio</label>
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white"><i class="bi bi-link-45deg"></i></span>
+                <input type="text" name="subdomain" id="subdomain" class="form-control" placeholder="Es. mc123" required>
+                <span class="input-group-text bg-secondary text-white"><?= DOMAIN ?></span>
+            </div>
+            <div class="form-text">Indirizzo per collegarti: <code>mc123.<?= DOMAIN ?></code></div>
+        </div>
 
-        <div class="mb-3 col-md-6">
-            <label for="type" class="form-label">Tipo</label>
+        <div class="col-md-6 position-relative">
+            <label for="type" class="form-label fw-semibold">Tipo di Server</label>
             <select name="type" id="type" class="form-select" required>
+                <option value="" disabled selected>Seleziona tipo</option>
                 <option value="vanilla">Vanilla</option>
                 <option value="spigot">Spigot</option>
                 <option value="modpack">Modpack</option>
             </select>
+            <div class="form-text">Scegli il tipo di server Minecraft.</div>
         </div>
 
-        <div class="mb-3 col-md-6">
-            <label for="version" class="form-label">Versione Minecraft</label>
+        <div class="col-md-6 position-relative">
+            <label for="version" class="form-label fw-semibold">Versione Minecraft</label>
             <select name="version" id="version" class="form-select" required>
+                <option value="" disabled selected>Seleziona versione</option>
                 <?php
                 $versions = [
                     "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
@@ -124,12 +140,23 @@ include("includes/header.php");
                 }
                 ?>
             </select>
+            <div class="form-text">Versione del gioco per il server.</div>
         </div>
     </div>
 
-    <button type="submit" class="btn btn-primary">Crea Server</button>
-    <a href="dashboard.php" class="btn btn-secondary ms-2">Annulla</a>
+    <div class="d-flex justify-content-center gap-3 mt-4">
+        <button type="submit" class="btn btn-success btn-lg px-4 shadow-sm">
+            <i class="bi bi-plus-circle me-2"></i> Crea Server
+        </button>
+        <a href="dashboard.php" class="btn btn-outline-secondary btn-lg px-4 shadow-sm">
+            <i class="bi bi-x-circle me-2"></i> Annulla
+        </a>
+    </div>
 </form>
+
+<script>
+    // Facoltativo: se vuoi aggiungere logica di mostra/nascondi per modpack in base al tipo
+</script>
 
 
 <?php include("includes/footer.php"); ?>
