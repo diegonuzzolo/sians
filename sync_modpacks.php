@@ -74,7 +74,12 @@ foreach ($modpackIds as $modpackId) {
         }
     }
 
-    $downloadUrl = $file['downloadUrl'];
+    $downloadUrl = $file['downloadUrl'] ?? null;
+if (!$downloadUrl) {
+    echo "❌ Nessun downloadUrl disponibile per il file {$file['id']}.\n";
+    continue; // Skippa questo modpack
+}
+
     $filename = $file['fileName'];
     $dateModified = $file['fileDate'];
 
