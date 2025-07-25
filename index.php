@@ -86,6 +86,21 @@ $vmStorageSpeed = 7500; // MB/s
     left: 60%;
   }
 
+  #freccetta {
+    position: absolute;
+    bottom: 30px;
+    width: 60px;
+    height: 60px;
+    border: 2px solid #facc15;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    animation: pulse 2s infinite;
+    background: rgba(0,0,0,0.4);
+  }
+
   .info-box {
     background-color: #1e293b;
     border-radius: 12px;
@@ -125,7 +140,7 @@ $vmStorageSpeed = 7500; // MB/s
         </div>
     </div>
         <!-- Scroll Indicator -->
-        <div class="scroll-indicator" onclick="scrollToContent()">
+        <div id="freccetta" class="scroll-indicator" onclick="scrollToContent()">
           <i class="bi bi-arrow-down"></i>
         </div>
   </div>
