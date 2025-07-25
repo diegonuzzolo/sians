@@ -56,7 +56,7 @@ function syncModpack(array $modpack) {
     echo "Modpack inserito: {$modpack['name']} ({$modpack['forgeVersion']})\n";
 }
 
-// esempio:
-$json = file_get_contents('./modpack.json'); // file JSON come quello che hai fornito
+// file JSON come quello che hai fornito
+$json = file_get_contents(__DIR__ . '/modpack.json');
 $data = json_decode($json, true);
 syncModpack($data['data']);
