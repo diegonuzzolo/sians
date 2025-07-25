@@ -17,7 +17,6 @@ $userId = $_SESSION['user_id'];
 $serverId = intval($_POST['server_id']);
 $action = $_POST['action']; // 'start' o 'stop'
 
-// Recupera info della VM e SSH user
 $stmt = $pdo->prepare("SELECT vm.ip AS ip_address, s.ssh_user FROM servers s JOIN minecraft_vms vm ON s.vm_id = vm.id WHERE s.id = ? AND s.user_id = ?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -28,9 +27,8 @@ if (!$server) {
 }
 
 $ip = $server['ip_address'];
-$sshUser = $server['ssh_user']; // esempio: 'diego' o 'mcuser'
+$sshUser = $server['ssh_user'];
 
-// Comandi da eseguire sulla VM
 $cmds = [
     'start' => "cd ~/server && ./start.sh",
     'stop'  => "cd ~/server && ./stop.sh"
@@ -41,31 +39,27 @@ if (!isset($cmds[$action])) {
     exit('Azione non valida');
 }
 
-$privateKeyPath = '/home/diego/.ssh/id_rsa'; // modifica se serve
+$privateKeyPath = '/home/diego/.ssh/id_rsa';
 
-// Costruisci comando SSH senza nohup, perché start.sh usa screen -dmS
+// Comando SSH con nohup, background e timeout 10s per evitare blocchi
 $sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "%s"',
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "timeout 10 bash -c \'nohup %s > /dev/null 2>&1 &\'"',
     escapeshellarg($privateKeyPath),
     escapeshellarg($sshUser),
     escapeshellarg($ip),
     $cmds[$action]
 );
 
-// Esegui e cattura output e codice
 exec($sshCommand . " 2>&1", $output, $exitCode);
 
-// Log per debug
 error_log("Comando SSH: $sshCommand");
 error_log("Output SSH: " . print_r($output, true));
 error_log("Exit code SSH: $exitCode");
 
 if ($exitCode === 0) {
     $newStatus = $action === 'start' ? 'running' : 'stopped';
-
     $update = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $update->execute([$newStatus, $serverId]);
-
     header('Location: dashboard.php?msg=success');
     exit;
 } else {
