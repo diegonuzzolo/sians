@@ -34,33 +34,34 @@ if (!isset($data['data'])) {
 foreach ($data['data'] as $entry) {
     if ($entry['releaseType'] == 1) {
         $modpack = [
-            'gameVersionId' => 0,
-            'minecraftGameVersionId' => 0,
-            'forgeVersion' => 'unknown',
-            'name' => $entry['displayName'],
-            'type' => 1,
-            'downloadUrl' => $entry['downloadUrl'],
-            'filename' => $entry['fileName'],
-            'installMethod' => 1,
-            'latest' => $entry['isLatest'] ?? false,
+    'gameVersionId' => 0,
+    'minecraftGameVersionId' => 0,
+    'forgeVersion' => 'unknown',
+    'name' => $entry['displayName'],
+    'type' => 1,
+    'downloadUrl' => $entry['downloadUrl'],
+    'filename' => $entry['fileName'],
+    'installMethod' => 1,
+    'latest' => isset($entry['isLatest']) ? (int)$entry['isLatest'] : 0,
     'recommended' => isset($entry['isServerPack']) ? (int)$entry['isServerPack'] : 0,
-            'approved' => true,
-            'dateModified' => $entry['fileDate'],
-            'mavenVersionString' => '',
-            'versionJson' => '{}',
-            'librariesInstallLocation' => '',
-            'minecraftVersion' => $entry['gameVersions'][0] ?? '',
-            'additionalFilesJson' => '[]',
-            'modLoaderGameVersionId' => 0,
-            'modLoaderGameVersionTypeId' => 0,
-            'modLoaderGameVersionStatus' => 1,
-            'modLoaderGameVersionTypeStatus' => 1,
-            'mcGameVersionId' => 0,
-            'mcGameVersionTypeId' => 0,
-            'mcGameVersionStatus' => 1,
-            'mcGameVersionTypeStatus' => 1,
-            'installProfileJson' => '{}'
-        ];
+    'approved' => 1,
+    'dateModified' => $entry['fileDate'],
+    'mavenVersionString' => '',
+    'versionJson' => '{}',
+    'librariesInstallLocation' => '',
+    'minecraftVersion' => $entry['gameVersions'][0] ?? '',
+    'additionalFilesJson' => '[]',
+    'modLoaderGameVersionId' => 0,
+    'modLoaderGameVersionTypeId' => 0,
+    'modLoaderGameVersionStatus' => 1,
+    'modLoaderGameVersionTypeStatus' => 1,
+    'mcGameVersionId' => 0,
+    'mcGameVersionTypeId' => 0,
+    'mcGameVersionStatus' => 1,
+    'mcGameVersionTypeStatus' => 1,
+    'installProfileJson' => '{}'
+];
+
 
         syncModpack($modpack);
         break;
