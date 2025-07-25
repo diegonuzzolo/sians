@@ -33,34 +33,20 @@ if (!isset($data['data'])) {
 // Prendo la prima release (releaseType=1)
 foreach ($data['data'] as $entry) {
     if ($entry['releaseType'] == 1) {
-        $modpack = [
-    'gameVersionId' => 0,
-    'minecraftGameVersionId' => 0,
-    'forgeVersion' => 'unknown',
+     $modpack = [
     'name' => $entry['displayName'],
-    'type' => 1,
-    'downloadUrl' => $entry['downloadUrl'],
+    'forgeVersion' => 'unknown',
     'filename' => $entry['fileName'],
+    'downloadUrl' => $entry['downloadUrl'],
+    'minecraftVersion' => $entry['gameVersions'][0] ?? '',
+    'type' => 1,
     'installMethod' => 1,
     'latest' => isset($entry['isLatest']) ? (int)$entry['isLatest'] : 0,
     'recommended' => isset($entry['isServerPack']) ? (int)$entry['isServerPack'] : 0,
     'approved' => 1,
-    'dateModified' => $entry['fileDate'],
-    'mavenVersionString' => '',
-    'versionJson' => '{}',
-    'librariesInstallLocation' => '',
-    'minecraftVersion' => $entry['gameVersions'][0] ?? '',
-    'additionalFilesJson' => '[]',
-    'modLoaderGameVersionId' => 0,
-    'modLoaderGameVersionTypeId' => 0,
-    'modLoaderGameVersionStatus' => 1,
-    'modLoaderGameVersionTypeStatus' => 1,
-    'mcGameVersionId' => 0,
-    'mcGameVersionTypeId' => 0,
-    'mcGameVersionStatus' => 1,
-    'mcGameVersionTypeStatus' => 1,
-    'installProfileJson' => '{}'
+    'dateModified' => $entry['fileDate']
 ];
+
 
 
         syncModpack($modpack);
