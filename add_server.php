@@ -77,10 +77,10 @@ include("includes/header.php");
         <input type="text" name="server_name" class="form-control" required>
     </div>
 
-    <div class="mb-3">
+    <!-- <div class="mb-3">
         <label for="subdomain" class="form-label">Sottodominio</label>
         <input type="text" name="subdomain" class="form-control" required>
-    </div>
+    </div> -->
 
     <div class="mb-3">
         <label for="type" class="form-label">Tipo</label>
