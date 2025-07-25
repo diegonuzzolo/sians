@@ -1,5 +1,24 @@
 <?php
-require_once 'db.php'; // connessione PDO
+require_once 'config/config.php'; // connessione PDO
+
+
+try {
+    // Connessione usando PDO
+    $pdo = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4", DB_USER, DB_PASSWORD);
+
+    // Imposta modalità errore a eccezioni
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Opzionale: modalità fetch di default in array associativi
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+    // Debug opzionale
+    // echo "Connessione al database avvenuta con successo.\n";
+} catch (PDOException $e) {
+    // Gestione errore
+    die("Errore di connessione al database: " . $e->getMessage());
+}
+
 
 function syncModpack(array $modpack) {
     global $pdo;
