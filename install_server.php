@@ -26,7 +26,7 @@ function getServerJarUrl($version = null) {
 
 // 🔧 Parametri da CLI
 $vmIp = $argv[1]; // Es: 192.168.1.101
-$serverId = $argv[2] ?? uniqid("srv");
+$serverId = $argv[2];
 $minecraftVersion = $argv[3] ?? null;
 
 $remoteUser = 'diego';

@@ -45,7 +45,7 @@ $version = trim($_POST['version'] ?? '');
 
                 // Redirect alla pagina di gestione tunnel/DNS (opzionale)
                    header("Location: install_server.php?server_id=$serverId&type=$type&version=$version");
-    exit;
+                    exit;
             }
         }
     }
