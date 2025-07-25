@@ -32,8 +32,8 @@ $sshUser = $server['ssh_user']; // es: 'mcuser'
 
 // Percorsi degli script
 $cmds = [
-    'start' => "cd ~/server/ && ./start.sh",
-    'stop'  => "cd ~/server/ && ./stop.sh"
+    'start' => "cd ~/server/ && bash start.sh",
+    'stop'  => "cd ~/server/ && bash stop.sh"
 ];
 
 if (!isset($cmds[$action])) {
