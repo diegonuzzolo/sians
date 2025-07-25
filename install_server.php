@@ -30,7 +30,7 @@ $serverId = $argv[2] ?? uniqid("srv");
 $minecraftVersion = $argv[3] ?? null;
 
 $remoteUser = 'diego';
-$remoteBaseDir = "/home/diego/servers/$serverId";
+$remoteBaseDir = "/home/diego/server";
 
 try {
     echo "🔍 Ottenimento server.jar per versione $minecraftVersion...\n";
@@ -48,7 +48,10 @@ try {
         "echo 'eula=true' > eula.txt",
         "echo 'motd=Server Vanilla $minecraftVersion' > server.properties",
         "echo 'server-port=25565' >> server.properties",
-        "echo 'enable-command-block=true' >> server.properties"
+        "echo 'enable-command-block=true' >> server.properties",
+        "echo 'screen -dmS minecraft java -Xmx10G -Xms10G -jar server.jar nogui'>start.sh",
+        "echo 'screen -S minecraft -X quit'>stop.sh",
+        "echo 'chmod +x start.sh stop.sh'",
     ];
 
     $fullCommand = implode(" && ", $commands);
