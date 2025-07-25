@@ -69,7 +69,7 @@ $commands = [
     "chmod +x server.jar",
     "echo 'eula=true' > eula.txt",
     "echo " . escapeshellarg($serverProperties) . " > server.properties",
-    "echo 'screen -dmS minecraft java -Xmx2G -Xms2G -jar server.jar nogui' > start.sh",
+    "echo 'screen -dmS minecraft java -Xmx10G -Xms10G -jar server.jar nogui' > start.sh",
     "echo 'screen -S minecraft -X quit' > stop.sh",
     "chmod +x start.sh stop.sh",
 ];
