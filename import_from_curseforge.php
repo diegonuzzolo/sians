@@ -3,7 +3,7 @@ require_once 'config/config.php';
 require_once 'sync_functions.php';
 
 $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
-$projectId = 285109; // es. RLCraft
+$projectId = 925200; // es. RLCraft
 
 $endpoint = "https://api.curseforge.com/v1/mods/$projectId/files";
 
@@ -33,20 +33,34 @@ if (!isset($data['data'])) {
 // Prendo la prima release (releaseType=1)
 foreach ($data['data'] as $entry) {
     if ($entry['releaseType'] == 1) {
-     $modpack = [
-    'name' => $entry['displayName'],
+        $modpack = [
+    'gameVersionId' => 0,
+    'minecraftGameVersionId' => 0,
     'forgeVersion' => 'unknown',
-    'filename' => $entry['fileName'],
-    'downloadUrl' => $entry['downloadUrl'],
-    'minecraftVersion' => $entry['gameVersions'][0] ?? '',
+    'name' => $entry['displayName'],
     'type' => 1,
+    'downloadUrl' => $entry['downloadUrl'],
+    'filename' => $entry['fileName'],
     'installMethod' => 1,
     'latest' => isset($entry['isLatest']) ? (int)$entry['isLatest'] : 0,
     'recommended' => isset($entry['isServerPack']) ? (int)$entry['isServerPack'] : 0,
     'approved' => 1,
-    'dateModified' => $entry['fileDate']
+    'dateModified' => $entry['fileDate'],
+    'mavenVersionString' => '',
+    'versionJson' => '{}',
+    'librariesInstallLocation' => '',
+    'minecraftVersion' => $entry['gameVersions'][0] ?? '',
+    'additionalFilesJson' => '[]',
+    'modLoaderGameVersionId' => 0,
+    'modLoaderGameVersionTypeId' => 0,
+    'modLoaderGameVersionStatus' => 1,
+    'modLoaderGameVersionTypeStatus' => 1,
+    'mcGameVersionId' => 0,
+    'mcGameVersionTypeId' => 0,
+    'mcGameVersionStatus' => 1,
+    'mcGameVersionTypeStatus' => 1,
+    'installProfileJson' => '{}'
 ];
-
 
 
         syncModpack($modpack);
