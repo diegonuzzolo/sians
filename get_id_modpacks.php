@@ -2,12 +2,11 @@
 
 $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
 $pageSize = 50;
-$page = 0;
-$maxPages = 1000; // imposta un limite alto, ma lo interrompiamo se non ci sono più dati
-$allIds = [];
+$maxPages = 1000;
+$ids = [];
 
 for ($page = 0; $page < $maxPages; $page++) {
-    echo "Scarico pagina $page...\n";
+    echo "Pagina $page...\n";
 
     $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=4471&pageSize=$pageSize&page=$page";
 
@@ -25,7 +24,7 @@ for ($page = 0; $page < $maxPages; $page++) {
     curl_close($curl);
 
     if (!$response) {
-        echo "Errore nella risposta dalla pagina $page\n";
+        echo "Errore nella richiesta alla pagina $page\n";
         break;
     }
 
@@ -37,17 +36,13 @@ for ($page = 0; $page < $maxPages; $page++) {
     }
 
     foreach ($data['data'] as $mod) {
-        $allIds[] = [
-            'id' => $mod['id'],
-            'name' => $mod['name']
-        ];
-        echo "- ID: {$mod['id']} - Nome: {$mod['name']}\n";
+        $ids[] = $mod['id'];
+        echo "- ID: {$mod['id']}\n";
     }
 
-    // Optional: dormi 0.5 secondi per evitare rate limit
-    usleep(500000);
+    usleep(500000); // 0.5 secondi per sicurezza (evita rate limit)
 }
 
-// Salva in un file JSON
-file_put_contents('/var/www/html/ids.json', json_encode($allIds, JSON_PRETTY_PRINT));
-echo "Salvati " . count($allIds) . " ID in ids.json\n";
+// Salvataggio array semplice di ID
+file_put_contents('ids.json', json_encode($ids, JSON_PRETTY_PRINT));
+echo "Totale ID salvati: " . count($ids) . "\n";
