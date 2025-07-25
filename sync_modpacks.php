@@ -57,6 +57,6 @@ function syncModpack(array $modpack) {
 }
 
 // esempio:
-$json = file_get_contents('modpack.json'); // file JSON come quello che hai fornito
+$json = file_get_contents('./modpack.json'); // file JSON come quello che hai fornito
 $data = json_decode($json, true);
 syncModpack($data['data']);
