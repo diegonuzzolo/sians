@@ -70,100 +70,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<?php include("includes/header.php"); ?>
 
 <style>
-  body {
-    background: linear-gradient(135deg, #1f4037, #99f2c8);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .card-create-server {
-    max-width: 480px;
-    width: 100%;
-    background: #ffffffdd;
-    border-radius: 1rem;
-    box-shadow: 0 0 20px rgba(0,0,0,0.15);
-    padding: 2.5rem 2rem;
-    transition: transform 0.3s ease;
-  }
-  .card-create-server:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 0 35px rgba(0,0,0,0.25);
-  }
-  h1 {
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    color: #133f2b;
-    text-align: center;
-    letter-spacing: 1.2px;
-  }
-  label {
-    font-weight: 600;
-    color: #133f2b;
-  }
-  select.form-select, input.form-control {
-    border-radius: 12px;
-    padding: 10px 15px;
-    font-size: 1rem;
-    transition: border-color 0.25s ease;
-  }
-  select.form-select:focus, input.form-control:focus {
-    border-color: #1f9e89;
-    box-shadow: 0 0 8px #1f9e89aa;
-  }
-  button.btn-primary {
-    background: #1f9e89;
-    border: none;
-    border-radius: 30px;
-    padding: 12px 32px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    transition: background 0.3s ease;
-  }
-  button.btn-primary:hover {
-    background: #176f5d;
-  }
-  .btn-secondary {
-    border-radius: 30px;
-    padding: 12px 28px;
-    font-weight: 600;
-    transition: background 0.3s ease, color 0.3s ease;
-  }
-  .btn-secondary:hover {
-    background: #ddd;
-    color: #555;
-  }
-  .alert-danger {
-    border-radius: 12px;
-    font-weight: 600;
-    background: #f8d7da;
-    color: #842029;
-    padding: 12px 20px;
-    margin-bottom: 1.25rem;
-    box-shadow: 0 0 6px #f8d7da;
-  }
+    body {
+        background: linear-gradient(135deg, #1f4037, #99f2c8);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .card-create-server {
+        max-width: 480px;
+        width: 100%;
+        background: #ffffffdd;
+        border-radius: 1rem;
+        box-shadow: 0 0 20px rgba(0,0,0,0.15);
+        padding: 2.5rem 2rem;
+        transition: transform 0.3s ease;
+    }
+    .card-create-server:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 0 35px rgba(0,0,0,0.25);
+    }
+    h1 {
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: #133f2b;
+        text-align: center;
+        letter-spacing: 1.2px;
+    }
+    label {
+        font-weight: 600;
+        color: #133f2b;
+    }
+    select.form-select, input.form-control {
+        border-radius: 12px;
+        padding: 10px 15px;
+        font-size: 1rem;
+        transition: border-color 0.25s ease;
+    }
+    select.form-select:focus, input.form-control:focus {
+        border-color: #1f9e89;
+        box-shadow: 0 0 8px #1f9e89aa;
+    }
+    button.btn-primary {
+        background: #1f9e89;
+        border: none;
+        border-radius: 30px;
+        padding: 12px 32px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        transition: background 0.3s ease;
+    }
+    button.btn-primary:hover {
+        background: #176f5d;
+    }
+    .btn-secondary {
+        border-radius: 30px;
+        padding: 12px 28px;
+        font-weight: 600;
+        transition: background 0.3s ease, color 0.3s ease;
+    }
+    .btn-secondary:hover {
+        background: #ddd;
+        color: #555;
+    }
+    .alert-danger {
+        border-radius: 12px;
+        font-weight: 600;
+        background: #f8d7da;
+        color: #842029;
+        padding: 12px 20px;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 0 6px #f8d7da;
+    }
 </style>
 
+<?php include("includes/header.php"); ?>
 <div class="card-create-server shadow-lg">
     <h1>Crea il tuo Server Minecraft</h1>
-
+    
     <?php if ($error): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
-    <form method="POST" action="">
-        <div class="mb-4">
-            <label for="server_name" class="form-label">Nome Server</label>
-            <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($postServerName) ?>" placeholder="Es. AvventuraMagica">
-        </div>
-
-        <div class="mb-4">
-            <label for="type" class="form-label">Tipo di Server</label>
-            <select name="type" id="type" class="form-select" required>
-                <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
+        <?php endif; ?>
+        
+        <form method="POST" action="">
+            <div class="mb-4">
+                <label for="server_name" class="form-label">Nome Server</label>
+                <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($postServerName) ?>" placeholder="Es. AvventuraMagica">
+            </div>
+            
+            <div class="mb-4">
+                <label for="type" class="form-label">Tipo di Server</label>
+                <select name="type" id="type" class="form-select" required>
+                    <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
                 <option value="spigot" <?= $postType === 'spigot' ? 'selected' : '' ?>>Spigot</option>
                 <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack</option>
             </select>
