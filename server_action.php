@@ -59,10 +59,14 @@ error_log("Exit code SSH: $exitCode");
 if ($exitCode === 0) {
     $newStatus = $action === 'start' ? 'running' : 'stopped';
     $update = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-    $update->execute([$newStatus, $serverId]);
+    $res = $update->execute([$newStatus, $serverId]);
+    
+    error_log("Aggiornamento status con '$newStatus' per serverId=$serverId: " . ($res ? "OK" : "FAILED"));
+    
     header('Location: dashboard.php?msg=success');
     exit;
 } else {
+    error_log("SSH command failed with exit code $exitCode");
     header('Location: dashboard.php?msg=ssh_error');
     exit;
 }
