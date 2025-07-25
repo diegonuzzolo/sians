@@ -51,10 +51,7 @@ $vmStorageSpeed = 7500; // MB/s
   .hero-buttons .btn:hover {
     transform: scale(1.05);
   }
-h1{
-    position: relative;
-    bottom: 0%;
-}
+
   .info-box {
     background-color: #1e293b;
     border-radius: 12px;
@@ -82,18 +79,18 @@ h1{
 <!-- Hero Section -->
 <div class="container-fluid hero-banner">
   <div class="text-center">
-    <h1 class="mb-4">Crea il tuo server Minecraft</h1>
-    <div class="hero-buttons">
-      <?php if (!isset($_SESSION['user_id'])): ?>
-        <a href="register.php" class="btn btn-success">Registrati</a>
-        <a href="login.php" class="btn btn-outline-light">Accedi</a>
-      <?php else: ?>
-        <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
-      <?php endif; ?>
+      <div class="hero-buttons">
+          <?php if (!isset($_SESSION['user_id'])): ?>
+            <a href="register.php" class="btn btn-success">Registrati</a>
+            <a href="login.php" class="btn btn-outline-light">Accedi</a>
+            <?php else: ?>
+                <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <h1 class="mb-4">Crea il tuo server Minecraft</h1>
     </div>
-  </div>
-</div>
-
+    
 <!-- Slot disponibili -->
 <div class="container my-5 text-center">
   <h2 class="text-gold">Slot Disponibili</h2>
