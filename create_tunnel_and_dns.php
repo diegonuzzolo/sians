@@ -29,31 +29,46 @@ if (!$server) {
 }
 
 $vmIp = $server['ip'];
+if (!$vmIp) {
+    http_response_code(500);
+    die("IP della VM mancante");
+}
+
 $sshUser = 'diego';
 $sshKey = '/var/www/.ssh/id_rsa';
 
-// 🧠 Avvia tunnel ngrok sulla VM (via SSH)
-$commandStartTunnel = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'nohup ngrok tcp 25565 > ngrok.log 2>&1 &'";
+// Evita problemi di shell injection
+$escapedSshKey = escapeshellarg($sshKey);
+$escapedVmIp = escapeshellarg($vmIp);
+$escapedUserAtIp = escapeshellarg("$sshUser@$vmIp");
 
-exec($commandStartTunnel, $output, $exitCode);
+// Comando per avviare tunnel ngrok in background sulla VM
+$commandStartTunnel = "ssh -i $escapedSshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'nohup ngrok tcp 25565 > ngrok.log 2>&1 &'";
 
-if ($exitCode !== 0) {
+exec($commandStartTunnel, $outputStart, $exitCodeStart);
+
+if ($exitCodeStart !== 0) {
     die("Errore nell'avvio del tunnel ngrok sulla VM: $vmIp");
 }
 
-// ⏳ Attesa per avvio tunnel e apertura porta ngrokd
+// Attendi qualche secondo per sicurezza
 sleep(5);
 
-// 🔄 Ottieni info tunnel dalla VM
-$commandGetTunnel = "ssh -i $sshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'curl -s http://127.0.0.1:4040/api/tunnels'";
-$tunnelJson = shell_exec($commandGetTunnel);
+// Comando per ottenere info tunnel
+$commandGetTunnel = "ssh -i $escapedSshKey -o StrictHostKeyChecking=no $sshUser@$vmIp 'curl -s http://127.0.0.1:4040/api/tunnels'";
+exec($commandGetTunnel, $outputTunnel, $exitCodeTunnel);
+
+if ($exitCodeTunnel !== 0) {
+    die("Errore nel recupero dati tunnel dalla VM: $vmIp");
+}
+
+$tunnelJson = implode("\n", $outputTunnel);
 $tunnelData = json_decode($tunnelJson, true);
 
 if (!$tunnelData || !isset($tunnelData['tunnels']) || count($tunnelData['tunnels']) === 0) {
     die("Nessun tunnel ngrok trovato sulla VM ($vmIp). Assicurati che ngrok sia installato e correttamente configurato.");
 }
 
-// 🎯 Cerca tunnel TCP e salva l'URL pubblico
 $tunnelUrl = null;
 foreach ($tunnelData['tunnels'] as $tunnel) {
     if ($tunnel['proto'] === 'tcp') {
@@ -66,11 +81,10 @@ if (!$tunnelUrl) {
     die("Tunnel TCP non trovato nella risposta ngrok.");
 }
 
-// 💾 Salva nel DB
+// Salva tunnel_url nel DB
 $updateStmt = $pdo->prepare("UPDATE servers SET tunnel_url = ?, status = 'online' WHERE id = ?");
 $updateStmt->execute([$tunnelUrl, $serverId]);
 
-// ✅ Output finale
 echo "<h3>Tunnel creato con successo!</h3>";
-echo "<p>🔗 URL pubblico: <code>$tunnelUrl</code></p>";
+echo "<p>🔗 URL pubblico: <code>" . htmlspecialchars($tunnelUrl) . "</code></p>";
 echo "<p><a href='dashboard.php' class='btn btn-success'>Vai alla dashboard</a></p>";
