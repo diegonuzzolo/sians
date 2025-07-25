@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
     exit('Non autorizzato');
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'], $_POST['action'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['server_id']) || empty($_POST['action'])) {
     http_response_code(400);
     error_log("[server_action] Richiesta non valida");
     exit('Richiesta non valida');
@@ -17,14 +17,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'], $_POST[
 
 $userId = $_SESSION['user_id'];
 $serverId = intval($_POST['server_id']);
-$action = $_POST['action']; // 'start' o 'stop'
+$action = $_POST['action']; // aspettato 'start' o 'stop'
 
-// Recupera solo l'indirizzo IP della VM
+// Verifica azione valida
+$allowedActions = ['start', 'stop'];
+if (!in_array($action, $allowedActions, true)) {
+    http_response_code(400);
+    error_log("[server_action] Azione non valida: $action");
+    exit('Azione non valida');
+}
+
+// Recupera IP VM associata al server dell'utente
 $stmt = $pdo->prepare("
     SELECT vm.ip AS ip_address
     FROM servers s
     JOIN minecraft_vms vm ON s.vm_id = vm.id
     WHERE s.id = ? AND s.user_id = ?
+    LIMIT 1
 ");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -36,45 +45,39 @@ if (!$server) {
 }
 
 $ip = $server['ip_address'] ?? null;
-$sshUser = 'diego'; // 👈 utente fisso per tutte le VM
-
 if (!$ip) {
-    error_log("[server_action] IP VM mancante");
+    error_log("[server_action] IP VM mancante per server_id=$serverId");
     exit('IP VM mancante');
 }
 
-// Comandi disponibili
-$cmds = [
-    'start' => "cd ~/server && bash start.sh",
-    'stop'  => "cd ~/server && bash stop.sh"
-];
-
-if (!isset($cmds[$action])) {
-    http_response_code(400);
-    error_log("[server_action] Azione non valida: $action");
-    exit('Azione non valida');
-}
-
+$sshUser = 'diego'; // utente SSH fisso
 $privateKeyPath = '/home/diego/.ssh/id_rsa';
 
-// Costruzione comando SSH
+// Comandi da eseguire sulla VM
+$commands = [
+    'start' => 'cd ~/server && bash start.sh',
+    'stop' => 'cd ~/server && bash stop.sh',
+];
+
+// Costruzione comando SSH con escapeshellarg per sicurezza
 $sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "%s"',
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
     escapeshellarg($privateKeyPath),
     escapeshellarg($sshUser),
     escapeshellarg($ip),
-    $cmds[$action]
+    escapeshellarg($commands[$action])
 );
 
 error_log("[server_action] Esecuzione comando SSH: $sshCommand");
 
-// Esecuzione
-exec($sshCommand . " 2>&1", $output, $exitCode);
+// Esecuzione comando SSH
+exec($sshCommand . ' 2>&1', $output, $exitCode);
 
 error_log("[server_action] Exit code: $exitCode");
 error_log("[server_action] Output:\n" . implode("\n", $output));
 
 if ($exitCode === 0) {
+    // Aggiorna stato server nel DB
     $newStatus = $action === 'start' ? 'running' : 'stopped';
     $update = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $res = $update->execute([$newStatus, $serverId]);

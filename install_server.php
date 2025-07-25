@@ -16,7 +16,7 @@ function getServerJarUrl($version = null) {
     $versionData = array_filter($manifest['versions'], fn($v) => $v['id'] === $version);
     if (empty($versionData)) {
         throw new Exception("❌ Versione Minecraft '$version' non trovata.");
-    }   
+    }
 
     $versionInfoUrl = array_values($versionData)[0]['url'];
     $versionInfo = json_decode(file_get_contents($versionInfoUrl), true);
@@ -68,10 +68,10 @@ $commands = [
     "wget -O server.jar '$serverJarUrl'",
     "chmod +x server.jar",
     "echo 'eula=true' > eula.txt",
+    "echo " . escapeshellarg($serverProperties) . " > server.properties",
     "echo 'screen -dmS minecraft java -Xmx10G -Xms10G -jar server.jar nogui' > start.sh",
     "echo 'screen -S minecraft -X quit' > stop.sh",
     "chmod +x start.sh stop.sh",
-    "echo " . escapeshellarg($serverProperties) . " > server.properties",
 ];
 
     $fullCommand = implode(" && ", $commands);
