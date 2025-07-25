@@ -101,7 +101,7 @@ include("includes/header.php");
             <select name="type" id="type" class="form-select" required>
                 <option value="" disabled selected>Seleziona tipo</option>
                 <option value="vanilla">Vanilla</option>
-                <option value="spigot">Spigot</option>
+                <option value="bukkit">Bukkit</option>
                 <option value="modpack">Modpack</option>
             </select>
             <div class="form-text">Scegli il tipo di server Minecraft.</div>
