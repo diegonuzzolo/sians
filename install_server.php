@@ -16,7 +16,7 @@ function getServerJarUrl($version = null) {
     $versionData = array_filter($manifest['versions'], fn($v) => $v['id'] === $version);
     if (empty($versionData)) {
         throw new Exception("❌ Versione Minecraft '$version' non trovata.");
-    }
+    }   
 
     $versionInfoUrl = array_values($versionData)[0]['url'];
     $versionInfo = json_decode(file_get_contents($versionInfoUrl), true);
@@ -26,7 +26,7 @@ function getServerJarUrl($version = null) {
 
 // 🔧 Parametri da CLI
 $vmIp = $argv[1]; // Es: 192.168.1.101
-$serverId = $argv[2];
+$serverId = $argv[2] ?? uniqid("srv");
 $minecraftVersion = $argv[3] ?? null;
 
 $remoteUser = 'diego';

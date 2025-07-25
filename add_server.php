@@ -9,9 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $subdomain = trim($_POST['subdomain'] ?? '');
     $userId = $_SESSION['user_id'] ?? null;
-    
     $type = trim($_POST['type'] ?? '');
-$version = trim($_POST['version'] ?? '');
+    $version = trim($_POST['version'] ?? '');
 
     if (!$serverName || !$subdomain || !$userId) {
         $error = "Nome server, sottodominio e login sono obbligatori.";
@@ -43,20 +42,33 @@ $version = trim($_POST['version'] ?? '');
                 $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
                 $stmt->execute([$userId, $serverId, $vm['id']]);
 
-                // Redirect alla pagina di gestione tunnel/DNS (opzionale)
-                   header("Location: install_server.php?server_id=$serverId&type=$type&version=$version");
+                // Esegui install_server.php **da remoto** via SSH
+                $sshUser = 'diego';
+                $sshKey = '/var/www/.ssh/id_rsa'; // Percorso chiave privata sul server web
+                $vmIp = $vm['ip']; // IP della VM
+                $remoteScript = "/var/www/html/install_server.php"; // Percorso script PHP sulla VM
+
+                // Costruisco comando PHP CLI da eseguire sulla VM, con argomenti nel giusto ordine
+                $installCommand = "php $remoteScript $vmIp $serverId $version";
+
+                // Comando SSH completo
+
+                exec($installCommand, $output, $exitCode);
+
+                if ($exitCode !== 0) {
+                    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
+                } else {
+                    // Redirect a create_tunnel_and_dns.php dopo installazione OK
+                    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
                     exit;
+                }
             }
         }
     }
 }
 
-
-
-
 include("includes/header.php");
 ?>
-
 
     <h1>Aggiungi un nuovo Server Minecraft</h1>
 
