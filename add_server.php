@@ -1,6 +1,11 @@
 <?php
-require 'config/config.php';
+session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'includes/auth.php';
+require 'includes/header.php'; // questo NON deve fare redirect
 
 $error = '';
 $success = '';
@@ -76,27 +81,18 @@ include("includes/header.php");
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="">
+    <form method="POST" action="create_server.php">
     <div class="mb-3">
-        <label for="server_name" class="form-label">Nome del Server</label>
-        <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>" />
+        <label for="server_name" class="form-label">Nome Server</label>
+        <input type="text" name="server_name" class="form-control" required>
     </div>
 
     <div class="mb-3">
-        <label for="subdomain" class="form-label">Sottodominio (es. mc123)</label>
-        <div class="input-group">
-            <input type="text" name="subdomain" id="subdomain" class="form-control" required value="<?= htmlspecialchars($_POST['subdomain'] ?? '') ?>" />
-            <span class="input-group-text"><?= DOMAIN ?></span>
-        </div>
-        <div class="form-text">Questo sarà l'indirizzo per collegarti al server Minecraft.</div>
-    </div>
-
-    <div class="mb-3">
-        <label for="type" class="form-label">Tipo di Server</label>
+        <label for="type" class="form-label">Tipo</label>
         <select name="type" id="type" class="form-select" required>
             <option value="vanilla">Vanilla</option>
-            <option value="paper">Bukkit</option>
-            <option value="spigot">Modpack</option>
+            <option value="spigot">Spigot</option>
+            <option value="modpack">Modpack</option>
         </select>
     </div>
 
@@ -135,7 +131,7 @@ include("includes/header.php");
     </div>
 
     <button type="submit" class="btn btn-primary">Crea Server</button>
-    <a href="dashboard.php" class="btn btn-secondary ms-2">Annulla</a>
+    
 </form>
 
 <?php include("includes/footer.php"); ?>
