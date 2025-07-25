@@ -43,8 +43,10 @@ if (!isset($cmds[$action])) {
 
 // Esegui comando SSH
 $privateKeyPath = '/home/diego/.ssh/id_rsa'; // Modifica se serve
-$sshCommand = "ssh -i $privateKeyPath -o StrictHostKeyChecking=no $sshUser@$ip '{$cmds[$action]}'";
-exec($sshCommand . " 2>&1", $output, $exitCode);
+$cmd = $cmds[$action]; // es. "cd ~/mcserver && ./start.sh"
+$sshCommand = "ssh -i $privateKeyPath -o StrictHostKeyChecking=no $sshUser@$ip 'nohup bash -c \"$cmd\" > /dev/null 2>&1 &'";
+
+exec($sshCommand, $output, $exitCode);
 
 if ($exitCode === 0) {
     $status = $action === 'start' ? 'running' : 'stopped';
