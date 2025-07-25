@@ -80,16 +80,15 @@ $vmStorageSpeed = 7500; // MB/s
 <div class="container-fluid hero-banner">
   <div class="text-center">
       <div class="hero-buttons">
-          <?php if (!isset($_SESSION['user_id'])): ?>
-            <a href="register.php" class="btn btn-success">Registrati</a>
-            <a href="login.php" class="btn btn-outline-light">Accedi</a>
-            <?php else: ?>
-                <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
-                <?php endif; ?>
-            </div>
+          </div>
         </div>
-        <h1 class="mb-4">Crea il tuo server Minecraft</h1>
-    </div>
+        <?php if (!isset($_SESSION['user_id'])): ?>
+          <a href="register.php" class="btn btn-success">Registrati</a>
+          <a href="login.php" class="btn btn-outline-light">Accedi</a>
+          <?php else: ?>
+              <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
+              <?php endif; ?>
+          </div>
     
 <!-- Slot disponibili -->
 <div class="container my-5 text-center">
