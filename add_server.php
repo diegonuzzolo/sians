@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="mb-4" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
-            <label for="modpack_id" class="form-label">Modpack</label>
+            <label for="modpack_id" class="form-label">Scegli</label>
             <select name="modpack_id" id="modpack_id" class="form-select">
                 <option value="">-- Seleziona un Modpack --</option>
                 <?php
