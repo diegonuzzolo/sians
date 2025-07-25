@@ -44,6 +44,7 @@ try {
         "mkdir -p $remoteBaseDir",
         "cd $remoteBaseDir",
         "wget -O server.jar '$serverJarUrl'",
+        "chmod +x server.jar",
         "echo 'eula=true' > eula.txt",
         "echo 'motd=Server Vanilla $minecraftVersion' > server.properties",
         "echo 'server-port=25565' >> server.properties",
