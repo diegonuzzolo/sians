@@ -42,7 +42,7 @@ try {
     // ✅ Comandi da eseguire sulla VM
   $serverProperties = <<<EOT
 server-port=25565
-max-players=20
+max-players=50
 motd=Server Vanilla $minecraftVersion
 enable-command-block=true
 level-name=world
@@ -54,7 +54,7 @@ spawn-animals=true
 pvp=true
 allow-nether=true
 max-build-height=256
-view-distance=10
+view-distance=32
 white-list=false
 generate-structures=true
 hardcore=false
