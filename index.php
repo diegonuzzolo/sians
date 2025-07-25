@@ -80,6 +80,11 @@ $vmStorageSpeed = 7500; // MB/s
     transform: scale(1.05);
   }
 
+  #hero-content {
+    position: relative;
+    z-index: 1;
+  }
+
   .info-box {
     background-color: #1e293b;
     border-radius: 12px;
@@ -106,14 +111,17 @@ $vmStorageSpeed = 7500; // MB/s
 
 <!-- Hero Section -->
 <div class="container-fluid hero-banner">
-  <h1>Crea il tuo Server Minecraft</h1>
-  <div class="hero-buttons">
-    <?php if (!isset($_SESSION['user_id'])): ?>
-      <a href="register.php" class="btn btn-warning">Registrati</a>
-      <a href="login.php" class="btn btn-outline-light">Accedi</a>
-    <?php else: ?>
-      <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
-    <?php endif; ?>
+    <div id="hero-content">
+        <h1>Crea il tuo Server Minecraft</h1>
+        <div class="hero-buttons">
+          <?php if (!isset($_SESSION['user_id'])): ?>
+            <a href="register.php" class="btn btn-warning">Registrati</a>
+            <a href="login.php" class="btn btn-outline-light">Accedi</a>
+          <?php else: ?>
+            <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
+          <?php endif; ?>
+
+    </div>
   </div>
 
   <!-- Scroll Indicator -->
