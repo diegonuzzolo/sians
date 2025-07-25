@@ -38,51 +38,84 @@ $servers = $stmt->fetchAll();
       font-weight: 600;
     }
     .server-card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      transition: all 0.2s ease-in-out;
-    }
-    .server-card:hover {
-      box-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
-      transform: scale(1.01);
-    }
-    .server-status {
-      font-weight: bold;
-    }
-    .badge-running {
-      background-color: #22c55e;
-    }
-    .badge-stopped {
-      background-color: #64748b;
-    }
-    .action-btn {
-      margin-right: 5px;
-      border-radius: 8px;
-      transition: all 0.2s ease-in-out;
-    }
-    .action-btn:hover {
-      transform: scale(1.05);
-    }
-    .ip-box {
-      background-color: #334155;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-    .card-create {
-      background: linear-gradient(to right, #0ea5e9, #22d3ee);
-      color: #0f172a;
-      font-weight: bold;
-      transition: 0.3s;
-      border-radius: 10px;
-    }
-    .card-create:hover {
-      background: linear-gradient(to right, #06b6d4, #38bdf8);
-      transform: scale(1.03);
-    }
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 25px 20px;
+  margin-bottom: 25px;
+  box-shadow: inset 0 0 10px rgba(51, 65, 85, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease-in-out;
+  color: #e2e8f0;
+  font-size: 1.05rem;
+}
+
+.server-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 25px rgba(250, 204, 21, 0.2);
+}
+
+.server-card h5 {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #facc15;
+}
+
+.server-status {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.badge-running {
+  background-color: #16a34a;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.badge-stopped {
+  background-color: #475569;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.ip-box {
+  background-color: #1e293b;
+  color: #93c5fd;
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: inline-block;
+  font-size: 0.95rem;
+  font-family: monospace;
+}
+
+.action-btn {
+  padding: 10px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.action-btn:hover {
+  transform: scale(1.05);
+}
+
+.card-create {
+  background: linear-gradient(to right, #0ea5e9, #22d3ee);
+  color: #0f172a;
+  font-weight: bold;
+  transition: 0.3s;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  padding: 14px 24px;
+}
+
+.card-create:hover {
+  background: linear-gradient(to right, #06b6d4, #38bdf8);
+  transform: scale(1.04);
+}
+
   </style>
 </head>
 <body>
@@ -94,7 +127,7 @@ $servers = $stmt->fetchAll();
   <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-12 col-lg-6">
           <div class="server-card">
             <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
             <p class="mb-1"><strong>ID VM:</strong> <?= htmlspecialchars($server['proxmox_vmid']) ?></p>
