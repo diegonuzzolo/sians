@@ -73,7 +73,5 @@ $updateStmt = $pdo->prepare("UPDATE servers SET tunnel_url = ?, status = 'runnin
 $updateStmt->execute([$tunnelUrl, $serverId]);
 
 
-// ✅ Output finale
-echo "<h3>Tunnel creato con successo!</h3>";
-echo "<p>🔗 URL pubblico: <code>$tunnelUrl</code></p>";
-echo "<p><a href='dashboard.php' class='btn btn-success'>Vai alla dashboard</a></p>";
+header("Location: dashboard.php");
+exit;
