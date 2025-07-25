@@ -69,7 +69,7 @@ if (!$tunnelUrl) {
 }
 
 // 💾 Salva nel DB
-$updateStmt = $pdo->prepare("UPDATE servers SET tunnel_url = ?, status = 'running' WHERE id = ?");
+$updateStmt = $pdo->prepare("UPDATE servers SET tunnel_url = ?, status = 'created' WHERE id = ?");
 $updateStmt->execute([$tunnelUrl, $serverId]);
 
 
