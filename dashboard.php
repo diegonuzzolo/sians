@@ -29,17 +29,57 @@ $servers = $stmt->fetchAll();
   <title>Dashboard - Server Minecraft</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
-    body { background-color: #f7f9fc; }
+    body {
+      background-color: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', sans-serif;
+    }
     .server-box {
-      background: white;
+      background: #1e293b;
       border-radius: 12px;
       padding: 25px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .table-dark th {
+      background-color: #334155 !important;
+      color: #e2e8f0 !important;
+    }
+    .badge {
+      font-size: 0.9em;
+    }
+    .btn {
+      border-radius: 8px;
+    }
+    .card.bg-light {
+      background-color: #1e293b !important;
+      border: 1px solid #334155;
+    }
+    .card-title {
+      color: #facc15;
+    }
+    .btn-success {
+      background-color: #22c55e;
+      border-color: #22c55e;
+    }
+    .btn-danger {
+      background-color: #ef4444;
+      border-color: #ef4444;
+    }
+    .btn-warning {
+      background-color: #f59e0b;
+      border-color: #f59e0b;
+    }
+    .btn:hover {
+      filter: brightness(1.1);
     }
     code {
-      background: #f1f1f1;
-      padding: 2px 6px;
-      border-radius: 4px;
+      background: #334155;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #f8fafc;
+    }
+    a.btn {
+      font-weight: 500;
     }
   </style>
 </head>
@@ -47,20 +87,18 @@ $servers = $stmt->fetchAll();
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5">
-    <h3 class="mb-4">I tuoi server Minecraft</h3>
+    <h2 class="mb-4 text-center text-warning">🎮 I tuoi server Minecraft</h2>
 
     <?php if (empty($servers)): ?>
-        <p class="text-muted">Non hai ancora server attivi.</p>
+        <p class="text-muted text-center">Non hai ancora server attivi.</p>
     <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-bordered table-striped align-middle">
-                <thead class="table-dark">
+            <table class="table table-dark table-hover table-bordered align-middle">
+                <thead>
                     <tr>
                         <th>Nome</th>
-                        <th>ID</th>
-                        <!-- <th>IP / Hostname</th> -->
-                        <th>Hostname / IP</th>
-                        <!-- <th>Dominio</th> -->
+                        <th>ID VM</th>
+                        <th>IP Tunnel</th>
                         <th>Stato</th>
                         <th>Azioni</th>
                     </tr>
@@ -70,12 +108,8 @@ $servers = $stmt->fetchAll();
                     <tr data-vmid="<?= htmlspecialchars($server['proxmox_vmid']) ?>" data-server-id="<?= htmlspecialchars($server['id']) ?>">
                         <td><?= htmlspecialchars($server['name']) ?></td>
                         <td><?= htmlspecialchars($server['proxmox_vmid']) ?></td>
-                        <!-- <td>
-                            
-                        </td> -->
                         <td>
-                            <?php if (!empty($server['tunnel_url'])): 
-                                // Estraggo host e port da tunnel_url (es. tcp://0.tcp.ngrok.io:12345)
+                            <?php if (!empty($server['tunnel_url'])):
                                 $url = $server['tunnel_url'];
                                 $urlParts = parse_url(str_replace('tcp://', 'tcp://', $url));
                                 $host = $urlParts['host'] ?? '';
@@ -83,25 +117,16 @@ $servers = $stmt->fetchAll();
                             ?>
                                 <code><?= htmlspecialchars($host . ':' . $port) ?></code>
                             <?php else: ?>
-                                <span class="text-muted small">Non disponibile</span>
+                                <span class="text-muted small">In attesa tunnel</span>
                             <?php endif; ?>
                         </td>
-                        <!-- <td>
-                            <?#php if (!empty($server['subdomain'])): ?>
-                                <a href="http://<?#= htmlspecialchars($server['subdomain']) ?>.sians.it" target="_blank" rel="noopener noreferrer">
-                                    <?#= htmlspecialchars($server['subdomain']) ?>.sians.it
-                                </a>
-                            <?#php else: ?>
-                                <span class="text-muted">In attesa...</span>
-                            <?#php endif; ?>
-                        </td> -->
                         <td>
                             <span class="badge <?= $server['status'] === 'running' ? 'bg-success' : 'bg-secondary' ?>">
                                 <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
                             </span>
                         </td>
                         <td>
-                            <!-- Form Start/Stop -->
+                            <!-- Start/Stop -->
                             <form action="server_action.php" method="post" class="d-inline">
                                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
                                 <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
@@ -111,12 +136,11 @@ $servers = $stmt->fetchAll();
                                 </button>
                             </form>
 
-                            <!-- Form Delete -->
+                            <!-- Delete -->
                             <form method="POST" action="delete_server.php" onsubmit="return confirm('Sei sicuro di voler eliminare questo server?');" class="d-inline">
-    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-    <button type="submit" class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
-</form>
-
+                                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Elimina Server">Elimina</button>
+                            </form>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -126,21 +150,19 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
 </div>
 
-<!-- Nuovo Server -->
+<!-- Box per creare un nuovo server -->
 <div class="d-flex justify-content-center align-items-center my-4">
-    <div class="card bg-light" style="width: 320px;">
+    <div class="card bg-light shadow-lg" style="width: 320px;">
         <div class="card-body text-center">
-            <h5 class="card-title">Nuovo Server</h5>
+            <h5 class="card-title">+ Nuovo Server</h5>
             <?php if ($slotDisponibili > 0): ?>
-                <a href="add_server.php" class="btn btn-success">Crea Nuovo Server</a>
+                <a href="add_server.php" class="btn btn-success w-100">Crea Nuovo Server</a>
             <?php else: ?>
-                <p class="text-danger mt-2">Nessuno slot disponibile</p>
+                <p class="text-danger mt-2">❌ Nessuno slot disponibile</p>
             <?php endif; ?>
         </div>
     </div>
 </div>
-
-
 
 </body>
 </html>
