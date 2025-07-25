@@ -80,7 +80,7 @@ $vmStorageSpeed = 7500;
 
   #freccetta {
     position: absolute;
-    bottom: 100px;
+    bottom: 40%;
     width: 60px;
     height: 60px;
     border: 2px solid #facc15;
@@ -142,17 +142,7 @@ $vmStorageSpeed = 7500;
 </style>
 
 <div class="container-fluid hero-banner">
-  <div id="hero-content">
-    <h1>Crea il tuo Server Minecraft</h1>
-    <div class="hero-buttons">
-      <?php if (!isset($_SESSION['user_id'])): ?>
-        <a href="register.php" class="btn btn-warning">Registrati</a>
-        <a href="login.php" class="btn btn-outline-light">Accedi</a>
-      <?php else: ?>
-        <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
-      <?php endif; ?>
-    </div>
-  </div>
+
 
   <div id="freccetta" class="scroll-indicator" onclick="scrollToContent()">
     <i class="bi bi-arrow-down"></i>
