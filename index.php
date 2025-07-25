@@ -121,15 +121,15 @@ $vmStorageSpeed = 7500; // MB/s
           <?php else: ?>
             <a href="dashboard.php" class="btn btn-primary">Vai alla Dashboard</a>
           <?php endif; ?>
-
-    </div>
+          
+        </div>
+        <!-- Scroll Indicator -->
+        <div class="scroll-indicator" onclick="scrollToContent()">
+          <i class="bi bi-arrow-down"></i>
+        </div>
+      </div>
   </div>
 
-  <!-- Scroll Indicator -->
-  <div class="scroll-indicator" onclick="scrollToContent()">
-    <i class="bi bi-arrow-down"></i>
-  </div>
-</div>
 
 <!-- Sezione Slot disponibili -->
 <div class="container my-5 text-center" id="scroll-target">
