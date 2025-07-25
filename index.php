@@ -123,11 +123,11 @@ $vmStorageSpeed = 7500; // MB/s
           <?php endif; ?>
           
         </div>
+    </div>
         <!-- Scroll Indicator -->
         <div class="scroll-indicator" onclick="scrollToContent()">
           <i class="bi bi-arrow-down"></i>
         </div>
-      </div>
   </div>
 
 
