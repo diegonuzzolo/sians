@@ -165,23 +165,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
-  const typeSelect = document.getElementById('type');
-  const modpackSelector = document.getElementById('modpack_selector');
-  const versionWrapper = document.getElementById('version_wrapper');
+document.addEventListener('DOMContentLoaded', function () {
+    const typeSelect = document.getElementById('type');
+    const versionWrapper = document.getElementById('version_wrapper');
+    const modpackWrapper = document.getElementById('modpack_selector');
+    const versionSelect = document.getElementById('version');
+    const modpackSelect = document.getElementById('modpack_id');
 
-  function toggleFields() {
-    if (typeSelect.value === 'modpack') {
-      modpackSelector.style.display = 'block';
-      versionWrapper.style.display = 'none';
-    } else {
-      modpackSelector.style.display = 'none';
-      versionWrapper.style.display = 'block';
+    function updateVisibility() {
+        const type = typeSelect.value;
+
+        if (type === 'modpack') {
+            versionWrapper.style.display = 'none';
+            versionSelect.disabled = true;
+
+            modpackWrapper.style.display = 'block';
+            modpackSelect.disabled = false;
+        } else {
+            versionWrapper.style.display = 'block';
+            versionSelect.disabled = false;
+
+            modpackWrapper.style.display = 'none';
+            modpackSelect.disabled = true;
+        }
     }
-  }
 
-  typeSelect.addEventListener('change', toggleFields);
-  toggleFields();
+    typeSelect.addEventListener('change', updateVisibility);
+    updateVisibility(); // iniziale
+});
 </script>
+
+
+
 
 </body>
 </html>
