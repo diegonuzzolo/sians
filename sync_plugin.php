@@ -3,59 +3,38 @@ $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
 $db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu8330Serve6');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-function fetchGameVersions() {
+$versions = [
+    "1.21.8", "1.21.7", "1.20.4", "1.20.1", "1.20", "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
+    "1.18.2", "1.18.1", "1.18", "1.17.1", "1.17", "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1",
+    "1.16", "1.15.2", "1.15.1", "1.15", "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
+    "1.13.2", "1.13.1", "1.13", "1.12.2", "1.12.1", "1.12", "1.11.2", "1.11.1", "1.11",
+    "1.10.2", "1.10.1", "1.10", "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9", "1.8.9"
+];
+
+function fetchPlugins($page = 0, $version = null) {
     global $apiKey;
 
-    $url = "https://api.curseforge.com/v1/minecraft/version";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "x-api-key: $apiKey"
-    ]);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode !== 200) {
-        echo "❌ Errore HTTP $httpCode durante la richiesta delle versioni Minecraft\n";
-        return [];
+    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page";
+    if ($version) {
+        $url .= "&gameVersion=" . urlencode($version);
     }
-
-    $data = json_decode($response, true);
-    if (!isset($data['data'])) {
-        echo "❌ Risposta API malformata\n";
-        return [];
-    }
-
-    // Filtra versioni stabili (no snapshot/prerelease)
-    $stable = array_filter($data['data'], fn($v) => !$v['isSnapshot'] && !$v['isPreRelease']);
-
-    // Ritorna solo i nomi delle versioni, es. ["1.20.1", "1.21.0"]
-    return array_map(fn($v) => $v['versionString'], $stable);
-}
-
-function fetchPlugins($page = 0, $gameVersion = null) {
-    global $apiKey;
-
-    $versionParam = $gameVersion ? "&gameVersion=" . urlencode($gameVersion) : '';
-    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page$versionParam";
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "x-api-key: $apiKey"
     ]);
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($httpCode !== 200) {
-        echo "❌ Errore HTTP $httpCode per versione $gameVersion (pagina $page)\n";
+        echo "❌ Errore HTTP $httpCode per versione $version pagina $page\n";
         return [];
     }
 
-    $data = json_decode($response, true);
-    return $data['data'] ?? [];
+    return json_decode($response, true)['data'] ?? [];
 }
 
 function fixDate($isoDate) {
@@ -67,20 +46,14 @@ function fixDate($isoDate) {
 }
 
 $total = 0;
-$versions = fetchGameVersions();
-
-if (empty($versions)) {
-    echo "⚠️ Nessuna versione valida trovata. Interrotto.\n";
-    exit;
-}
 
 foreach ($versions as $version) {
     $page = 0;
-    echo "🔄 Scarico plugin per versione Minecraft $version...\n";
 
     while (true) {
-  $plugins = fetchPlugins($page, $version);
+        $plugins = fetchPlugins($page, $version);
         $count = count($plugins);
+
         if ($count === 0) break;
 
         foreach ($plugins as $plugin) {
@@ -121,13 +94,12 @@ foreach ($versions as $version) {
             $total++;
         }
 
-        
         echo "✅ Pagina $page di $version sincronizzata, totale plugin finora: $total\n";
 
-        if ($count < 50) break; // 🛑 Fermo se non ci sono più plugin
+        if ($count < 50) break; // fine pagina
 
         $page++;
-        sleep(1); // rate-limit
+        sleep(1);
     }
 }
 
