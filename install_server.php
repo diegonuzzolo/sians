@@ -24,10 +24,11 @@ function getServerJarUrl($version = null) {
     return $versionInfo['downloads']['server']['url'] ?? null;
 }
 
-// 🔧 Parametri da CLI o GET
-$vmIp = $argv[1];              // 192.168.1.101
-$serverId = $argv[2];          // myserver123
-$modpackId = $argv[3] ?? null; // opzionale
+// Parametri da CLI
+$vmIp = $argv[1] ?? null;
+$serverId = $argv[2] ?? null;
+$type = $argv[3] ?? null; // vanilla, bukkit, modpack
+$modpackIdOrVersion = $argv[4] ?? null;
 
 $remoteUser = 'diego';
 $remoteBaseDir = "/home/diego/server";
@@ -36,8 +37,8 @@ $db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu833
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 try {
-    if ($modpackId) {
-        // 🎯 Installazione modpack
+    if ($type === 'modpack') {
+        $modpackId = intval($modpackIdOrVersion);
         $stmt = $db->prepare("SELECT * FROM modpacks WHERE id = :id");
         $stmt->execute([':id' => $modpackId]);
         $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -74,17 +75,17 @@ try {
         $commands[] = "echo 'screen -S minecraft -X quit' > stop.sh";
         $commands[] = "chmod +x start.sh stop.sh";
 
-    } else {
-        // 🎯 Installazione Vanilla
-        $minecraftVersion = $argv[4] ?? null;
-        echo "🔍 Installazione Vanilla per versione $minecraftVersion\n";
+    } elseif ($type === 'vanilla' || $type === 'bukkit') {
+        $minecraftVersion = $modpackIdOrVersion ?? null;
+        echo "🔍 Installazione $type per versione $minecraftVersion\n";
+
         $serverJarUrl = getServerJarUrl($minecraftVersion);
         if (!$serverJarUrl) throw new Exception("❌ Nessun URL trovato per il server.jar");
 
         $serverProperties = <<<EOT
 server-port=25565
 max-players=50
-motd=Server Vanilla $minecraftVersion
+motd=Server $type $minecraftVersion
 enable-command-block=true
 level-name=world
 online-mode=true
@@ -114,6 +115,8 @@ EOT;
             "echo 'screen -S minecraft -X quit' > stop.sh",
             "chmod +x start.sh stop.sh",
         ];
+    } else {
+        throw new Exception("❌ Tipo server non supportato: $type");
     }
 
     $fullCommand = implode(" && ", $commands);
@@ -134,8 +137,3 @@ EOT;
     exit(1);
 }
 
-// 🔁 Reindirizza alla creazione tunnel/DNS se usato via web
-if (php_sapi_name() !== 'cli') {
-    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
-    exit;
-}
