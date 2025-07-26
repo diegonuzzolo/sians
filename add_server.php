@@ -77,9 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link rel="stylesheet" href="assets/css/add_server.css">
 </head>
 <body>
-
 <div class="main-container">
-
   <div class="card-create-server shadow-lg">
     <h1>Crea il tuo Server Minecraft</h1>
 
@@ -88,21 +86,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" action="">
-      <div class="mb-4">
+      <div class="mb-3">
         <label for="server_name">Nome Server</label>
         <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($postServerName) ?>" placeholder="Es. AvventuraMagica">
       </div>
 
-      <div class="mb-4">
-        <label for="type">Tipo di Server</label>
+      <div class="mb-3">
+        <label for="type">Tipo</label>
         <select name="type" id="type" class="form-select" required>
           <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
-          <option value="spigot" <?= $postType === 'spigot' ? 'selected' : '' ?>>Spigot/Bukkit</option>
           <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack</option>
         </select>
       </div>
 
-      <div class="mb-4" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
+      <div class="mb-3" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
         <label for="modpack_id">Scegli Modpack</label>
         <select name="modpack_id" id="modpack_id" class="form-select">
           <option value="">-- Seleziona un Modpack --</option>
@@ -117,8 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select>
       </div>
 
-      <div class="mb-5" id="version_wrapper" style="display: <?= $postType === 'modpack' ? 'none' : 'block' ?>;">
-        <label for="version" class="form-label">Versione Minecraft</label>
+      <div class="mb-4" id="version_wrapper" style="display: <?= $postType === 'modpack' ? 'none' : 'block' ?>;">
+        <label for="version">Versione Minecraft</label>
         <select name="version" id="version" class="form-select">
           <?php
           $versions = [
@@ -164,7 +161,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <a href="dashboard.php" class="btn btn-light btn-lg shadow"><i class="bi bi-house-door"></i> Vai alla Dashboard</a>
     <a href="logout.php" class="btn btn-danger btn-lg shadow"><i class="bi bi-box-arrow-right"></i> Esci</a>
   </div>
-
 </div>
 
 <script>
@@ -185,6 +181,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   typeSelect.addEventListener('change', toggleFields);
   toggleFields();
 </script>
-
 </body>
 </html>

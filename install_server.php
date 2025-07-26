@@ -24,68 +24,62 @@ function getServerJarUrl($version = null) {
     return $versionInfo['downloads']['server']['url'] ?? null;
 }
 
-// 🔧 Parametri da CLI
-$vmIp = $argv[1] ?? null;
-$serverId = $argv[2] ?? uniqid("srv");
-$typeOrId = $argv[3] ?? null;
-$value = $argv[4] ?? null;
-
-if (!$vmIp || !$typeOrId) {
-    echo "Uso: php install_server.php <vm_ip> <server_id> <version | modpack> [modpack_id]\n";
-    exit(1);
-}
+// 🔧 Parametri da CLI o GET
+$vmIp = $argv[1];              // 192.168.1.101
+$serverId = $argv[2];          // myserver123
+$modpackId = $argv[3] ?? null; // opzionale
 
 $remoteUser = 'diego';
-$remoteBaseDir = "/home/diego/server/$serverId";
+$remoteBaseDir = "/home/diego/server";
+
+$db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu8330Serve6');
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 try {
-    if ($typeOrId === 'modpack') {
-        $modpackId = intval($value);
-        echo "📦 Installazione modpack ID: $modpackId...\n";
-
-        // 🔍 Recupera info modpack dal DB
-        $stmt = $pdo->prepare("SELECT name, downloadUrl FROM modpacks WHERE id = ?");
-        $stmt->execute([$modpackId]);
+    if ($modpackId) {
+        // 🎯 Installazione modpack
+        $stmt = $db->prepare("SELECT * FROM modpacks WHERE id = :id");
+        $stmt->execute([':id' => $modpackId]);
         $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$modpack) throw new Exception("❌ Modpack non trovato nel DB.");
+        if (!$modpack) throw new Exception("❌ Modpack con ID $modpackId non trovato.");
 
-        $url = $modpack['downloadUrl'];
-        $modpackName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $modpack['name']);
-        $filename = strtolower($modpackName) . ".zip";
+        $downloadUrl = $modpack['downloadUrl'];
+        $installMethod = $modpack['installMethod'];
+        $minecraftVersion = $modpack['minecraftVersion'];
+        $forgeVersion = $modpack['forgeVersion'];
+
+        echo "🔍 Installazione modpack: {$modpack['name']} (Minecraft $minecraftVersion)\n";
 
         $commands = [
             "mkdir -p $remoteBaseDir",
             "cd $remoteBaseDir",
-            "wget -O $filename '$url'",
-            "unzip -o $filename -d .",
-            "rm $filename",
-            "echo 'screen -dmS minecraft java -Xmx10G -Xms10G -jar forge*.jar nogui' > start.sh",
-            "echo 'screen -S minecraft -X quit' > stop.sh",
-            "chmod +x start.sh stop.sh",
+            "wget -O modpack.zip '$downloadUrl'",
+            "unzip -o modpack.zip -d .",
+            "rm modpack.zip"
         ];
 
-        $fullCommand = implode(" && ", $commands);
-        $sshCommand = "ssh -o StrictHostKeyChecking=no $remoteUser@$vmIp \"$fullCommand\"";
-
-        echo "🚀 Installazione modpack su $vmIp...\n";
-        exec($sshCommand, $output, $exitCode);
-
-        if ($exitCode === 0) {
-            echo "🎉 Modpack installato su $remoteBaseDir\n";
+        if ($installMethod === 'forge') {
+            $commands[] = "java -jar forge-installer.jar --installServer";
+            $startCommand = "screen -dmS minecraft java -Xmx10G -Xms10G -jar forge-$forgeVersion.jar nogui";
+        } elseif ($installMethod === 'fabric') {
+            $startCommand = "screen -dmS minecraft java -Xmx10G -Xms10G -jar fabric-server-launch.jar nogui";
         } else {
-            echo "❌ Errore SSH (exit code $exitCode)\n";
-            print_r($output);
+            // fallback
+            $startCommand = "screen -dmS minecraft java -Xmx10G -Xms10G -jar server.jar nogui";
         }
 
-    } else {
-        $minecraftVersion = $typeOrId;
-        echo "🔍 Ottenimento server.jar per versione $minecraftVersion...\n";
+        $commands[] = "echo 'eula=true' > eula.txt";
+        $commands[] = "echo '$startCommand' > start.sh";
+        $commands[] = "echo 'screen -S minecraft -X quit' > stop.sh";
+        $commands[] = "chmod +x start.sh stop.sh";
 
+    } else {
+        // 🎯 Installazione Vanilla
+        $minecraftVersion = $argv[4] ?? null;
+        echo "🔍 Installazione Vanilla per versione $minecraftVersion\n";
         $serverJarUrl = getServerJarUrl($minecraftVersion);
         if (!$serverJarUrl) throw new Exception("❌ Nessun URL trovato per il server.jar");
-
-        echo "✅ URL server.jar: $serverJarUrl\n";
 
         $serverProperties = <<<EOT
 server-port=25565
@@ -120,28 +114,28 @@ EOT;
             "echo 'screen -S minecraft -X quit' > stop.sh",
             "chmod +x start.sh stop.sh",
         ];
-
-        $fullCommand = implode(" && ", $commands);
-        $sshCommand = "ssh -o StrictHostKeyChecking=no $remoteUser@$vmIp \"$fullCommand\"";
-
-        echo "🚀 Installazione Vanilla su $vmIp...\n";
-        exec($sshCommand, $output, $exitCode);
-
-        if ($exitCode === 0) {
-            echo "🎉 Server Vanilla $minecraftVersion installato su $remoteBaseDir\n";
-        } else {
-            echo "❌ Errore SSH (exit code $exitCode)\n";
-            print_r($output);
-        }
     }
 
-    // Redirect a tunnel + DNS se chiamato via browser
-    if (php_sapi_name() !== 'cli') {
-        header("Location: create_tunnel_and_dns.php?server_id=$serverId");
-        exit;
+    $fullCommand = implode(" && ", $commands);
+    $sshCommand = "ssh -o StrictHostKeyChecking=no $remoteUser@$vmIp \"$fullCommand\"";
+
+    echo "🚀 Installazione su $vmIp...\n";
+    exec($sshCommand, $output, $exitCode);
+
+    if ($exitCode === 0) {
+        echo "🎉 Server installato correttamente su $vmIp\n";
+    } else {
+        echo "❌ Errore SSH (exit code $exitCode)\n";
+        print_r($output);
     }
 
 } catch (Exception $e) {
     echo $e->getMessage() . "\n";
     exit(1);
+}
+
+// 🔁 Reindirizza alla creazione tunnel/DNS se usato via web
+if (php_sapi_name() !== 'cli') {
+    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+    exit;
 }
