@@ -1,139 +1,77 @@
 <?php
-require 'config/config.php';
-
-function getServerJarUrl($version = null) {
-    $manifestUrl = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
-    $manifest = json_decode(file_get_contents($manifestUrl), true);
-
-    if (!$manifest || !isset($manifest['versions'])) {
-        throw new Exception("❌ Impossibile ottenere l'elenco delle versioni Minecraft.");
-    }
-
-    if (!$version) {
-        $version = $manifest['latest']['release'];
-    }
-
-    $versionData = array_filter($manifest['versions'], fn($v) => $v['id'] === $version);
-    if (empty($versionData)) {
-        throw new Exception("❌ Versione Minecraft '$version' non trovata.");
-    }
-
-    $versionInfoUrl = array_values($versionData)[0]['url'];
-    $versionInfo = json_decode(file_get_contents($versionInfoUrl), true);
-
-    return $versionInfo['downloads']['server']['url'] ?? null;
-}
-
-// Parametri da CLI
-$vmIp = $argv[1] ?? null;
-$serverId = $argv[2] ?? null;
-$type = $argv[3] ?? null; // vanilla, bukkit, modpack
-$modpackIdOrVersion = $argv[4] ?? null;
-
-$remoteUser = 'diego';
-$remoteBaseDir = "/home/diego/server";
-
-$db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu8330Serve6');
-$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-try {
-    if ($type === 'modpack') {
-        $modpackId = intval($modpackIdOrVersion);
-        $stmt = $db->prepare("SELECT * FROM modpacks WHERE id = :id");
-        $stmt->execute([':id' => $modpackId]);
-        $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$modpack) throw new Exception("❌ Modpack con ID $modpackId non trovato.");
-
-        $downloadUrl = $modpack['downloadUrl'];
-        $installMethod = $modpack['installMethod'];
-        $minecraftVersion = $modpack['minecraftVersion'];
-        $forgeVersion = $modpack['forgeVersion'];
-
-        echo "🔍 Installazione modpack: {$modpack['name']} (Minecraft $minecraftVersion)\n";
-
-        $commands = [
-            "mkdir -p $remoteBaseDir",
-            "cd $remoteBaseDir",
-            "wget -O modpack.zip '$downloadUrl'",
-            "unzip -o modpack.zip -d .",
-            "rm modpack.zip"
-        ];
-
-        if ($installMethod === 'forge') {
-            $commands[] = "java -jar forge-installer.jar --installServer";
-            $startCommand = "screen -dmS minecraft java -Xmx10G -Xms10G -jar forge-$forgeVersion.jar nogui";
-        } elseif ($installMethod === 'fabric') {
-            $startCommand = "screen -dmS minecraft java -Xmx10G -Xms10G -jar fabric-server-launch.jar nogui";
-        } else {
-            // fallback
-            $startCommand = "screen -dmS minecraft java -Xmx10G -Xms10G -jar server.jar nogui";
-        }
-
-        $commands[] = "echo 'eula=true' > eula.txt";
-        $commands[] = "echo '$startCommand' > start.sh";
-        $commands[] = "echo 'screen -S minecraft -X quit' > stop.sh";
-        $commands[] = "chmod +x start.sh stop.sh";
-
-    } elseif ($type === 'vanilla' || $type === 'bukkit') {
-        $minecraftVersion = $modpackIdOrVersion ?? null;
-        echo "🔍 Installazione $type per versione $minecraftVersion\n";
-
-        $serverJarUrl = getServerJarUrl($minecraftVersion);
-        if (!$serverJarUrl) throw new Exception("❌ Nessun URL trovato per il server.jar");
-
-        $serverProperties = <<<EOT
-server-port=25565
-max-players=50
-motd=Server $type $minecraftVersion
-enable-command-block=true
-level-name=world
-online-mode=true
-difficulty=1
-spawn-monsters=true
-spawn-npcs=true
-spawn-animals=true
-pvp=true
-allow-nether=true
-max-build-height=256
-view-distance=32
-white-list=false
-generate-structures=true
-hardcore=false
-enable-rcon=false
-gamemode=0
-EOT;
-
-        $commands = [
-            "mkdir -p $remoteBaseDir",
-            "cd $remoteBaseDir",
-            "wget -O server.jar '$serverJarUrl'",
-            "chmod +x server.jar",
-            "echo 'eula=true' > eula.txt",
-            "echo " . escapeshellarg($serverProperties) . " > server.properties",
-            "echo 'screen -dmS minecraft java -Xmx10G -Xms10G -jar server.jar nogui' > start.sh",
-            "echo 'screen -S minecraft -X quit' > stop.sh",
-            "chmod +x start.sh stop.sh",
-        ];
-    } else {
-        throw new Exception("❌ Tipo server non supportato: $type");
-    }
-
-    $fullCommand = implode(" && ", $commands);
-    $sshCommand = "ssh -o StrictHostKeyChecking=no $remoteUser@$vmIp \"$fullCommand\"";
-
-    echo "🚀 Installazione su $vmIp...\n";
-    exec($sshCommand, $output, $exitCode);
-
-    if ($exitCode === 0) {
-        echo "🎉 Server installato correttamente su $vmIp\n";
-    } else {
-        echo "❌ Errore SSH (exit code $exitCode)\n";
-        print_r($output);
-    }
-
-} catch (Exception $e) {
-    echo $e->getMessage() . "\n";
+if ($argc < 4) {
+    echo "❌ Utilizzo: php install_server.php <vm_ip> <server_id> <type> [version/modpack_id]\n";
     exit(1);
 }
 
+$vmIp = $argv[1];
+$serverId = $argv[2];
+$type = $argv[3];
+$versionOrModpack = $argv[4] ?? null;
+
+require 'config/config.php';
+
+// Recupera dati server
+$stmt = $pdo->prepare("SELECT * FROM servers WHERE id = ?");
+$stmt->execute([$serverId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$server) {
+    echo "❌ Server con ID $serverId non trovato.\n";
+    exit(1);
+}
+
+$sshUser = 'diego'; // utente fisso
+$sshTarget = "$sshUser@$vmIp";
+$remoteScript = "/home/$sshUser/setup_server.sh";
+
+// Costruzione comando remoto
+switch ($type) {
+    case 'vanilla':
+    case 'bukkit':
+        if (!$versionOrModpack) {
+            echo "❌ Devi specificare una versione per Vanilla/Bukkit.\n";
+            exit(1);
+        }
+        $version = escapeshellarg($versionOrModpack);
+        $installCmd = "ssh $sshTarget 'bash $remoteScript $type $version'";
+        break;
+
+    case 'modpack':
+        if (!is_numeric($versionOrModpack)) {
+            echo "❌ Devi specificare un ID numerico valido per il modpack.\n";
+            exit(1);
+        }
+        $modpackId = intval($versionOrModpack);
+
+        // Carica dettagli modpack
+        $modpackStmt = $pdo->prepare("SELECT * FROM modpacks WHERE id = ?");
+        $modpackStmt->execute([$modpackId]);
+        $modpack = $modpackStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$modpack) {
+            echo "❌ Modpack con ID $modpackId non trovato.\n";
+            exit(1);
+        }
+
+        $modpackSlug = escapeshellarg($modpack['slug']);
+        $downloadUrl = escapeshellarg($modpack['downloadUrl']);
+        $installMethod = escapeshellarg($modpack['installMethod']);
+        $installCmd = "ssh $sshTarget 'bash $remoteScript modpack $modpackSlug $downloadUrl $installMethod'";
+        break;
+
+    default:
+        echo "❌ Tipo di server non valido: $type\n";
+        exit(1);
+}
+
+// Esegui installazione
+exec($installCmd, $output, $exitCode);
+
+if ($exitCode === 0) {
+    echo "✅ Installazione completata.\n";
+    exit(0);
+} else {
+    echo "❌ Errore durante l'installazione:\n" . implode("\n", $output);
+    exit(1);
+}
