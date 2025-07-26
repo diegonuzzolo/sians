@@ -3,7 +3,7 @@ $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
 $db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu8330Serve6');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Recupera tutte le versioni Minecraft disponibili da CurseForge
+// Recupera tutte le versioni Minecraft valide
 function fetchGameVersions() {
     global $apiKey;
     $url = "https://api.curseforge.com/v1/games/432/versions";
@@ -25,30 +25,32 @@ function fetchGameVersions() {
     $minecraftVersions = [];
 
     foreach ($data as $version) {
-        if ($version['gameVersionTypeId'] == 73250 && $version['status'] == 2) { // solo versioni stabili di Minecraft
+        if (isset($version['gameVersionTypeId']) && $version['gameVersionTypeId'] == 73250 && $version['status'] == 2) {
             $minecraftVersions[] = $version['name'];
         }
     }
 
-    return array_reverse($minecraftVersions); // ultima versione per prima
+    return array_reverse($minecraftVersions); // più recenti prima
 }
 
-// Recupera i plugin per una data versione Minecraft e pagina
-function fetchPlugins($page, $version) {
+function fetchPlugins($version, $page = 0) {
     global $apiKey;
 
-    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page&gameVersion=$version";
+    $encodedVersion = urlencode($version);
+    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page&gameVersion=$encodedVersion";
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["x-api-key: $apiKey"]);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "x-api-key: $apiKey"
+    ]);
 
     $response = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($code !== 200) {
-        echo "❌ Errore HTTP $code per versione $version (pagina $page)\n";
+    if ($httpCode !== 200) {
+        echo "❌ Errore HTTP $httpCode per versione $version, pagina $page\n";
         return [];
     }
 
@@ -63,14 +65,16 @@ function fixDate($isoDate) {
     }
 }
 
+// Avvio sincronizzazione
 $total = 0;
 $versions = fetchGameVersions();
 
 foreach ($versions as $version) {
-    echo "🔍 Sincronizzo plugins per Minecraft $version...\n";
+    echo "🔄 Versione: $version\n";
     $page = 0;
+
     while (true) {
-        $plugins = fetchPlugins($page, $version);
+        $plugins = fetchPlugins($version, $page);
         if (empty($plugins)) break;
 
         foreach ($plugins as $plugin) {
@@ -111,10 +115,10 @@ foreach ($versions as $version) {
             $total++;
         }
 
-        echo "✅ Pagina $page per versione $version completata (totale: $total)\n";
+        echo "   ➕ Pagina $page sincronizzata (versione $version), totale plugin: $total\n";
         $page++;
         sleep(1); // anti rate-limit
     }
 }
 
-echo "🎉 Sincronizzazione completa: $total plugin totali importati.\n";
+echo "\n🎉 Sincronizzazione completata: $total plugin popolari importati da tutte le versioni supportate.\n";
