@@ -57,7 +57,7 @@ foreach ($versions as $version) {
         if ($count === 0) break;
 
         foreach ($plugins as $plugin) {
-            // Recupera le versioni già presenti come CSV dal DB
+            // Recupera game_versions già presenti dal DB
             $stmtCheck = $db->prepare("SELECT game_versions FROM plugins WHERE cf_project_id = :cf_project_id");
             $stmtCheck->execute([':cf_project_id' => $plugin['id']]);
             $existingVersionsStr = $stmtCheck->fetchColumn();
@@ -67,12 +67,10 @@ foreach ($versions as $version) {
                 $existingVersions = array_map('trim', explode(',', $existingVersionsStr));
             }
 
-            // Aggiungi la nuova versione solo se non è già presente
             if (!in_array($version, $existingVersions, true)) {
                 $existingVersions[] = $version;
             }
 
-            // Ricostruisci stringa CSV pulita
             $gameVersionsToSave = implode(',', $existingVersions);
 
             $stmt = $db->prepare("INSERT INTO plugins (
