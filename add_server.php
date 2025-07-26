@@ -18,9 +18,9 @@ $postModpackId = $_POST['modpack_id'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($postServerName);
     $userId = $_SESSION['user_id'] ?? null;
-    $type = trim($postType);
+    $type = strtolower(trim($postType));
     $version = trim($postVersion);
-    $modpackId = !empty($_POST['modpack_id']) ? intval($_POST['modpack_id']) : null;
+    $modpackId = ($type === 'modpack' && !empty($_POST['modpack_id'])) ? intval($_POST['modpack_id']) : null;
 
     if (!$serverName || !$userId) {
         $error = "Il nome del server e il login sono obbligatori.";
@@ -32,8 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$vm) {
             $error = "Nessuna VM libera disponibile.";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, status, modpack_id) VALUES (?, ?, ?, ?, 'created', ?)");
-            $successInsert = $stmt->execute([$serverName, $userId, $vm['id'], $vm['proxmox_vmid'], $modpackId]);
+            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, status, modpack_id, type, version) VALUES (?, ?, ?, ?, 'created', ?, ?, ?)");
+            $successInsert = $stmt->execute([$serverName, $userId, $vm['id'], $vm['proxmox_vmid'], $modpackId, $type, $version]);
 
             if (!$successInsert) {
                 $error = "Errore durante la creazione del server.";
@@ -45,7 +45,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sshUser = 'diego';
                 $vmIp = $vm['ip'];
                 $remoteScript = "/var/www/html/install_server.php";
-                $installCommand = "php $remoteScript $vmIp $serverId $version";
+                $installCommand = "php $remoteScript $vmIp $serverId $type $version";
+                if ($type === 'modpack') {
+                    $installCommand .= " $modpackId";
+                }
 
                 exec($installCommand, $output, $exitCode);
 
@@ -74,7 +77,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 
 <div class="main-container">
-
   <div class="card-create-server shadow-lg">
     <h1>Crea il tuo Server Minecraft</h1>
 
@@ -92,27 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="type">Tipo di Server</label>
         <select name="type" id="type" class="form-select" required>
           <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
-          <option value="spigot" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
+          <option value="bukkit" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
           <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack</option>
         </select>
       </div>
 
-      <div class="mb-4" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
-        <label for="modpack_id">Scegli Modpack</label>
-        <select name="modpack_id" id="modpack_id" class="form-select">
-          <option value="">-- Seleziona un Modpack --</option>
-          <?php
-          $stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
-          while ($modpack = $stmt->fetch(PDO::FETCH_ASSOC)) {
-              $selected = ($postModpackId == $modpack['id']) ? 'selected' : '';
-              $label = htmlspecialchars($modpack['name'] . " (" . $modpack['minecraftVersion'] . ")");
-              echo "<option value=\"{$modpack['id']}\" $selected>$label</option>";
-          }
-          ?>
-        </select>
-      </div>
-
-     <div class="mb-5">
+       <div class="mb-5">
             <label for="version" class="form-label">Versione Minecraft</label>
             <select name="version" id="version" class="form-select" required>
                 <?php
@@ -147,6 +134,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </select>
         </div>
 
+      <div class="mb-4" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
+        <label for="modpack_id">Scegli Modpack</label>
+        <select name="modpack_id" id="modpack_id" class="form-select">
+          <option value="">-- Seleziona un Modpack --</option>
+          <?php
+          $stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
+          while ($modpack = $stmt->fetch(PDO::FETCH_ASSOC)) {
+              $selected = ($postModpackId == $modpack['id']) ? 'selected' : '';
+              $label = htmlspecialchars($modpack['name'] . " (" . $modpack['minecraftVersion'] . ")");
+              echo "<option value=\"{$modpack['id']}\" $selected>$label</option>";
+          }
+          ?>
+        </select>
+      </div>
+
       <div class="d-flex justify-content-center gap-3">
         <button type="submit" class="btn btn-primary shadow">Crea Server</button>
         <a href="dashboard.php" class="btn btn-secondary shadow">Annulla</a>
@@ -159,7 +161,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <a href="dashboard.php" class="btn btn-light btn-lg shadow"><i class="bi bi-house-door"></i> Vai alla Dashboard</a>
     <a href="logout.php" class="btn btn-danger btn-lg shadow"><i class="bi bi-box-arrow-right"></i> Esci</a>
   </div>
-
 </div>
 
 <script>
