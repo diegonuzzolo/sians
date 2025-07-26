@@ -57,22 +57,22 @@ foreach ($versions as $version) {
         if ($count === 0) break;
 
         foreach ($plugins as $plugin) {
-            // Recupero le versioni già presenti nel database
+            // Recupera game_versions esistenti
             $stmtCheck = $db->prepare("SELECT game_versions FROM plugins WHERE cf_project_id = :cf_project_id");
             $stmtCheck->execute([':cf_project_id' => $plugin['id']]);
-            $existingVersionsJson = $stmtCheck->fetchColumn();
+            $existingVersionsRaw = $stmtCheck->fetchColumn();
+
+            // Decodifica e costruisci array unico senza duplicati
             $existingVersions = [];
-            if ($existingVersionsJson) {
-                $existingVersions = json_decode($existingVersionsJson, true);
-                if (!is_array($existingVersions)) {
-                    $existingVersions = [];
-                }
+            if ($existingVersionsRaw) {
+                $existingVersions = array_map('trim', explode(',', $existingVersionsRaw));
             }
-            // Aggiungo la versione corrente se non è già presente
+
             if (!in_array($version, $existingVersions, true)) {
                 $existingVersions[] = $version;
             }
-            $gameVersionsToSave = json_encode($existingVersions);
+
+            $gameVersionsToSave = implode(', ', $existingVersions); // niente [], niente ""
 
             $stmt = $db->prepare("INSERT INTO plugins (
                 cf_project_id, name, slug, summary, download_url,
@@ -113,7 +113,7 @@ foreach ($versions as $version) {
 
         echo "✅ Pagina $page di $version sincronizzata, totale plugin finora: $total\n";
 
-        if ($count < 50) break; // fine pagina
+        if ($count < 50) break;
 
         $page++;
         sleep(1);
