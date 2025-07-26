@@ -79,8 +79,9 @@ foreach ($versions as $version) {
     echo "🔄 Scarico plugin per versione Minecraft $version...\n";
 
     while (true) {
-        $plugins = fetchPlugins($page, $version);
-        if (empty($plugins)) break;
+  $plugins = fetchPlugins($page, $version);
+        $count = count($plugins);
+        if ($count === 0) break;
 
         foreach ($plugins as $plugin) {
             $stmt = $db->prepare("INSERT INTO plugins (
@@ -120,9 +121,13 @@ foreach ($versions as $version) {
             $total++;
         }
 
+        
         echo "✅ Pagina $page di $version sincronizzata, totale plugin finora: $total\n";
+
+        if ($count < 50) break; // 🛑 Fermo se non ci sono più plugin
+
         $page++;
-        sleep(1); // evitare rate-limit
+        sleep(1); // rate-limit
     }
 }
 
