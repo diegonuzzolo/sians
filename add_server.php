@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($exitCode !== 0) {
     $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
 } else {
-    if ($type === 'vanilla') {
+    if ($type === 'Vanilla') {
         header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=vanilla&version=$version");
     } elseif ($type === 'bukkit') {
         header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=bukkit&version=$version");
