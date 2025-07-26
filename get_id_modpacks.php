@@ -44,5 +44,5 @@ for ($page = 0; $page < $maxPages; $page++) {
 }
 
 // Salvataggio array semplice di ID
-file_put_contents('ids_modpacks.json', json_encode($ids, JSON_PRETTY_PRINT));
+file_put_contents('/var/www/html/ids_modpacks.json', json_encode($ids, JSON_PRETTY_PRINT));
 echo "Totale ID salvati: " . count($ids) . "\n";
