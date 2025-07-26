@@ -55,11 +55,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exec($installCommand, $output, $exitCode);
 
                 if ($exitCode !== 0) {
-                    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
-                } else {
-                    header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=$type&modpack_id=$modpackId");
-                    exit;
-                }
+    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
+} else {
+    if ($type === 'vanilla') {
+        header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=vanilla&version=$version");
+    } elseif ($type === 'bukkit') {
+        header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=bukkit&version=$version");
+    } elseif ($type === 'modpack') {
+        header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=modpack&modpack_id=$modpackId");
+    } else {
+        // fallback generico, se vuoi
+        header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+    }
+    exit;
+}
+
             }
         }
     }
