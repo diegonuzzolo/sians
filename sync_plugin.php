@@ -57,6 +57,23 @@ foreach ($versions as $version) {
         if ($count === 0) break;
 
         foreach ($plugins as $plugin) {
+            // Recupero le versioni già presenti nel database
+            $stmtCheck = $db->prepare("SELECT game_versions FROM plugins WHERE cf_project_id = :cf_project_id");
+            $stmtCheck->execute([':cf_project_id' => $plugin['id']]);
+            $existingVersionsJson = $stmtCheck->fetchColumn();
+            $existingVersions = [];
+            if ($existingVersionsJson) {
+                $existingVersions = json_decode($existingVersionsJson, true);
+                if (!is_array($existingVersions)) {
+                    $existingVersions = [];
+                }
+            }
+            // Aggiungo la versione corrente se non è già presente
+            if (!in_array($version, $existingVersions, true)) {
+                $existingVersions[] = $version;
+            }
+            $gameVersionsToSave = json_encode($existingVersions);
+
             $stmt = $db->prepare("INSERT INTO plugins (
                 cf_project_id, name, slug, summary, download_url,
                 logo_url, website_url, date_created, date_modified,
@@ -73,7 +90,7 @@ foreach ($versions as $version) {
                 website_url = VALUES(website_url),
                 date_modified = VALUES(date_modified),
                 download_count = VALUES(download_count),
-                game_versions = VALUES(game_versions),
+                game_versions = :game_versions,
                 latest_files = VALUES(latest_files)");
 
             $stmt->execute([
@@ -87,7 +104,7 @@ foreach ($versions as $version) {
                 ':date_created' => fixDate($plugin['dateCreated']),
                 ':date_modified' => fixDate($plugin['dateModified']),
                 ':download_count' => $plugin['downloadCount'],
-                ':game_versions' => json_encode($plugin['gameVersions'] ?? []),
+                ':game_versions' => $gameVersionsToSave,
                 ':latest_files' => json_encode($plugin['latestFiles'] ?? []),
             ]);
 
