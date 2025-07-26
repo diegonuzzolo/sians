@@ -10,10 +10,10 @@ require 'includes/auth.php';
 $error = '';
 $success = '';
 
-$postServerName = $_POST['server_name'] ?? '';
+$serverName = $_POST['server_name'] ?? '';
 $postType = $_POST['type'] ?? '';
 $postVersion = $_POST['version'] ?? '';
-$postModpackId = $_POST['modpack_id'] ?? '';
+$modpackId = $_POST['modpack_id'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($postServerName);
