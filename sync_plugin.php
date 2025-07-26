@@ -68,7 +68,7 @@ function fixDate($isoDate) {
 // Avvio sincronizzazione
 $total = 0;
 $versions = fetchGameVersions();
-
+print_r($versions);
 foreach ($versions as $version) {
     echo "🔄 Versione: $version\n";
     $page = 0;
