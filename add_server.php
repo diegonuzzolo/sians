@@ -10,17 +10,19 @@ require 'includes/auth.php';
 $error = '';
 $success = '';
 
-$serverName = $_POST['server_name'] ?? '';
+$postServerName = $_POST['server_name'] ?? '';
 $postType = $_POST['type'] ?? '';
 $postVersion = $_POST['version'] ?? '';
-$modpackId = $_POST['modpack_id'] ?? '';
+$postModpackId = $_POST['modpack_id'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($postServerName);
     $userId = $_SESSION['user_id'] ?? null;
-    $type = strtolower(trim($postType));
+    $type = strtolower(trim($postType)); // viene da $_POST['type']
+
     $version = trim($postVersion);
     $modpackId = (strtolower($type) === 'modpack' && !empty($postModpackId)) ? intval($postModpackId) : null;
+
 
     if (!$serverName || !$userId) {
         $error = "Il nome del server e il login sono obbligatori.";
@@ -33,17 +35,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Nessuna VM libera disponibile.";
         } else {
             // Valida solo se modpack
-            if ($type === 'modpack') {
-                if (!$modpackId) {
-                    $error = "Se selezioni Modpack devi scegliere un modpack valido.";
-                } else {
-                    $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM modpacks WHERE id = ?");
-                    $stmtCheck->execute([$modpackId]);
-                    if ($stmtCheck->fetchColumn() == 0) {
-                        $error = "Modpack con ID $modpackId non trovato nel database.";
-                    }
-                }
-            }
+            
+if ($type === 'modpack') {
+    if (!$modpackId) {
+        $error = "Se selezioni Modpack devi scegliere un modpack valido.";
+    } else {
+        $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM modpacks WHERE id = ?");
+        $stmtCheck->execute([$modpackId]);
+        if ($stmtCheck->fetchColumn() == 0) {
+            $error = "Modpack con ID $modpackId non trovato nel database.";
+        }
+    }
+}
 
             if (empty($error)) {
                 // Inserimento nuovo server
