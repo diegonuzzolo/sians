@@ -15,12 +15,14 @@ $postType = $_POST['type'] ?? '';
 $postVersion = $_POST['version'] ?? '';
 $postModpackId = $_POST['modpack_id'] ?? '';
 
+// Assicuriamoci che modpackId sia valorizzato solo se type è modpack e modpack_id è non vuoto
+$modpackId = (strtolower($postType) === 'modpack' && !empty($postModpackId)) ? intval($postModpackId) : null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($postServerName);
     $userId = $_SESSION['user_id'] ?? null;
-    $type = trim($postType);
+    $type = strtolower(trim($postType)); // assicuriamo minuscolo coerente
     $version = trim($postVersion);
-    $modpackId = !empty($postModpackId) ? intval($postModpackId) : null;
 
     if (!$serverName || !$userId) {
         $error = "Il nome del server e il login sono obbligatori.";
@@ -46,30 +48,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $vmIp = $vm['ip'];
                 $remoteScript = "/var/www/html/install_server.php";
 
-                if ($type === 'modpack') {
+                // Costruiamo il comando in base al tipo server scelto
+                if ($type === 'modpack' && $modpackId) {
                     $installCommand = "php $remoteScript $vmIp $serverId modpack $modpackId";
+                } elseif ($type === 'vanilla') {
+                    $installCommand = "php $remoteScript $vmIp $serverId vanilla $version";
+                } elseif ($type === 'bukkit') {
+                    $installCommand = "php $remoteScript $vmIp $serverId bukkit $version";
                 } else {
-                    $installCommand = "php $remoteScript $vmIp $serverId $version";
+                    // fallback a vanilla se qualcosa non torna
+                    $installCommand = "php $remoteScript $vmIp $serverId vanilla $version";
                 }
 
                 exec($installCommand, $output, $exitCode);
 
                 if ($exitCode !== 0) {
-    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
-} else {
-    if ($type === 'vanilla') {
-    header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=vanilla&version=$version");
-} elseif ($type === 'bukkit') {
-    header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=bukkit&version=$version");
-} elseif ($type === 'modpack') {
-    header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=modpack&modpack_id=$modpackId");
-} else {
-    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
-}
-
-    exit;
-}
-
+                    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
+                } else {
+                    // Redirect con i parametri corretti in base al tipo
+                    if ($type === 'vanilla') {
+                        header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=vanilla&version=$version");
+                    } elseif ($type === 'bukkit') {
+                        header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=bukkit&version=$version");
+                    } elseif ($type === 'modpack') {
+                        header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=modpack&modpack_id=$modpackId");
+                    } else {
+                        header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+                    }
+                    exit;
+                }
             }
         }
     }
@@ -106,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <select name="type" id="type" class="form-select" required>
           <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
           <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack</option>
+          <option value="bukkit" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
         </select>
       </div>
 
