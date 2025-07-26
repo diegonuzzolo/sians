@@ -50,7 +50,7 @@ $total = 0;
 foreach ($versions as $version) {
     $page = 0;
 
-    while (true) {
+    while ($page !== 5) {
         $plugins = fetchPlugins($page, $version);
         $count = count($plugins);
 
