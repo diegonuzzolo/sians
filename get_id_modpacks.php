@@ -2,7 +2,7 @@
 
 $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
 $pageSize = 50;
-$maxPages = 1000;
+$maxPages = 1;
 $ids = [];
 
 for ($page = 0; $page < $maxPages; $page++) {
@@ -44,5 +44,5 @@ for ($page = 0; $page < $maxPages; $page++) {
 }
 
 // Salvataggio array semplice di ID
-file_put_contents('ids.json', json_encode($ids, JSON_PRETTY_PRINT));
+file_put_contents('ids_modpacks.json', json_encode($ids, JSON_PRETTY_PRINT));
 echo "Totale ID salvati: " . count($ids) . "\n";
