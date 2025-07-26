@@ -47,7 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $remoteScript = "/var/www/html/install_server.php";
 
                 // Usa il modpackId solo se è un modpack, altrimenti passa solo il tipo e la versione
-                $installCommand = "php $remoteScript $vmIp $serverId $version";
+                $installCommand = "php $remoteScript $vmIp $serverId $type $version";
+                  if ($type === 'modpack') {
+                      $installCommand .= " $modpackId";
+                  }
+
 
                 exec($installCommand, $output, $exitCode);
 
