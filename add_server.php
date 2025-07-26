@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$vm) {
             $error = "Nessuna VM libera disponibile.";
         } else {
-            // Se è modpack, controlliamo che il modpack sia valido
+            // Valida solo se modpack
             if ($type === 'modpack') {
                 if (!$modpackId) {
                     $error = "Se selezioni Modpack devi scegliere un modpack valido.";
@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($exitCode !== 0) {
                             $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
                         } else {
+                            // Redirect con i parametri corretti
                             if ($type === 'vanilla') {
                                 header("Location: create_tunnel_and_dns.php?server_id=$serverId&type=vanilla&version=$version");
                             } elseif ($type === 'bukkit') {
@@ -98,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
 ?>
 
 
@@ -168,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               "1.11.2", "1.11.1", "1.11",
               "1.10.2", "1.10.1", "1.10",
               "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
-              "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
+              "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1  .8.1", "1.8",
               "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4", "1.7.2",
               "1.6.4", "1.6.2", "1.6.1",
               "1.5.2", "1.5.1", "1.5",
