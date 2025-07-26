@@ -87,38 +87,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" action="">
-      <div class="mb-3">
-        <label for="server_name">Nome Server</label>
-        <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($postServerName) ?>" placeholder="Es. AvventuraMagica">
-      </div>
+  <div class="mb-3">
+    <label for="name">Nome Server</label>
+    <input type="text" name="name" class="form-control" required>
+  </div>
 
-      <div class="mb-3">
-        <label for="type">Tipo</label>
-        <select name="type" id="type" class="form-select" required>
-          <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
-          <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack</option>
-          <option value="bukkit" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
-        </select>
-      </div>
+  <div class="mb-3">
+    <label for="type">Tipo</label>
+    <select name="type" id="type" class="form-select" required onchange="toggleFields()">
+      <option value="vanilla">Vanilla</option>
+      <option value="modpack">Modpack</option>
+      <option value="bukkit">Bukkit</option>
+    </select>
+  </div>
 
-      <div class="mb-3" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
-        <label for="modpack_id">Scegli Modpack</label>
-        <select name="modpack_id" id="modpack_id" class="form-select">
-          <option value="">-- Seleziona un Modpack --</option>
-          <?php
-          $stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
-          while ($modpack = $stmt->fetch(PDO::FETCH_ASSOC)) {
-              $selected = ($postModpackId == $modpack['id']) ? 'selected' : '';
-              $label = htmlspecialchars($modpack['name'] . " (" . $modpack['minecraftVersion'] . ")");
-              echo "<option value=\"{$modpack['id']}\" $selected>$label</option>";
-          }
-          ?>
-        </select>
-      </div>
-
-      <div class="mb-4" id="version_wrapper" style="display: <?= $postType === 'modpack' ? 'none' : 'block' ?>;">
-        <label for="version">Versione Minecraft</label>
-        <select name="version" id="version" class="form-select">
+  <div id="versionField" class="mb-3">
+    <label for="version">Versione Minecraft</label>
+    <select name="version" id="version" class="form-select">
           <?php
           $versions = [
               "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
@@ -149,39 +134,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
           ?>
         </select>
-      </div>
 
-      <div class="d-flex justify-content-center gap-3">
-        <button type="submit" class="btn btn-primary shadow">Crea Server</button>
-        <a href="dashboard.php" class="btn btn-secondary shadow">Annulla</a>
-      </div>
-    </form>
+
   </div>
 
+  <div id="modpackField" class="mb-3" style="display: none;">
+    <label for="modpack_id">Seleziona Modpack</label>
+    <select name="modpack_id" class="form-select">
+      <?php
+      $stmt = $pdo->query("SELECT id, name FROM modpacks ORDER BY name");
+      while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+          echo "<option value=\"{$row['id']}\">" . htmlspecialchars($row['name']) . "</option>";
+      }
+      ?>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Crea Server</button>
+</form>
   <div class="side-panel">
     <h3>Hai già un server?</h3>
     <a href="dashboard.php" class="btn btn-light btn-lg shadow"><i class="bi bi-house-door"></i> Vai alla Dashboard</a>
     <a href="logout.php" class="btn btn-danger btn-lg shadow"><i class="bi bi-box-arrow-right"></i> Esci</a>
   </div>
 </div>
-
 <script>
-  const typeSelect = document.getElementById('type');
-  const modpackSelector = document.getElementById('modpack_selector');
-  const versionWrapper = document.getElementById('version_wrapper');
-
-  function toggleFields() {
-    if (typeSelect.value === 'modpack') {
-      modpackSelector.style.display = 'block';
-      versionWrapper.style.display = 'none';
-    } else {
-      modpackSelector.style.display = 'none';
-      versionWrapper.style.display = 'block';
-    }
-  }
-
-  typeSelect.addEventListener('change', toggleFields);
-  toggleFields();
+function toggleFields() {
+  const type = document.getElementById('type').value;
+  document.getElementById('versionField').style.display = (type === 'vanilla' || type === 'bukkit') ? 'block' : 'none';
+  document.getElementById('modpackField').style.display = (type === 'modpack') ? 'block' : 'none';
+}
+window.addEventListener('DOMContentLoaded', toggleFields);
 </script>
+
+  </div>
+
 </body>
 </html>
