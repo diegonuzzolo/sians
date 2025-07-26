@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $userId = $_SESSION['user_id'] ?? null;
     $type = trim($postType);
     $version = trim($postVersion);
-    $modpackId = !empty($_POST['modpack_id']) ? intval($_POST['modpack_id']) : null;
+    $modpackId = !empty($postModpackId) ? intval($postModpackId) : null;
 
     if (!$serverName || !$userId) {
         $error = "Il nome del server e il login sono obbligatori.";
@@ -45,7 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sshUser = 'diego';
                 $vmIp = $vm['ip'];
                 $remoteScript = "/var/www/html/install_server.php";
-                $installCommand = "php $remoteScript $vmIp $serverId $version";
+
+                if ($type === 'modpack') {
+                    $installCommand = "php $remoteScript $vmIp $serverId modpack $modpackId";
+                } else {
+                    $installCommand = "php $remoteScript $vmIp $serverId $version";
+                }
 
                 exec($installCommand, $output, $exitCode);
 
@@ -69,98 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    body {
-      background: linear-gradient(135deg, #1f4037, #99f2c8);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .main-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 2rem;
-      max-width: 1000px;
-      width: 100%;
-      padding: 20px;
-    }
-    .card-create-server {
-      flex: 1 1 450px;
-      background: #ffffffdd;
-      border-radius: 1rem;
-      box-shadow: 0 0 20px rgba(0,0,0,0.15);
-      padding: 2.5rem 2rem;
-    }
-    .card-create-server:hover {
-      transform: translateY(-5px);
-      transition: all 0.3s ease;
-    }
-    h1 {
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-      color: #133f2b;
-      text-align: center;
-    }
-    label {
-      font-weight: 600;
-      color: #133f2b;
-    }
-    select.form-select, input.form-control {
-      border-radius: 12px;
-      padding: 10px 15px;
-      font-size: 1rem;
-    }
-    select.form-select:focus, input.form-control:focus {
-      border-color: #1f9e89;
-      box-shadow: 0 0 8px #1f9e89aa;
-    }
-    button.btn-primary {
-      background: #1f9e89;
-      border: none;
-      border-radius: 30px;
-      padding: 12px 32px;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-    button.btn-primary:hover {
-      background: #176f5d;
-    }
-    .btn-secondary {
-      border-radius: 30px;
-      padding: 12px 28px;
-      font-weight: 600;
-    }
-    .btn-secondary:hover {
-      background: #ddd;
-      color: #555;
-    }
-    .alert-danger {
-      border-radius: 12px;
-      background: #f8d7da;
-      color: #842029;
-      padding: 12px 20px;
-    }
-    .side-panel {
-      flex: 1 1 300px;
-      background: #ffffff22;
-      backdrop-filter: blur(6px);
-      border-radius: 1rem;
-      padding: 2rem;
-      text-align: center;
-      color: #fff;
-      box-shadow: 0 0 25px rgba(0, 0, 0, 0.1);
-    }
-    .side-panel h3 {
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-    }
-    .side-panel .btn {
-      width: 100%;
-      margin-bottom: 1rem;
-    }
-  </style>
+  <link rel="stylesheet" href="assets/css/add_server.css">
 </head>
 <body>
 
@@ -183,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="type">Tipo di Server</label>
         <select name="type" id="type" class="form-select" required>
           <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
-          <option value="spigot" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
+          <option value="spigot" <?= $postType === 'spigot' ? 'selected' : '' ?>>Spigot/Bukkit</option>
           <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack</option>
         </select>
       </div>
@@ -203,40 +117,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select>
       </div>
 
-     <div class="mb-5">
-            <label for="version" class="form-label">Versione Minecraft</label>
-            <select name="version" id="version" class="form-select" required>
-                <?php
-                $versions = [
-                    "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
-                    "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
-                    "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
-                    "1.18.2", "1.18.1", "1.18",
-                    "1.17.1", "1.17",
-                    "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1", "1.16",
-                    "1.15.2", "1.15.1", "1.15",
-                    "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
-                    "1.13.2", "1.13.1", "1.13",
-                    "1.12.2", "1.12.1", "1.12",
-                    "1.11.2", "1.11.1", "1.11",
-                    "1.10.2", "1.10.1", "1.10",
-                    "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
-                    "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
-                    "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4", "1.7.2",
-                    "1.6.4", "1.6.2", "1.6.1",
-                    "1.5.2", "1.5.1", "1.5",
-                    "1.4.7", "1.4.6", "1.4.5", "1.4.4", "1.4.3", "1.4.2",
-                    "1.3.2", "1.3.1",
-                    "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1",
-                    "1.1", "1.0"
-                ];
-                foreach ($versions as $v) {
-                    $selected = ($postVersion === $v) ? 'selected' : '';
-                    echo "<option value=\"$v\" $selected>$v</option>";
-                }
-                ?>
-            </select>
-        </div>
+      <div class="mb-5" id="version_wrapper" style="display: <?= $postType === 'modpack' ? 'none' : 'block' ?>;">
+        <label for="version" class="form-label">Versione Minecraft</label>
+        <select name="version" id="version" class="form-select">
+          <?php
+          $versions = [
+              "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
+              "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
+              "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
+              "1.18.2", "1.18.1", "1.18",
+              "1.17.1", "1.17",
+              "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1", "1.16",
+              "1.15.2", "1.15.1", "1.15",
+              "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
+              "1.13.2", "1.13.1", "1.13",
+              "1.12.2", "1.12.1", "1.12",
+              "1.11.2", "1.11.1", "1.11",
+              "1.10.2", "1.10.1", "1.10",
+              "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
+              "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
+              "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4", "1.7.2",
+              "1.6.4", "1.6.2", "1.6.1",
+              "1.5.2", "1.5.1", "1.5",
+              "1.4.7", "1.4.6", "1.4.5", "1.4.4", "1.4.3", "1.4.2",
+              "1.3.2", "1.3.1",
+              "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1",
+              "1.1", "1.0"
+          ];
+          foreach ($versions as $v) {
+              $selected = ($postVersion === $v) ? 'selected' : '';
+              echo "<option value=\"$v\" $selected>$v</option>";
+          }
+          ?>
+        </select>
+      </div>
 
       <div class="d-flex justify-content-center gap-3">
         <button type="submit" class="btn btn-primary shadow">Crea Server</button>
