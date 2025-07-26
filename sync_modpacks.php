@@ -19,7 +19,7 @@ function curseApi($endpoint, $params = []) {
 }
 
 // Lista di modpack ID da file (es. modpack_ids.json)
-$modpackIds = json_decode(file_get_contents('/var/www/html/ids.json'), true);
+$modpackIds = json_decode(file_get_contents('/var/www/html/ids_modpacks.json'), true);
 
 foreach ($modpackIds as $modpackId) {
     echo "\n⏳ Elaborazione modpack ID $modpackId...\n";
