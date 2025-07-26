@@ -3,58 +3,59 @@ $apiKey = '$2a$10$yykz2aOhcuZ8rQNQTvOCGO0/sgIdJ7sKUjRqOv0LmllIPEimHh9XC';
 $db = new PDO('mysql:host=localhost;dbname=minecraft_platform', 'diego', 'Lgu8330Serve6');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Recupera tutte le versioni Minecraft valide
 function fetchGameVersions() {
     global $apiKey;
-    $url = "https://api.curseforge.com/v1/games/432/versions";
 
+    $url = "https://api.curseforge.com/v1/minecraft/version";
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["x-api-key: $apiKey"]);
-
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "x-api-key: $apiKey"
+    ]);
     $response = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($code !== 200) {
-        echo "❌ Errore nel recupero versioni: HTTP $code\n";
+    if ($httpCode !== 200) {
+        echo "❌ Errore HTTP $httpCode durante la richiesta delle versioni Minecraft\n";
         return [];
     }
 
-    $data = json_decode($response, true)['data'] ?? [];
-    $minecraftVersions = [];
-
-    foreach ($data as $version) {
-        if (isset($version['gameVersionTypeId']) && $version['gameVersionTypeId'] == 73250 && $version['status'] == 2) {
-            $minecraftVersions[] = $version['name'];
-        }
+    $data = json_decode($response, true);
+    if (!isset($data['data'])) {
+        echo "❌ Risposta API malformata\n";
+        return [];
     }
 
-    return array_reverse($minecraftVersions); // più recenti prima
+    // Filtra versioni stabili (no snapshot/prerelease)
+    $stable = array_filter($data['data'], fn($v) => !$v['isSnapshot'] && !$v['isPreRelease']);
+
+    // Ritorna solo i nomi delle versioni, es. ["1.20.1", "1.21.0"]
+    return array_map(fn($v) => $v['versionString'], $stable);
 }
 
-function fetchPlugins($version, $page = 0) {
+function fetchPlugins($page = 0, $gameVersion = null) {
     global $apiKey;
 
-    $encodedVersion = urlencode($version);
-    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page&gameVersion=$encodedVersion";
+    $versionParam = $gameVersion ? "&gameVersion=" . urlencode($gameVersion) : '';
+    $url = "https://api.curseforge.com/v1/mods/search?gameId=432&classId=5&sortField=2&sortOrder=desc&pageSize=50&page=$page$versionParam";
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "x-api-key: $apiKey"
     ]);
-
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($httpCode !== 200) {
-        echo "❌ Errore HTTP $httpCode per versione $version, pagina $page\n";
+        echo "❌ Errore HTTP $httpCode per versione $gameVersion (pagina $page)\n";
         return [];
     }
 
-    return json_decode($response, true)['data'] ?? [];
+    $data = json_decode($response, true);
+    return $data['data'] ?? [];
 }
 
 function fixDate($isoDate) {
@@ -65,16 +66,20 @@ function fixDate($isoDate) {
     }
 }
 
-// Avvio sincronizzazione
 $total = 0;
 $versions = fetchGameVersions();
-print_r($versions);
+
+if (empty($versions)) {
+    echo "⚠️ Nessuna versione valida trovata. Interrotto.\n";
+    exit;
+}
+
 foreach ($versions as $version) {
-    echo "🔄 Versione: $version\n";
     $page = 0;
+    echo "🔄 Scarico plugin per versione Minecraft $version...\n";
 
     while (true) {
-        $plugins = fetchPlugins($version, $page);
+        $plugins = fetchPlugins($page, $version);
         if (empty($plugins)) break;
 
         foreach ($plugins as $plugin) {
@@ -115,10 +120,10 @@ foreach ($versions as $version) {
             $total++;
         }
 
-        echo "   ➕ Pagina $page sincronizzata (versione $version), totale plugin: $total\n";
+        echo "✅ Pagina $page di $version sincronizzata, totale plugin finora: $total\n";
         $page++;
-        sleep(1); // anti rate-limit
+        sleep(1); // evitare rate-limit
     }
 }
 
-echo "\n🎉 Sincronizzazione completata: $total plugin popolari importati da tutte le versioni supportate.\n";
+echo "🎉 Sincronizzazione completata: $total plugin popolari importati da tutte le versioni supportate.\n";
