@@ -49,16 +49,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $remoteScript = "/var/www/html/install_server.php";
 
                 // Costruiamo il comando in base al tipo server scelto
-                if ($type === 'modpack' && $modpackId) {
-                    $installCommand = "php $remoteScript $vmIp $serverId modpack $modpackId";
-                } elseif ($type === 'vanilla') {
-                    $installCommand = "php $remoteScript $vmIp $serverId vanilla $version";
-                } elseif ($type === 'bukkit') {
-                    $installCommand = "php $remoteScript $vmIp $serverId bukkit $version";
-                } else {
-                    // fallback a vanilla se qualcosa non torna
-                    $installCommand = "php $remoteScript $vmIp $serverId vanilla $version";
-                }
+                if ($type === 'modpack') {
+    if (empty($postModpackId)) {
+        $error = "Se selezioni Modpack devi scegliere un modpack valido.";
+    } else {
+        $modpackId = intval($postModpackId);
+        // Controlla se esiste nel DB
+        $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM modpacks WHERE id = ?");
+        $stmtCheck->execute([$modpackId]);
+        if ($stmtCheck->fetchColumn() == 0) {
+            $error = "Modpack con ID $modpackId non trovato nel database.";
+        }
+    }
+}
+
 
                 exec($installCommand, $output, $exitCode);
 
