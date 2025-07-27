@@ -50,18 +50,18 @@ if (!$ip) {
 }
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
-$remoteDir = "/home/diego/".escapeshellarg($serverId);
-$scriptName = $action === 'start' ? "/home/diego/".escapeshellarg($serverId)."/start.sh" : "/home/diego/".escapeshellarg($serverId)."/stop.sh";
-
-// Costruzione del comando remoto completo
+// NON usare escapeshellarg su nomi di cartelle
+$remoteDir = "/home/diego/{$serverId}";
+$scriptName = $remoteDir . '/' . ($action === 'start' ? 'start.sh' : 'stop.sh');
 $remoteCommand = "bash " . escapeshellarg($scriptName);
 
-// Comando SSH completo
+// Comando SSH finale
 $sshCommand =
     'ssh -i ' . escapeshellarg($privateKeyPath) .
     ' -o StrictHostKeyChecking=no ' .
     $sshUser . '@' . escapeshellarg($ip) . ' ' .
     escapeshellarg($remoteCommand);
+
 
 // Log utile per debug
 error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteCommand}'");
