@@ -1,4 +1,13 @@
 <?php
+session_start();
+require 'config/config.php';
+require 'includes/auth.php';
+
+$error = '';
+$postServerName = $_POST['server_name'] ?? '';
+$postType = $_POST['type'] ?? 'vanilla';
+$postVersion = $_POST['version'] ?? '';
+$postModpackId = $_POST['modpack_id'] ?? '';
 
 // Esegui la logica CLI solo se chiamato da CLI
 if (php_sapi_name() === 'cli') {
@@ -146,6 +155,7 @@ BASH;
 // Da qui in poi, codice per la parte web (HTML, ecc.)
 ?>
 
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -157,6 +167,7 @@ BASH;
   <link rel="stylesheet" href="assets/css/add_server.css" />
 </head>
 <body>
+
 <div class="main-container">
   <div class="card-create-server shadow-lg">
     <h1>Crea il tuo Server Minecraft</h1>
@@ -181,32 +192,26 @@ BASH;
         </select>
       </div>
 
-      <div class="mb-4" id="version-group" style="display: <?= ($postType === 'vanilla' || $postType === 'bukkit') ? 'block' : 'none' ?>;">
+      <div class="mb-4" id="version-group">
         <label for="version" class="form-label">Versione Minecraft</label>
-        <select name="version" id="version" class="form-select" required>
+        <select name="version" id="version" class="form-select">
           <?php
           $versions = [
-                    "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
-                    "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
-                    "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
-                    "1.18.2", "1.18.1", "1.18",
-                    "1.17.1", "1.17",
-                    "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1", "1.16",
-                    "1.15.2", "1.15.1", "1.15",
-                    "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
-                    "1.13.2", "1.13.1", "1.13",
-                    "1.12.2", "1.12.1", "1.12",
-                    "1.11.2", "1.11.1", "1.11",
-                    "1.10.2", "1.10.1", "1.10",
-                    "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
-                    "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
-                    "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4", "1.7.2",
-                    "1.6.4", "1.6.2", "1.6.1",
-                    "1.5.2", "1.5.1", "1.5",
-                    "1.4.7", "1.4.6", "1.4.5", "1.4.4", "1.4.3", "1.4.2",
-                    "1.3.2", "1.3.1",
-                    "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1",
-                    "1.1", "1.0"
+            "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
+            "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
+            "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
+            "1.18.2", "1.18.1", "1.18",
+            "1.17.1", "1.17",
+            "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1", "1.16",
+            "1.15.2", "1.15.1", "1.15",
+            "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
+            "1.13.2", "1.13.1", "1.13",
+            "1.12.2", "1.12.1", "1.12",
+            "1.11.2", "1.11.1", "1.11",
+            "1.10.2", "1.10.1", "1.10",
+            "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
+            "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
+            "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4", "1.7.2"
           ];
           foreach ($versions as $v) {
             $selected = ($postVersion === $v) ? 'selected' : '';
@@ -216,9 +221,9 @@ BASH;
         </select>
       </div>
 
-      <div class="mb-4" id="modpack-group" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
+      <div class="mb-4" id="modpack-group">
         <label for="modpack_id" class="form-label">Scegli Modpack</label>
-        <select name="modpack_id" id="modpack_id" class="form-select" <?= $postType === 'modpack' ? '' : 'disabled' ?>>
+        <select name="modpack_id" id="modpack_id" class="form-select">
           <option value="">-- Seleziona un Modpack --</option>
           <?php
           $stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
@@ -258,21 +263,24 @@ document.addEventListener("DOMContentLoaded", function() {
   const modpackInput = document.getElementById("modpack_id");
 
   function toggleFields() {
-    if (typeSelect.value === "modpack") {
-      modpackGroup.style.display = "block";
-      modpackInput.disabled = false;
+    const selectedType = typeSelect.value;
+    if (selectedType === "modpack") {
       versionGroup.style.display = "none";
       versionInput.disabled = true;
+
+      modpackGroup.style.display = "block";
+      modpackInput.disabled = false;
     } else {
       versionGroup.style.display = "block";
       versionInput.disabled = false;
+
       modpackGroup.style.display = "none";
       modpackInput.disabled = true;
     }
   }
 
   typeSelect.addEventListener("change", toggleFields);
-  toggleFields();
+  toggleFields(); // Esegui al primo caricamento
 });
 </script>
 
