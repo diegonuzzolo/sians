@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
     exit('Non autorizzato');
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id']) || empty($_POST['action'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($server['id']) || empty($_POST['action'])) {
     http_response_code(400);
     error_log("[server_action] Richiesta non valida");
     exit('Richiesta non valida');
