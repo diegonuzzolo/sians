@@ -154,43 +154,7 @@ BASH;
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet" />
-  <style>
-    /* layout base */
-    body, html {
-      height: 100%;
-      margin: 0;
-      display: flex;
-      font-family: Arial, sans-serif;
-      background: #f8f9fa;
-    }
-    .main-container {
-      flex: 1;
-      display: flex;
-      padding: 20px;
-      gap: 20px;
-    }
-    .card-create-server {
-      flex: 3;
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-    .side-panel {
-      flex: 1;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      display: flex;
-      flex-direction: column;
-      justify-content: start;
-      gap: 15px;
-    }
-    .side-panel h3 {
-      margin-bottom: 1rem;
-    }
-  </style>
+  <link rel="stylesheet" href="assets/css/add_server.css" />
 </head>
 <body>
 
