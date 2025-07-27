@@ -53,7 +53,7 @@ $sshUser = 'diego';
 $privateKeyPath = '/home/diego/.ssh/id_rsa';
 
 // Comando da eseguire
-$remoteCommand = 'cd ~/server && bash ' . ($action === 'start' ? 'start.sh' : 'stop.sh');
+$remoteCommand = 'cd ~/' . escapeshellarg($serverId) . ' && bash ' . ($action === 'start' ? 'start.sh' : 'stop.sh');
 
 $sshCommand = sprintf(
     'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
