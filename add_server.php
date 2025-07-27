@@ -27,11 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vmIp = $vm['ip'];
             $vmId = $vm['proxmox_vmid'];
             $userId = $_SESSION['user_id'];
-
-            $downloadUrl = '';
-            $installMethod = '';
-            $modpackName = '';
-            $versionOrSlug = '';
+              $stmt = $pdo->query("SELECT * FROM modpacks ORDER BY name");
+            $modpacks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $downloadUrl = $modpacks["downloadUrl"] ;
+            $installMethod = $modpacks["installMethod"] ;
+            $modpackName = $modpacks["name"] ;
+            $versionOrSlug = $modpacks["forgeVersion"] ;
 
             if ($postType === 'modpack') {
                 // Carica dati modpack
