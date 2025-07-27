@@ -43,7 +43,7 @@ if (!$server) {
     exit('Server non trovato');
 }
 
-$ip = $server['ip_address'] ?? null;
+$ip = $server['ip'] ?? null;
 if (!$ip) {
     error_log("[server_action] IP VM mancante per server_id=$serverId");
     exit('IP VM mancante');
@@ -57,9 +57,8 @@ $remoteCommand = "cd ~/{$serverId} && bash " . ($action === 'start' ? 'start.sh'
 
 // Usa escapeshellarg solo dove necessario
 $sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
+    'ssh -i %s -o StrictHostKeyChecking=no diego@%s %s',
     escapeshellarg($privateKeyPath),
-    escapeshellarg($sshUser),
     escapeshellarg($ip),
     escapeshellarg($remoteCommand)
 );

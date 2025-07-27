@@ -56,13 +56,7 @@ if (!$vm) {
 
     $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
 
-    $args = implode(' ', [
-    escapeshellarg($postType),
-    escapeshellarg($versionOrSlug),
-    escapeshellarg($downloadUrl),
-    escapeshellarg($installMethod),
-    escapeshellarg($vmId)
-]);
+    $args ="$postType $versionOrSlug $downloadUrl $installMethod $vmId";
 
 $installCommand = "$sshCmd \"bash /home/diego/setup_server.sh $args\" > /dev/null 2>&1 &";
 exec($installCommand);
