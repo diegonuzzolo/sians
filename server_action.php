@@ -36,7 +36,7 @@ $ip = $vm['ip'];
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
 
-$remoteCommand = "cd /home/diego/{$serverId} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
+$remoteCommand = "cd /home/diego/{$proxmoxVmid} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
 $sshCommand = sprintf(
     'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
     escapeshellarg($privateKeyPath),
@@ -65,6 +65,5 @@ try {
     error_log("[server_action] Errore aggiornamento stato: " . $e->getMessage());
 }
 
-#header('Location: dashboard.php');
-#exit;
-echo $sshCommand;
+header('Location: dashboard.php');
+exit;
