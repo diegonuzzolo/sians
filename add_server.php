@@ -9,29 +9,6 @@ require 'includes/auth.php';
 $error = '';
 $success = '';
 
-$modpackId = $_POST['modpack_id'] ?? null;
-
-
-    $stmt = $pdo->prepare("SELECT * FROM modpacks WHERE id = ?");
-    $stmt->execute([$modpackId]);
-    $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
-
- 
-
-    // Ora hai:
-    // $modpack['downloadUrl']
-    // $modpack['forgeVersion']
-    // $modpack['version']
-    // $modpack['installMethod']
-    // ecc.
-
-    // E puoi usarli per costruire lo script di installazione sulla VM
-
-    $downloadUrl = $modpack["downloadUrl"] ?? null;
-    $forgeVersion = $modpack["forgeVersion"] ?? null;
-    $version = $modpack["version"] ?? null;
-    $installMethod = $modpack["installMethod"] ?? null;
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postServerName = trim($_POST['server_name'] ?? '');
     $postType = $_POST['type'] ?? 'vanilla';
@@ -42,84 +19,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "❌ Compila tutti i campi obbligatori.";
     } else {
         // Trova VM libera
-$stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
-$vm = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
+        $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$vm) {
-    $error = "❌ Nessuna VM disponibile.";
-} else {
-    $vmIp = $vm['ip'];
-    $vmId = $vm['proxmox_vmid']; // <-- QUI usa VMID Proxmox per cartelle
-    $userId = $_SESSION['user_id'];
+        if (!$vm) {
+            $error = "❌ Nessuna VM disponibile.";
+        } else {
+            $vmIp = $vm['ip'];
+            $vmId = $vm['proxmox_vmid']; // <-- Usa VMID Proxmox per cartelle
+            $userId = $_SESSION['user_id'];
 
-    // Inserisci server nel DB
-    $stmt = $pdo->prepare("INSERT INTO servers 
-        (name, type, version, vm_id, user_id, modpack_id, proxmox_vmid, subdomain, tunnel_url, status, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+            // Se tipo modpack, recupera dati modpack dal DB
+            $modpackName = '';
+            $downloadUrl = '';
+            $installMethod = '';
+            if ($postType === 'modpack') {
+                $stmt = $pdo->prepare("SELECT * FROM modpacks WHERE id = ?");
+                $stmt->execute([$postModpackId]);
+                $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $stmt->execute([
-        $postServerName,
-        $postType,
-        $postVersion ?: null,
-        $vm['id'],
-        $userId,
-        $postType === 'modpack' ? $postModpackId : null,
-        $vmId,
-        null,
-        null,
-        'stopped'
-    ]);
+                if (!$modpack) {
+                    $error = "❌ Modpack non trovato.";
+                } else {
+                    $modpackName = $modpack['name'] ?? '';
+                    $downloadUrl = $modpack['downloadUrl'] ?? '';
+                    $installMethod = $modpack['installMethod'] ?? '';
+                }
+            }
 
-    $serverId = $pdo->lastInsertId();
+            if (!$error) {
+                // Inserisci server nel DB
+                $stmt = $pdo->prepare("INSERT INTO servers 
+                    (name, type, version, vm_id, user_id, modpack_id, proxmox_vmid, subdomain, tunnel_url, status, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
 
-    // Comando per installare server remoto (passa VMID Proxmox come ID cartella)
-    $versionOrSlug = ($postType === 'modpack') ? $postModpackId : $postVersion;
+                $stmt->execute([
+                    $postServerName,
+                    $postType,
+                    $postVersion ?: null,
+                    $vm['id'],
+                    $userId,
+                    $postType === 'modpack' ? $postModpackId : null,
+                    $vmId,
+                    null,
+                    null,
+                    'stopped'
+                ]);
 
-$sshKey = '/var/www/.ssh/id_rsa';
-$sshUser = 'diego';
-$remoteScript = '/home/diego/setup_server.sh';
+                $serverId = $pdo->lastInsertId();
 
-$sshCmd = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s',
-    escapeshellarg($sshKey),
-    escapeshellarg($sshUser),
-    escapeshellarg($vmIp)
-);
+                $versionOrSlug = ($postType === 'modpack') ? $modpackName : $postVersion;
 
-$args = implode(' ', array_map('escapeshellarg', [
-    $postType,
-    $versionOrSlug,
-    $downloadUrl,
-    $installMethod,
-    $vmId
-]));
+                $sshKey = '/var/www/.ssh/id_rsa';
+                $sshUser = 'diego';
+                $remoteScript = '/home/diego/setup_server.sh';
 
-$installCommand = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
+                $sshCmd = sprintf(
+                    'ssh -i %s -o StrictHostKeyChecking=no %s@%s',
+                    escapeshellarg($sshKey),
+                    escapeshellarg($sshUser),
+                    escapeshellarg($vmIp)
+                );
 
-exec($installCommand);
+                $args = implode(' ', array_map('escapeshellarg', [
+                    $postType,
+                    $versionOrSlug,
+                    $downloadUrl,
+                    $installMethod,
+                    $vmId
+                ]));
 
+                $installCommand = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
 
+                exec($installCommand);
 
-    // Assegna VM
-    $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
-        ->execute([$userId, $serverId, $vm['id']]);
+                // Assegna VM
+                $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
+                    ->execute([$userId, $serverId, $vm['id']]);
 
-    // Redirect con query string
-    $queryString = "server_id=$serverId";
-    if ($postType === 'modpack') {
-        $queryString .= "&modpack_id=" . urlencode($postModpackId);
-    } else {
-        $queryString .= "&version=" . urlencode($postVersion);
-    }
+                // Redirect con query string
+                $queryString = "server_id=$serverId";
+                if ($postType === 'modpack') {
+                    $queryString .= "&modpack_id=" . urlencode($postModpackId);
+                } else {
+                    $queryString .= "&version=" . urlencode($postVersion);
+                }
 
-    header("Location: create_tunnel_and_dns.php?$queryString");
-    exit;
+                header("Location: create_tunnel_and_dns.php?$queryString");
+                exit;
+            }
         }
     }
 }
-
-
-
 ?>
 <!DOCTYPE html>
 <html lang="it">
