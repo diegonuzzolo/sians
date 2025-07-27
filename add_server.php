@@ -58,7 +58,12 @@ $stmt->execute([
             exec("$sshBase 'echo \"eula=true\" > $remotePath/eula.txt'");
 
             // Genera server.properties completo
-            $properties = <<<EOF
+
+
+            // Variabili definite in precedenza
+
+// Crea il contenuto del server.properties
+$properties = <<<EOF
 enable-jmx-monitoring=false
 rcon.port=25575
 level-seed=
@@ -111,7 +116,20 @@ spawn-protection=16
 max-world-size=29999984
 EOF;
 
-            exec("$sshBase 'echo " . escapeshellarg($properties) . " > $remotePath/server.properties'");
+// Comando SSH per scrivere server.properties nella VM
+$serverPropertiesCommand = <<<EOT
+ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@{$ip} "cat > $remotePath/server.properties <<EOF
+$properties
+EOF"
+EOT;
+
+// Esecuzione del comando
+exec($serverPropertiesCommand . ' 2>&1', $output, $exitCode);
+
+// Logging di debug (opzionale)
+error_log("[server.properties] ExitCode: $exitCode");
+error_log("[server.properties] Output:\n" . implode("\n", $output));
+
 
             // start.sh
             $startScript = <<<SH
