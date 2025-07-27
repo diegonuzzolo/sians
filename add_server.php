@@ -128,7 +128,7 @@ if (!$vm) {
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
 
-      <form method="POST" action="">
+      <form method="POST" action="add_server.php">
         <div class="mb-4">
           <label for="server_name" class="form-label">Nome Server</label>
           <input
