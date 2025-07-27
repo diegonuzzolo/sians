@@ -163,13 +163,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <a href="logout.php" class="btn btn-danger btn-lg shadow"><i class="bi bi-box-arrow-right"></i> Esci</a>
   </div>
 </div>
-
 <script>
- 
 document.addEventListener("DOMContentLoaded", function() {
     const typeSelect = document.getElementById("type");
-    const versionGroup = document.getElementById("version-group");
-    const modpackGroup = document.getElementById("modpack-group");
+    const versionGroup = document.getElementById("version_wrapper"); // ← CORRETTO
+    const modpackGroup = document.getElementById("modpack_selector"); // ← CORRETTO
     const versionInput = document.getElementById("version");
     const modpackInput = document.getElementById("modpack_id");
 
@@ -192,10 +190,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     typeSelect.addEventListener("change", toggleFields);
-    toggleFields(); // iniziale
+    toggleFields(); // Esegui all'inizio
 });
-
 </script>
+
 
 </body>
 </html>
