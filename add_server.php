@@ -54,12 +54,29 @@ if (!$vm) {
     $downloadUrl = ''; // Puoi impostare l'URL del modpack qui se serve
     $installMethod = ''; // es. 'forge' o 'curseforge' se modpack
 
-    $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
+$sshKey = '/var/www/.ssh/id_rsa';
+$sshUser = 'diego';
+$remoteScript = '/home/diego/setup_server.sh';
 
-    $args ="$postType $versionOrSlug $downloadUrl $installMethod $vmId";
+$sshCmd = sprintf(
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s',
+    escapeshellarg($sshKey),
+    escapeshellarg($sshUser),
+    escapeshellarg($vmIp)
+);
 
-$installCommand = "$sshCmd \"bash /home/diego/setup_server.sh $args\" > /dev/null 2>&1 &";
+$args = implode(' ', array_map('escapeshellarg', [
+    $postType,
+    $versionOrSlug,
+    $downloadUrl,
+    $installMethod,
+    $vmId
+]));
+
+$installCommand = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
+
 exec($installCommand);
+
 
 
     // Assegna VM
