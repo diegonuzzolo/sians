@@ -116,13 +116,20 @@ spawn-protection=16
 max-world-size=29999984
 EOF;
 
-// Comando SSH per scrivere server.properties nella VM
-$serverPropertiesCommand = <<<EOT
-ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@{$ip} "cat > $remotePath/server.properties <<EOF
-$properties
-EOF"
+// Codifica in base64 per evitare problemi con caratteri speciali
+$encoded = base64_encode($properties);
+
+// Costruzione del comando SSH per scrivere il file in remoto
+$command = <<<EOT
+ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip "mkdir -p '$remotePath' && echo '$encoded' | base64 -d > '$remotePath/server.properties'"
 EOT;
 
+// Esegui il comando
+exec($command . ' 2>&1', $output, $exitCode);
+
+// Log di debug
+error_log("[server.properties] Exit code: $exitCode");
+error_log("[server.properties] Output:\n" . implode("\n", $output));
 // Esecuzione del comando
 exec($serverPropertiesCommand . ' 2>&1', $output, $exitCode);
 
