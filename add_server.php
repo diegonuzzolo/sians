@@ -4,108 +4,132 @@ require 'config/config.php';
 require 'includes/auth.php';
 
 $error = '';
-$success = false;
+$success = '';
 
+// Gestione form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $postServerName = $_POST['server_name'] ?? '';
+    $postServerName = trim($_POST['server_name'] ?? '');
     $postType = $_POST['type'] ?? 'vanilla';
     $postVersion = $_POST['version'] ?? '';
     $postModpackId = $_POST['modpack_id'] ?? '';
 
-    if (empty($postServerName)) {
-        $error = '⚠️ Inserisci un nome per il server.';
+    if (empty($postServerName) || empty($postType)) {
+        $error = "❌ Compila tutti i campi obbligatori.";
     } else {
         // Trova una VM libera
-        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
-        $stmt->execute();
+        $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
         $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$vm) {
-            $error = '❌ Nessuna VM disponibile.';
+            $error = "❌ Nessuna VM disponibile.";
         } else {
+            $vmIp = $vm['ip_address'];
             $userId = $_SESSION['user_id'];
-            $vmId = $vm['id'];
-            $vmIp = $vm['ip'];
 
-            // Inserisce nuovo server
-            $stmt = $pdo->prepare("INSERT INTO servers (user_id, vm_id, name, type, version_or_modpack_id) VALUES (?, ?, ?, ?, ?)");
-            $installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
-            $stmt->execute([$userId, $vmId, $postServerName, $postType, $installVersion]);
-
+            // Inserisci server nel DB
+            $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, assigned_vm_id, user_id, modpack_id) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $postServerName,
+                $postType,
+                $postVersion ?: null,
+                $vm['id'],
+                $userId,
+                $postType === 'modpack' ? $postModpackId : null
+            ]);
             $serverId = $pdo->lastInsertId();
 
-            // Marca la VM come assegnata
+            // Assegna la VM
             $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
-                ->execute([$userId, $serverId, $vmId]);
+                ->execute([$userId, $serverId, $vm['id']]);
 
-            // Prepara installazione
+            // Percorsi remoti
             $sshUser = 'diego';
-            $basePath = "/home/diego/$serverId";
             $sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
+            $remotePath = "/home/diego/$serverId";
 
-            // Crea cartella base
-            exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
+            // Crea directory remota
+            exec("$sshBase 'mkdir -p $remotePath && chmod 755 $remotePath'");
 
-            if ($postType === 'vanilla') {
-                $version = escapeshellarg($postVersion);
-                $manifest = json_decode(file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json"), true);
-                $versionUrl = null;
-                foreach ($manifest['versions'] as $v) {
-                    if ($v['id'] === $postVersion) {
-                        $versionUrl = $v['url'];
-                        break;
-                    }
-                }
-                if ($versionUrl) {
-                    $detail = json_decode(file_get_contents($versionUrl), true);
-                    $jarUrl = $detail['downloads']['server']['url'] ?? '';
-                    if ($jarUrl) {
-                        $jarUrl = escapeshellarg($jarUrl);
-                        exec("$sshBase 'curl -o $basePath/server.jar $jarUrl'");
-                    }
-                }
-            } elseif ($postType === 'modpack') {
-                $modpacksJson = json_decode(file_get_contents("/var/www/html/modpacks.json"), true);
-                $downloadUrl = null;
-                foreach ($modpacksJson as $modpack) {
-                    if ($modpack['id'] == intval($postModpackId)) {
-                        $downloadUrl = $modpack['downloadUrl'] ?? null;
-                        break;
-                    }
-                }
-                if ($downloadUrl) {
-                    $zipRemotePath = "$basePath/modpack.zip";
-                    exec("$sshBase 'curl -L -o $zipRemotePath $downloadUrl && unzip -o $zipRemotePath -d $basePath && rm $zipRemotePath'");
-                }
-            } elseif ($postType === 'bukkit') {
-                $bukkitUrl = escapeshellarg("https://download.getbukkit.org/craftbukkit/craftbukkit-$postVersion.jar");
-                exec("$sshBase 'curl -o $basePath/server.jar $bukkitUrl'");
-            }
+            // Genera file eula.txt
+            exec("$sshBase 'echo \"eula=true\" > $remotePath/eula.txt'");
 
-            // Genera i file necessari
-            exec("$sshBase 'echo \"eula=true\" > $basePath/eula.txt'");
-
+            // Genera server.properties completo
             $properties = <<<EOF
-motd=Benvenuto nel server $postServerName!
-server-port=25565
+enable-jmx-monitoring=false
+rcon.port=25575
+level-seed=
+gamemode=survival
+enable-command-block=false
+enable-query=false
+generator-settings=
+level-name=world
+motd=Benvenuto nel server $serverId!
+query.port=25565
+pvp=true
+generate-structures=true
+difficulty=easy
+network-compression-threshold=256
+max-tick-time=60000
+use-native-transport=true
 max-players=20
 online-mode=true
-level-name=world
+enable-status=true
+allow-flight=false
+broadcast-rcon-to-ops=true
+view-distance=10
+max-build-height=256
+server-ip=
+allow-nether=true
+server-port=25565
+enable-rcon=false
+sync-chunk-writes=true
+op-permission-level=4
+prevent-proxy-connections=false
+resource-pack=
+entity-broadcast-range-percentage=100
+rcon.password=
+player-idle-timeout=0
+debug=false
+force-gamemode=false
+rate-limit=0
+hardcore=false
+white-list=false
+broadcast-console-to-ops=true
+spawn-npcs=true
+spawn-animals=true
+snooper-enabled=true
+function-permission-level=2
+text-filtering-config=
+spawn-monsters=true
+enforce-whitelist=false
+resource-pack-sha1=
+spawn-protection=16
+max-world-size=29999984
 EOF;
-            exec("$sshBase 'echo " . escapeshellarg($properties) . " > $basePath/server.properties'");
 
+            exec("$sshBase 'echo " . escapeshellarg($properties) . " > $remotePath/server.properties'");
+
+            // start.sh
             $startScript = <<<SH
 #!/bin/bash
-cd "$basePath"
+cd "$remotePath"
 screen -dmS $serverId java -Xmx1024M -Xms1024M -jar server.jar nogui
 SH;
-            exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $basePath/start.sh && chmod +x $basePath/start.sh'");
+            exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $remotePath/start.sh && chmod +x $remotePath/start.sh'");
 
+            // stop.sh
             $stopScript = <<<SH
 #!/bin/bash
 screen -S $serverId -X quit
 SH;
-            exec("$sshBase 'echo " . escapeshellarg($stopScript) . " > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
+            exec("$sshBase 'echo " . escapeshellarg($stopScript) . " > $remotePath/stop.sh && chmod +x $remotePath/stop.sh'");
+
+            // Lancia install_server.php
+            $installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
+            $phpPath = trim(shell_exec('which php'));
+            $scriptPath = realpath('install_server.php');
+            $cmd = "$phpPath $scriptPath $vmIp $serverId $postType $installVersion > /dev/null 2>&1 &";
+            exec($cmd);
 
             header("Location: dashboard.php");
             exit;
@@ -114,49 +138,143 @@ SH;
 }
 ?>
 
-<!-- HTML -->
+<!-- HTML Form -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <title>Crea Server Minecraft</title>
-    <script>
-        function toggleOptions() {
-            const type = document.getElementById('type').value;
-            document.getElementById('vanillaOptions').style.display = (type === 'vanilla' || type === 'bukkit') ? 'block' : 'none';
-            document.getElementById('modpackOptions').style.display = (type === 'modpack') ? 'block' : 'none';
+  <meta charset="UTF-8" />
+  <title>Crea Server Minecraft</title>
+  <link rel="stylesheet" href="assets/css/add_server.css" />
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const typeSelect = document.getElementById('type');
+      const versionGroup = document.getElementById('version-group');
+      const modpackGroup = document.getElementById('modpack-group');
+      const versionInput = document.getElementById('version');
+      const modpackInput = document.getElementById('modpack_id');
+
+      function toggleFields() {
+        const selectedType = typeSelect.value;
+        if (selectedType === "modpack") {
+          versionGroup.style.display = "none";
+          versionInput.disabled = true;
+
+          modpackGroup.style.display = "block";
+          modpackInput.disabled = false;
+        } else {
+          versionGroup.style.display = "block";
+          versionInput.disabled = false;
+
+          modpackGroup.style.display = "none";
+          modpackInput.disabled = true;
         }
-    </script>
+      }
+
+      typeSelect.addEventListener("change", toggleFields);
+      toggleFields();
+    });
+  </script>
 </head>
 <body>
-    <h1>🛠️ Crea un nuovo server Minecraft</h1>
-    <?php if ($error): ?>
-        <p style="color:red"><?= htmlspecialchars($error) ?></p>
-    <?php endif; ?>
-    <form method="post">
-        <label>Nome server: <input type="text" name="server_name" required></label><br><br>
+  <div class="main-container">
+    <div class="card-create-server shadow-lg">
+      <h1>Crea il tuo Server Minecraft</h1>
 
-        <label>Tipo:
-            <select name="type" id="type" onchange="toggleOptions()" required>
-                <option value="vanilla">Vanilla</option>
-                <option value="modpack">Modpack</option>
-                <option value="bukkit">Bukkit</option>
+      <?php if (!empty($error)): ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+      <?php endif; ?>
+
+      <form method="POST" action="">
+        <div class="mb-4">
+          <label for="server_name" class="form-label">Nome Server</label>
+          <input
+            type="text"
+            name="server_name"
+            id="server_name"
+            class="form-control"
+            required
+            value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>"
+            placeholder="Es. AvventuraMagica"
+          />
+        </div>
+
+        <div class="mb-4">
+          <label for="type" class="form-label">Tipo di Server</label>
+          <select name="type" id="type" class="form-select" required>
+            <option value="vanilla" <?= (($_POST['type'] ?? '') === 'vanilla') ? 'selected' : '' ?>>Vanilla</option>
+            <option value="bukkit" <?= (($_POST['type'] ?? '') === 'bukkit') ? 'selected' : '' ?>>Bukkit</option>
+            <option value="modpack" <?= (($_POST['type'] ?? '') === 'modpack') ? 'selected' : '' ?>>Modpack</option>
+          </select>
+        </div>
+
+         <div class="mb-5">
+            <label for="version" class="form-label">Versione Minecraft</label>
+            <select name="version" id="version" class="form-select" required>
+                <?php
+                $versions = [
+                    "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
+                    "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
+                    "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
+                    "1.18.2", "1.18.1", "1.18",
+                    "1.17.1", "1.17",
+                    "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1", "1.16",
+                    "1.15.2", "1.15.1", "1.15",
+                    "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
+                    "1.13.2", "1.13.1", "1.13",
+                    "1.12.2", "1.12.1", "1.12",
+                    "1.11.2", "1.11.1", "1.11",
+                    "1.10.2", "1.10.1", "1.10",
+                    "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
+                    "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
+                    "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4", "1.7.2",
+                    "1.6.4", "1.6.2", "1.6.1",
+                    "1.5.2", "1.5.1", "1.5",
+                    "1.4.7", "1.4.6", "1.4.5", "1.4.4", "1.4.3", "1.4.2",
+                    "1.3.2", "1.3.1",
+                    "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1",
+                    "1.1", "1.0"
+                ];
+                foreach ($versions as $v) {
+                    $selected = ($postVersion === $v) ? 'selected' : '';
+                    echo "<option value=\"$v\" $selected>$v</option>";
+                }
+                ?>
             </select>
-        </label><br><br>
-
-        <div id="vanillaOptions">
-            <label>Versione Minecraft:
-                <input type="text" name="version" placeholder="es. 1.20.1">
-            </label><br><br>
         </div>
 
-        <div id="modpackOptions" style="display:none;">
-            <label>Modpack ID:
-                <input type="number" name="modpack_id" placeholder="es. 12345">
-            </label><br><br>
         </div>
 
-        <button type="submit">Crea server</button>
-    </form>
+        <div class="mb-4" id="modpack-group">
+          <label for="modpack_id" class="form-label">Scegli Modpack</label>
+          <select name="modpack_id" id="modpack_id" class="form-select">
+            <option value="">-- Seleziona un Modpack --</option>
+            <?php
+            $stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
+            while ($modpack = $stmt->fetch(PDO::FETCH_ASSOC)) {
+              $selected = (($modpack['id'] ?? '') == ($_POST['modpack_id'] ?? '')) ? 'selected' : '';
+              $label = htmlspecialchars($modpack['name'] . " (" . $modpack['minecraftVersion'] . ")");
+              echo "<option value=\"{$modpack['id']}\" $selected>$label</option>";
+            }
+            ?>
+          </select>
+        </div>
+
+        <div class="d-flex justify-content-center gap-3 mt-4">
+          <button type="submit" class="btn btn-primary shadow">Crea Server</button>
+          <a href="dashboard.php" class="btn btn-secondary shadow">Annulla</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="side-panel">
+      <h3>Hai già un server?</h3>
+      <a href="dashboard.php" class="btn btn-light btn-lg shadow d-flex align-items-center gap-2">
+        <i class="bi bi-house-door"></i> Vai alla Dashboard
+      </a>
+      <a href="logout.php" class="btn btn-danger btn-lg shadow d-flex align-items-center gap-2">
+        <i class="bi bi-box-arrow-right"></i> Esci
+      </a>
+    </div>
+  </div>
 </body>
 </html>
