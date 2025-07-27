@@ -17,9 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['server_id']) || empty
 
 $userId = $_SESSION['user_id'];
 $serverId = intval($_POST['server_id']);
-$action = $_POST['action']; // aspettato 'start' o 'stop'
+$action = $_POST['action'];
 
-// Verifica azione valida
 $allowedActions = ['start', 'stop'];
 if (!in_array($action, $allowedActions, true)) {
     http_response_code(400);
@@ -27,7 +26,7 @@ if (!in_array($action, $allowedActions, true)) {
     exit('Azione non valida');
 }
 
-// Recupera IP VM associata al server dell'utente
+// Recupera IP della VM associata al server
 $stmt = $pdo->prepare("
     SELECT vm.ip AS ip_address
     FROM servers s
@@ -50,48 +49,42 @@ if (!$ip) {
     exit('IP VM mancante');
 }
 
-$sshUser = 'diego'; // utente SSH fisso
+$sshUser = 'diego';
 $privateKeyPath = '/home/diego/.ssh/id_rsa';
 
-// Comandi da eseguire sulla VM
-$commands = [
-    'start' => 'cd ~/server && bash start.sh',
-    'stop' => 'cd ~/server && bash stop.sh',
-];
+// Comando da eseguire
+$remoteCommand = 'cd ~/server && bash ' . ($action === 'start' ? 'start.sh' : 'stop.sh');
 
-// Costruzione comando SSH con escapeshellarg per sicurezza
 $sshCommand = sprintf(
     'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
     escapeshellarg($privateKeyPath),
     escapeshellarg($sshUser),
     escapeshellarg($ip),
-    escapeshellarg($commands[$action])
+    escapeshellarg($remoteCommand)
 );
 
-error_log("[server_action] Esecuzione comando SSH: $sshCommand");
+error_log("[server_action] Comando SSH: ssh -i <key> $sshUser@$ip '$remoteCommand'");
 
-// Esecuzione comando SSH
 exec($sshCommand . ' 2>&1', $output, $exitCode);
 
 error_log("[server_action] Exit code: $exitCode");
 error_log("[server_action] Output:\n" . implode("\n", $output));
 
 if ($exitCode === 0) {
-    // Aggiorna stato server nel DB
     $newStatus = $action === 'start' ? 'running' : 'stopped';
     $update = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $res = $update->execute([$newStatus, $serverId]);
 
     if ($res) {
-        error_log("[server_action] Status aggiornato a '$newStatus' per server_id=$serverId");
+        error_log("[server_action] Stato aggiornato a '$newStatus' per server_id=$serverId");
     } else {
-        error_log("[server_action] Fallito aggiornamento status per server_id=$serverId");
+        error_log("[server_action] Fallito aggiornamento stato per server_id=$serverId");
     }
 
     header('Location: dashboard.php?msg=success');
     exit;
 } else {
-    error_log("[server_action] Errore esecuzione comando SSH, exitCode=$exitCode");
+    error_log("[server_action] Errore comando SSH (exitCode=$exitCode)");
     header('Location: dashboard.php?msg=ssh_error');
     exit;
 }
