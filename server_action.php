@@ -50,11 +50,11 @@ if (!$ip) {
 }
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
-$remoteDir = "/home/diego/{$serverId}";
-$scriptName = $action === 'start' ? "/home/diego/{$serverId}/start.sh" : "/home/diego/{$serverId}/stop.sh";
+$remoteDir = "/home/diego/".escapeshellarg($serverId);
+$scriptName = $action === 'start' ? "/home/diego/".escapeshellarg($serverId)."/start.sh" : "/home/diego/".escapeshellarg($serverId)."/stop.sh";
 
 // Costruzione del comando remoto completo
-$remoteCommand = "bash {$scriptName}";
+$remoteCommand = "bash " . escapeshellarg($scriptName);
 
 // Comando SSH completo
 $sshCommand =
