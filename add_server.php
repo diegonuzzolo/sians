@@ -18,53 +18,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName) || empty($postType)) {
         $error = "❌ Compila tutti i campi obbligatori.";
     } else {
-        $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
-        $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$vm) {
-            $error = "❌ Nessuna VM disponibile.";
-        } else {
-            $vmIp = $vm['ip'];
-            $userId = $_SESSION['user_id'];
+        // Trova VM libera
+$stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
+$vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $stmt = $pdo->prepare("
-                INSERT INTO servers (name, type, version, vm_id, user_id, modpack_id, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'stopped', NOW(), NOW())
-            ");
-            $stmt->execute([
-                $postServerName,
-                $postType,
-                $postType === 'modpack' ? null : $postVersion,
-                $vm['id'],
-                $userId,
-                $postType === 'modpack' ? $postModpackId : null
-            ]);
-            $serverId = $pdo->lastInsertId();
+if (!$vm) {
+    $error = "❌ Nessuna VM disponibile.";
+} else {
+    $vmIp = $vm['ip'];
+    $vmId = $vm['proxmox_vmid']; // <-- QUI usa VMID Proxmox per cartelle
+    $userId = $_SESSION['user_id'];
 
-            $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
-                ->execute([$userId, $serverId, $vm['id']]);
+    // Inserisci server nel DB
+    $stmt = $pdo->prepare("INSERT INTO servers 
+        (name, type, version, vm_id, user_id, modpack_id, proxmox_vmid, subdomain, tunnel_url, status, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
 
-            // Comando install_server.php
-            $installId = $postType === 'modpack' ? $postModpackId : $postVersion;
-            $cmd = sprintf(
-                'php %s %s %d %s %s > /dev/null 2>&1 &',
-                escapeshellarg(realpath('install_server.php')),
-                escapeshellarg($vmIp),
-                $serverId,
-                escapeshellarg($postType),
-                escapeshellarg($installId)
-            );
-            exec($cmd);
+    $stmt->execute([
+        $postServerName,
+        $postType,
+        $postVersion ?: null,
+        $vm['id'],
+        $userId,
+        $postType === 'modpack' ? $postModpackId : null,
+        $vmId,
+        null,
+        null,
+        'stopped'
+    ]);
 
-            $qs = "server_id=$serverId";
-            if ($postType === 'modpack') {
-                $qs .= "&modpack_id=" . urlencode($postModpackId);
-            } else {
-                $qs .= "&version=" . urlencode($postVersion);
-            }
+    $serverId = $pdo->lastInsertId();
 
-            header("Location: create_tunnel_and_dns.php?$qs");
-            exit;
-        }
+    // Comando per installare server remoto (passa VMID Proxmox come ID cartella)
+    $versionOrSlug = ($postType === 'modpack') ? $postModpackId : $postVersion;
+    $downloadUrl = ''; // Puoi impostare l'URL del modpack qui se serve
+    $installMethod = ''; // es. 'forge' o 'curseforge' se modpack
+
+    $sshCmd = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
+
+    $installCommand = "$sshCmd 'bash /home/diego/install_server.sh " . 
+        escapeshellarg($postType) . " " .
+        escapeshellarg($versionOrSlug) . " " .
+        escapeshellarg($downloadUrl) . " " .
+        escapeshellarg($installMethod) . " " .
+        escapeshellarg($vmId) . "' > /dev/null 2>&1 &";
+
+    exec($installCommand);
+
+    // Assegna VM
+    $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
+        ->execute([$userId, $serverId, $vm['id']]);
+
+    // Redirect con query string
+    $queryString = "server_id=$serverId";
+    if ($postType === 'modpack') {
+        $queryString .= "&modpack_id=" . urlencode($postModpackId);
+    } else {
+        $queryString .= "&version=" . urlencode($postVersion);
+    }
+
+    header("Location: create_tunnel_and_dns.php?$queryString");
+    exit;
+}
     }
 }
 ?>
