@@ -9,88 +9,86 @@ $postType = $_POST['type'] ?? 'vanilla';
 $postVersion = $_POST['version'] ?? '';
 $postModpackId = $_POST['modpack_id'] ?? '';
 
-// Se lo script non è eseguito da CLI, esce silenziosamente
-if (php_sapi_name() !== 'cli') {
-    return;
-}
+// SEZIONE CLI: esegui solo se da terminale
+if (php_sapi_name() === 'cli') {
+    if ($argc < 5) {
+        echo "❌ Parametri insufficienti. Uso: php install_server.php <vmIp> <serverId> <tipo> <versione/modpackId>\n";
+        exit(1);
+    }
 
-if ($argc < 5) {
-    echo "❌ Parametri insufficienti. Uso: php install_server.php <vmIp> <serverId> <tipo> <versione/modpackId>\n";
-    exit(1);
-}
+    $vmIp = $argv[1];
+    $serverId = $argv[2];
+    $type = $argv[3];
+    $versionOrModpack = $argv[4];
 
-$vmIp = $argv[1];
-$serverId = $argv[2];
-$type = $argv[3];
-$versionOrModpack = $argv[4];
+    $basePath = "/home/diego/$serverId";
+    $sshUser = 'diego';
+    $sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
 
-$basePath = "/home/diego/$serverId";
-$sshUser = 'diego';
-$sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
+    exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
 
-exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
+    if ($type === 'vanilla') {
+        echo "🔍 Recupero URL server.jar per Vanilla $versionOrModpack...\n";
 
-if ($type === 'vanilla') {
-    echo "🔍 Recupero URL server.jar per Vanilla $versionOrModpack...\n";
+        $manifestJson = file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json");
+        $manifest = json_decode($manifestJson, true);
 
-    $manifestJson = file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json");
-    $manifest = json_decode($manifestJson, true);
-
-    $versionMetaUrl = null;
-    foreach ($manifest['versions'] as $v) {
-        if ($v['id'] === $versionOrModpack) {
-            $versionMetaUrl = $v['url'];
-            break;
+        $versionMetaUrl = null;
+        foreach ($manifest['versions'] as $v) {
+            if ($v['id'] === $versionOrModpack) {
+                $versionMetaUrl = $v['url'];
+                break;
+            }
         }
-    }
 
-    if (!$versionMetaUrl) {
-        echo "❌ Versione $versionOrModpack non trovata.\n";
-        exit(1);
-    }
-
-    $versionDetailJson = file_get_contents($versionMetaUrl);
-    $versionDetail = json_decode($versionDetailJson, true);
-    $jarUrl = $versionDetail['downloads']['server']['url'] ?? null;
-
-    if (!$jarUrl) {
-        echo "❌ Nessun server.jar trovato per $versionOrModpack.\n";
-        exit(1);
-    }
-
-    exec("$sshBase 'curl -o $basePath/server.jar $jarUrl'");
-
-} elseif ($type === 'modpack') {
-    $modpacksJson = file_get_contents("/var/www/html/modpacks.json");
-    $modpacks = json_decode($modpacksJson, true);
-    $downloadUrl = null;
-
-    foreach ($modpacks as $modpack) {
-        if ($modpack['id'] == intval($versionOrModpack)) {
-            $downloadUrl = $modpack['downloadUrl'] ?? null;
-            break;
+        if (!$versionMetaUrl) {
+            echo "❌ Versione $versionOrModpack non trovata.\n";
+            exit(1);
         }
-    }
 
-    if (!$downloadUrl) {
-        echo "❌ Modpack con ID $versionOrModpack non trovato o senza URL.\n";
+        $versionDetailJson = file_get_contents($versionMetaUrl);
+        $versionDetail = json_decode($versionDetailJson, true);
+        $jarUrl = $versionDetail['downloads']['server']['url'] ?? null;
+
+        if (!$jarUrl) {
+            echo "❌ Nessun server.jar trovato per $versionOrModpack.\n";
+            exit(1);
+        }
+
+        exec("$sshBase 'curl -o $basePath/server.jar $jarUrl'");
+
+    } elseif ($type === 'modpack') {
+        $modpacksJson = file_get_contents("/var/www/html/modpacks.json");
+        $modpacks = json_decode($modpacksJson, true);
+        $downloadUrl = null;
+
+        foreach ($modpacks as $modpack) {
+            if ($modpack['id'] == intval($versionOrModpack)) {
+                $downloadUrl = $modpack['downloadUrl'] ?? null;
+                break;
+            }
+        }
+
+        if (!$downloadUrl) {
+            echo "❌ Modpack con ID $versionOrModpack non trovato o senza URL.\n";
+            exit(1);
+        }
+
+        $zipRemotePath = "$basePath/modpack.zip";
+        exec("$sshBase 'curl -L -o $zipRemotePath $downloadUrl && unzip -o $zipRemotePath -d $basePath && rm $zipRemotePath'");
+
+    } elseif ($type === 'bukkit') {
+        $bukkitUrl = "https://download.getbukkit.org/craftbukkit/craftbukkit-$versionOrModpack.jar";
+        exec("$sshBase 'curl -o $basePath/server.jar $bukkitUrl'");
+    } else {
+        echo "❌ Tipo server non supportato: $type\n";
         exit(1);
     }
 
-    $zipRemotePath = "$basePath/modpack.zip";
-    exec("$sshBase 'curl -L -o $zipRemotePath $downloadUrl && unzip -o $zipRemotePath -d $basePath && rm $zipRemotePath'");
+    exec("$sshBase 'echo \"eula=true\" > $basePath/eula.txt'");
 
-} elseif ($type === 'bukkit') {
-    $bukkitUrl = "https://download.getbukkit.org/craftbukkit/craftbukkit-$versionOrModpack.jar";
-    exec("$sshBase 'curl -o $basePath/server.jar $bukkitUrl'");
-} else {
-    echo "❌ Tipo server non supportato: $type\n";
-    exit(1);
-}
 
-exec("$sshBase 'echo \"eula=true\" > $basePath/eula.txt'");
-
-$properties = <<<EOF
+        $properties = <<<EOF
 enable-jmx-monitoring=false
 rcon.port=25575
 level-seed=
@@ -143,23 +141,23 @@ spawn-protection=16
 max-world-size=29999984
 EOF;
 
-exec("$sshBase 'echo ".escapeshellarg($properties)." > $basePath/server.properties'");
+    exec("$sshBase 'echo ".escapeshellarg($properties)." > $basePath/server.properties'");
 
-$startScript = <<<SH
+    $startScript = <<<SH
 #!/bin/bash
 cd "$basePath"
 screen -dmS $serverId java -Xmx1024M -Xms1024M -jar server.jar nogui
 SH;
-exec("$sshBase 'echo ".escapeshellarg($startScript)." > $basePath/start.sh && chmod +x $basePath/start.sh'");
+    exec("$sshBase 'echo ".escapeshellarg($startScript)." > $basePath/start.sh && chmod +x $basePath/start.sh'");
 
-$stopScript = <<<SH
+    $stopScript = <<<SH
 #!/bin/bash
 screen -S $serverId -X quit
 SH;
-exec("$sshBase 'echo ".escapeshellarg($stopScript)." > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
+    exec("$sshBase 'echo ".escapeshellarg($stopScript)." > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
 
-// Redirezione SOLO SE eseguito da browser (quindi non qui)
-
+    exit(0);
+}
 ?>
 
 
