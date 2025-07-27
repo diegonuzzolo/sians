@@ -181,7 +181,7 @@ SH;
 <body>
   <div class="main-container">
     <div class="card-create-server shadow-lg">
-      <h1>Crea il tuo Server Minecraft</h1>
+      <h4>Crea il tuo Server Minecraft</h4>
 
       <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
