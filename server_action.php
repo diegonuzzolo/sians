@@ -9,14 +9,14 @@ if (!isset($_SESSION['user_id'])) {
     exit('Non autorizzato');
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id']) || empty($_POST['action'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['server_id']) || empty($_POST['action'])) {
     http_response_code(400);
     error_log("[server_action] Richiesta non valida");
     exit('Richiesta non valida');
 }
 
 $userId = $_SESSION['user_id'];
-$serverId = intval($_POST['id']);  // ID della tabella 'servers'
+$serverId = intval($_POST['server_id']);
 $action = $_POST['action'];
 
 $allowedActions = ['start', 'stop'];
@@ -26,9 +26,9 @@ if (!in_array($action, $allowedActions, true)) {
     exit('Azione non valida');
 }
 
-// Recupera IP e VM_ID associato al server
+// Recupera IP della VM associata al server
 $stmt = $pdo->prepare("
-    SELECT vm.ip AS ip_address, vm.id AS vm_id
+    SELECT vm.ip AS ip_address
     FROM servers s
     JOIN minecraft_vms vm ON s.vm_id = vm.id
     WHERE s.id = ? AND s.user_id = ?
@@ -44,53 +44,50 @@ if (!$server) {
 }
 
 $ip = $server['ip_address'] ?? null;
-$vmId = $server['vm_id'] ?? null;
-
-if (!$ip || !$vmId) {
-    error_log("[server_action] IP o VM_ID mancante per server_id=$serverId");
-    exit('IP o VM_ID mancante');
+if (!$ip) {
+    error_log("[server_action] IP VM mancante per server_id=".$serverId);
+    exit('IP VM mancante');
 }
-
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
+// NON usare escapeshellarg su nomi di cartelle
+$remoteDir = "/home/diego/$serverId";
+$scriptName = $remoteDir . '/' . ($action === 'start' ? 'start.sh' : 'stop.sh');
+$remoteCommand = "bash ".$scriptName;
 
-// ✅ Usa vm_id per il path remoto
-$remoteDir = "/home/diego/$vmId";
-$scriptName = ($action === 'start') ? 'start.sh' : 'stop.sh';
-$remoteCommand = "bash $remoteDir/$scriptName";
-
-// Comando SSH completo
+// Comando SSH finale
 $sshCommand =
-    'ssh -i ' . escapeshellarg($privateKeyPath) .
+    'ssh -i ' . $privateKeyPath .
     ' -o StrictHostKeyChecking=no ' .
-    escapeshellarg("$sshUser@$ip") . ' ' .
-    escapeshellarg($remoteCommand);
+    $sshUser . '@' . $ip . ' ' .
+    $remoteCommand;
 
-// Log utile
-error_log("[server_action] Comando SSH: $sshCommand");
 
-// Esecuzione
+// Log utile per debug
+error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteCommand}'");
+
+// Esecuzione comando
 exec($sshCommand . ' 2>&1', $output, $exitCode);
 
-error_log("[server_action] Exit code: $exitCode");
+error_log("[server_action] Exit code: ".$exitCode);
 error_log("[server_action] Output:\n" . implode("\n", $output));
 
 if ($exitCode === 0) {
-    $newStatus = ($action === 'start') ? 'running' : 'stopped';
+    $newStatus = $action === 'start' ? 'running' : 'stopped';
     $update = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $res = $update->execute([$newStatus, $serverId]);
 
     if ($res) {
-        error_log("[server_action] Stato aggiornato a '$newStatus' per server_id=$serverId");
+        error_log("[server_action] Stato aggiornato a '$newStatus' per server_id=".$serverId);
     } else {
-        error_log("[server_action] Fallito aggiornamento stato per server_id=$serverId");
+        error_log("[server_action] Fallito aggiornamento stato per server_id=".$serverId);
     }
 
     header('Location: dashboard.php?msg=success');
     exit;
 } else {
     error_log("[server_action] Errore comando SSH (exitCode=$exitCode)");
+    #header('Location: dashboard.php?msg=ssh_error');
     echo "[server_action] Esecuzione comando SSH: $sshCommand\n";
-    echo "[server_action] Output:\n" . implode("\n", $output);
     exit;
 }
