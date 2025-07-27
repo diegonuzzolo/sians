@@ -82,3 +82,9 @@ if ($exitCode === 0) {
     echo "❌ Errore durante l'installazione:\n" . implode("\n", $output);
     exit(1);
 }
+
+
+
+
+
+
