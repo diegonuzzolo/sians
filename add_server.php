@@ -53,15 +53,19 @@ if (!$vm) {
     $versionOrSlug = ($postType === 'modpack') ? $postModpackId : $postVersion;
     $downloadUrl = ''; // Puoi impostare l'URL del modpack qui se serve
     $installMethod = ''; // es. 'forge' o 'curseforge' se modpack
+$sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
 
-    $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
+$installCommand = "$sshCmd bash /home/diego/setup_server.sh " . 
+    escapeshellarg($postType) . " " .
+    escapeshellarg($versionOrSlug) . " " .
+    escapeshellarg($downloadUrl) . " " .
+    escapeshellarg($installMethod) . " " .
+    escapeshellarg($vmId);
 
-    $installCommand = "$sshCmd 'bash /home/diego/setup_server.sh " . 
-        escapeshellarg($postType) . " " .
-        escapeshellarg($versionOrSlug) . " " .
-        escapeshellarg($downloadUrl) . " " .
-        escapeshellarg($installMethod) . " " .
-        escapeshellarg($vmId) . "' > /dev/null 2>&1 &";
+exec($installCommand, $output, $returnCode);
+error_log("SSH Output: " . implode("\n", $output));
+error_log("SSH Exit Code: $returnCode");
+
 
     exec($installCommand);
 
@@ -127,7 +131,7 @@ if (!$vm) {
       <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
-
+        
       <form method="POST" action="add_server.php">
         <div class="mb-4">
           <label for="server_name" class="form-label">Nome Server</label>
