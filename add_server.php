@@ -148,36 +148,36 @@ SH;
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/add_server.css" />
   <script>
-   document.addEventListener('DOMContentLoaded', function() {
-  const typeSelect = document.getElementById('type');
-  const versionGroup = document.getElementById('version-group');
-  const modpackGroup = document.getElementById('modpack-group');
-  const versionInput = document.getElementById('version');
-  const modpackInput = document.getElementById('modpack_id');
+  document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('type');
+    const versionGroup = document.getElementById('version-group');
+    const modpackGroup = document.getElementById('modpack-group');
+    const versionInput = document.getElementById('version');
+    const modpackInput = document.getElementById('modpack_id');
 
-  function toggleFields() {
-    if (typeSelect.value === 'modpack') {
-      versionGroup.style.display = 'none';
-      versionInput.disabled = true;
-
-      modpackGroup.style.display = 'block';
-      modpackInput.disabled = false;
-    } else {
-      versionGroup.style.display = 'block';
-      versionInput.disabled = false;
-
-      modpackGroup.style.display = 'none';
-      modpackInput.disabled = true;
+    function toggleFields() {
+      console.log("Tipo selezionato:", typeSelect.value);  // per debug
+      if (typeSelect.value === 'modpack') {
+        versionGroup.style.display = 'none';
+        versionInput.disabled = true;
+        modpackGroup.style.display = 'block';
+        modpackInput.disabled = false;
+      } else {
+        versionGroup.style.display = 'block';
+        versionInput.disabled = false;
+        modpackGroup.style.display = 'none';
+        modpackInput.disabled = true;
+      }
     }
-  }
 
-  typeSelect.addEventListener('change', toggleFields);
-  toggleFields();
-});
+    typeSelect.addEventListener('change', toggleFields);
+    toggleFields();
+  });
+</script>
 
 
 
-  </script>
+
 </head>
 <body>
   <div class="main-container">
