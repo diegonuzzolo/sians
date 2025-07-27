@@ -148,7 +148,7 @@ SH;
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/add_server.css" />
   <script>
-  document.addEventListener('DOMContentLoaded', function() {
+   document.addEventListener('DOMContentLoaded', function() {
   const typeSelect = document.getElementById('type');
   const versionGroup = document.getElementById('version-group');
   const modpackGroup = document.getElementById('modpack-group');
@@ -156,27 +156,21 @@ SH;
   const modpackInput = document.getElementById('modpack_id');
 
   function toggleFields() {
-    const selectedType = typeSelect.value;
-    if (selectedType === "modpack") {
-      versionGroup.style.display = "none";
+    if (typeSelect.value === 'modpack') {
+      versionGroup.style.display = 'none';
       versionInput.disabled = true;
-
-      modpackGroup.style.display = "block";
+      modpackGroup.style.display = 'block'; // usa block per un div
       modpackInput.disabled = false;
     } else {
-      versionGroup.style.display = "block";
+      versionGroup.style.display = 'block';
       versionInput.disabled = false;
-
-      modpackGroup.style.display = "none";
+      modpackGroup.style.display = 'none';
       modpackInput.disabled = true;
     }
   }
 
-  // Assicurati di chiamarlo subito al caricamento
-  toggleFields();
-
-  // E ogni volta che cambia il tipo
-  typeSelect.addEventListener("change", toggleFields);
+  typeSelect.addEventListener('change', toggleFields);
+  toggleFields(); // esegui subito al caricamento pagina
 });
 
 
@@ -251,7 +245,7 @@ SH;
 
         </div>
 
-        <div div class="mb-4" id="modpack-group" style="display:none;">
+        <div class="mb-4" id="modpack-group">
           <label for="modpack_id" class="form-label">Scegli Modpack</label>
           <select name="modpack_id" id="modpack_id" class="form-select">
             <option value="">-- Seleziona un Modpack --</option>
