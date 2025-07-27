@@ -65,6 +65,6 @@ try {
     error_log("[server_action] Errore aggiornamento stato: " . $e->getMessage());
 }
 
-header('Location: dashboard.php');
+#header('Location: dashboard.php');
 #exit;
 echo $sshCommand;
