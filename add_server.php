@@ -1,5 +1,9 @@
 <?php
 session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'config/config.php';
 require 'includes/auth.php';
 
@@ -131,7 +135,7 @@ SH;
             $cmd = "$phpPath $scriptPath $vmIp $serverId $postType $installVersion > /dev/null 2>&1 &";
             exec($cmd);
 
-            header("Location: dashboard.php");
+            header("Location: create_tunnel_and_dns.php?server_id=$serverId");
             exit;
         }
     }
