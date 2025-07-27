@@ -1,71 +1,149 @@
 <?php
-session_start();
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
-require 'config/config.php';
-require 'includes/auth.php';
+// Esegui la logica CLI solo se chiamato da CLI
+if (php_sapi_name() === 'cli') {
+    // Parametri da CLI
+    if ($argc < 5) {
+        echo "❌ Parametri insufficienti.\n";
+        exit(1);
+    }
 
-$error = '';
-$success = '';
+    $vmIp = $argv[1];
+    $serverId = $argv[2];
+    $type = $argv[3];
+    $versionOrModpack = $argv[4];
 
-$postServerName = $_POST['server_name'] ?? '';
-$postType = $_POST['type'] ?? '';
-$postVersion = $_POST['version'] ?? '';
-$postModpackId = $_POST['modpack_id'] ?? '';
+    // Percorso base sulla VM
+    $basePath = "/home/diego/$serverId";
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $serverName = trim($postServerName);
-    $userId = $_SESSION['user_id'] ?? null;
-    $type = trim($postType);
-    $version = trim($postVersion);
-    $modpackId = ($type === 'modpack' && !empty($postModpackId)) ? intval($postModpackId) : null;
+    // Comando SSH base (user e IP)
+    $sshUser = 'diego'; // fisso
+    $sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
 
-    if (!$serverName || !$userId) {
-        $error = "Il nome del server e il login sono obbligatori.";
-    } else {
-        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
-        $stmt->execute();
-        $vm = $stmt->fetch(PDO::FETCH_ASSOC);
+    // 1) Crea cartella server
+    exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
 
-        if (!$vm) {
-            $error = "Nessuna VM libera disponibile.";
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, status, type, version, modpack_id) VALUES (?, ?, ?, ?, 'created', ?, ?, ?)");
-            $successInsert = $stmt->execute([$serverName, $userId, $vm['id'], $vm['proxmox_vmid'], $type, $version, $modpackId]);
-
-            if (!$successInsert) {
-                $error = "Errore durante la creazione del server.";
-            } else {
-                $serverId = $pdo->lastInsertId();
-                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-                $stmt->execute([$userId, $serverId, $vm['id']]);
-
-                $sshUser = 'diego';
-                $vmIp = $vm['ip'];
-                $remoteScript = "/var/www/html/install_server.php";
-
-                if ($type === 'modpack') {
-                    $installCommand = "php $remoteScript $vmIp $serverId $type $modpackId";
-                } else {
-                    $installCommand = "php $remoteScript $vmIp $serverId $type $version";
-                }
-
-                error_log("Comando installazione: $installCommand");
-
-                exec($installCommand, $output, $exitCode);
-
-                if ($exitCode !== 0) {
-                    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
-                } else {
-                    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
-                    exit;
-                }
+    // 2) Scarica jar in base al tipo server
+    if ($type === 'vanilla') {
+        // Link server.jar versione vanilla (esempio base)
+        $jarUrl = "https://launcher.mojang.com/v1/objects/e2010d9bd008e4e017d9de744cf54f4e5cbb6c3e/server.jar";
+        exec("$sshBase 'curl -o $basePath/server.jar $jarUrl'");
+    } elseif ($type === 'modpack') {
+        // Per modpack, scarica da URL specifico da file locale JSON
+        $modpacksJson = file_get_contents("/var/www/html/modpacks.json");
+        $modpacks = json_decode($modpacksJson, true);
+        $downloadUrl = null;
+        foreach ($modpacks as $modpack) {
+            if ($modpack['id'] == intval($versionOrModpack)) {
+                $downloadUrl = $modpack['downloadUrl'] ?? null;
+                break;
             }
         }
+        if (!$downloadUrl) {
+            echo "❌ Modpack con ID $versionOrModpack non trovato o senza URL di download.\n";
+            exit(1);
+        }
+        $zipRemotePath = "$basePath/modpack.zip";
+        // Scarica zip, estrai e cancella zip
+        exec("$sshBase 'curl -o $zipRemotePath $downloadUrl && unzip -o $zipRemotePath -d $basePath && rm $zipRemotePath'");
+    } elseif ($type === 'bukkit') {
+        $bukkitUrl = "https://download.getbukkit.org/craftbukkit/craftbukkit-$versionOrModpack.jar";
+        exec("$sshBase 'curl -o $basePath/server.jar $bukkitUrl'");
+    } else {
+        echo "❌ Tipo server non supportato.\n";
+        exit(1);
     }
+
+    // 3) Crea eula.txt con eula=true
+    $eulaContent = "eula=true\n";
+    $eulaEscaped = escapeshellarg($eulaContent);
+    exec("$sshBase 'echo $eulaEscaped > $basePath/eula.txt'");
+
+    // 4) Crea server.properties completo (ti allego esempio completo)
+    $serverProperties = <<<EOL
+#Minecraft server properties
+enable-jmx-monitoring=false
+rcon.port=25575
+level-seed=
+gamemode=survival
+enable-command-block=false
+enable-query=false
+generator-settings=
+enforce-secure-profile=true
+level-name=world
+motd=Benvenuto nel server Minecraft!
+query.port=25565
+pvp=true
+generate-structures=true
+difficulty=easy
+network-compression-threshold=256
+max-tick-time=60000
+use-native-transport=true
+max-players=20
+online-mode=true
+enable-status=true
+allow-flight=false
+broadcast-rcon-to-ops=true
+view-distance=10
+max-build-height=256
+server-ip=
+allow-nether=true
+server-port=25565
+enable-rcon=false
+sync-chunk-writes=true
+op-permission-level=4
+prevent-proxy-connections=false
+hide-online-players=false
+resource-pack-prompt=
+resource-pack=
+entity-broadcast-range-percentage=100
+simulation-distance=10
+rcon.password=
+player-idle-timeout=0
+force-gamemode=false
+rate-limit=0
+hardcore=false
+white-list=false
+broadcast-console-to-ops=true
+spawn-npcs=true
+spawn-animals=true
+function-permission-level=2
+text-filtering-config=
+spawn-monsters=true
+enforce-whitelist=false
+resource-pack-sha1=
+spawn-protection=16
+max-world-size=29999984
+EOL;
+
+    $serverPropertiesEscaped = escapeshellarg($serverProperties);
+    exec("$sshBase 'echo $serverPropertiesEscaped > $basePath/server.properties'");
+
+    // 5) Crea start.sh
+    $startScript = <<<BASH
+#!/bin/bash
+cd "$basePath"
+java -Xmx10G -Xms10G -jar server.jar nogui
+BASH;
+
+    $startScriptEscaped = escapeshellarg($startScript);
+    exec("$sshBase 'echo $startScriptEscaped > $basePath/start.sh && chmod +x $basePath/start.sh'");
+
+    // 6) Crea stop.sh (esempio con screen)
+    $stopScript = <<<BASH
+#!/bin/bash
+screen -S mc_$serverId -X quit
+BASH;
+
+    $stopScriptEscaped = escapeshellarg($stopScript);
+    exec("$sshBase 'echo $stopScriptEscaped > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
+
+    // 7) Fine
+    echo "✅ Installazione completata con successo per il server $serverId ($type)\n";
+    exit(0);
 }
+
+// Da qui in poi, codice per la parte web (HTML, ecc.)
 ?>
 
 
