@@ -66,4 +66,5 @@ try {
 }
 
 header('Location: dashboard.php');
-exit;
+#exit;
+echo $sshCommand;
