@@ -54,7 +54,7 @@ if (!$vm) {
     $downloadUrl = ''; // Puoi impostare l'URL del modpack qui se serve
     $installMethod = ''; // es. 'forge' o 'curseforge' se modpack
 
-    $sshCmd = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
+    $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
 
     $installCommand = "$sshCmd 'bash /home/diego/setup_server.sh " . 
         escapeshellarg($postType) . " " .

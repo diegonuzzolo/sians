@@ -50,7 +50,7 @@ if (!$ip) {
 }
 
 $sshUser = 'diego';
-$privateKeyPath = '/home/diego/.ssh/id_rsa';
+$privateKeyPath = '/var/www/.ssh/id_rsa';
 
 // ✅ NON usare escapeshellarg sul path (solo sul resto)
 $remoteCommand = "cd ~/{$serverId} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
