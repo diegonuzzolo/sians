@@ -45,22 +45,22 @@ if (!$server) {
 
 $ip = $server['ip_address'] ?? null;
 if (!$ip) {
-    error_log("[server_action] IP VM mancante per server_id=$serverId");
+    error_log("[server_action] IP VM mancante per server_id=".$serverId);
     exit('IP VM mancante');
 }
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
 // NON usare escapeshellarg su nomi di cartelle
-$remoteDir = "/home/diego/{$serverId}";
+$remoteDir = "/home/diego/$serverId";
 $scriptName = $remoteDir . '/' . ($action === 'start' ? 'start.sh' : 'stop.sh');
-$remoteCommand = "bash " . escapeshellarg($scriptName);
+$remoteCommand = "bash ".$scriptName;
 
 // Comando SSH finale
 $sshCommand =
-    'ssh -i ' . escapeshellarg($privateKeyPath) .
+    'ssh -i ' . $privateKeyPath .
     ' -o StrictHostKeyChecking=no ' .
-    $sshUser . '@' . escapeshellarg($ip) . ' ' .
-    escapeshellarg($remoteCommand);
+    $sshUser . '@' . $ip . ' ' .
+    $remoteCommand;
 
 
 // Log utile per debug
@@ -69,7 +69,7 @@ error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteC
 // Esecuzione comando
 exec($sshCommand . ' 2>&1', $output, $exitCode);
 
-error_log("[server_action] Exit code: $exitCode");
+error_log("[server_action] Exit code: ".$exitCode);
 error_log("[server_action] Output:\n" . implode("\n", $output));
 
 if ($exitCode === 0) {
@@ -78,9 +78,9 @@ if ($exitCode === 0) {
     $res = $update->execute([$newStatus, $serverId]);
 
     if ($res) {
-        error_log("[server_action] Stato aggiornato a '$newStatus' per server_id=$serverId");
+        error_log("[server_action] Stato aggiornato a '$newStatus' per server_id=".$serverId);
     } else {
-        error_log("[server_action] Fallito aggiornamento stato per server_id=$serverId");
+        error_log("[server_action] Fallito aggiornamento stato per server_id=".$serverId);
     }
 
     header('Location: dashboard.php?msg=success');
