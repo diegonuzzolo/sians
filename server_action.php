@@ -62,7 +62,7 @@ $sshCommand =
     $sshUser . '@' . $ip . ' ' .
     $remoteCommand;
 
-
+echo "[server_action] Esecuzione comando SSH: $sshCommand\n";
 // Log utile per debug
 error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteCommand}'");
 
