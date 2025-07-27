@@ -1,7 +1,6 @@
 <?php
 session_start();
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require 'config/config.php';
@@ -10,7 +9,6 @@ require 'includes/auth.php';
 $error = '';
 $success = '';
 
-// Gestione form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postServerName = trim($_POST['server_name'] ?? '');
     $postType = $_POST['type'] ?? 'vanilla';
@@ -20,153 +18,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName) || empty($postType)) {
         $error = "❌ Compila tutti i campi obbligatori.";
     } else {
-        // Trova una VM libera
         $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
         $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-
         if (!$vm) {
             $error = "❌ Nessuna VM disponibile.";
         } else {
             $vmIp = $vm['ip'];
             $userId = $_SESSION['user_id'];
 
-            // Inserisci server nel DB
-     $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, vm_id, user_id, modpack_id) VALUES (?, ?, ?, ?, ?, ?)");
-$stmt->execute([
-    $postServerName,
-    $postType,
-    $postVersion ?: null,
-    $vm['id'],
-    $userId,
-    $postType === 'modpack' ? $postModpackId : null
-]);
+            $stmt = $pdo->prepare("
+                INSERT INTO servers (name, type, version, vm_id, user_id, modpack_id, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'stopped', NOW(), NOW())
+            ");
+            $stmt->execute([
+                $postServerName,
+                $postType,
+                $postType === 'modpack' ? null : $postVersion,
+                $vm['id'],
+                $userId,
+                $postType === 'modpack' ? $postModpackId : null
+            ]);
             $serverId = $pdo->lastInsertId();
 
-            // Assegna la VM
             $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
                 ->execute([$userId, $serverId, $vm['id']]);
 
-            // Percorsi remoti
-            $sshBase = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
-            $remotePath = "/home/diego/$serverId";
+            // Comando install_server.php
+            $installId = $postType === 'modpack' ? $postModpackId : $postVersion;
+            $cmd = sprintf(
+                'php %s %s %d %s %s > /dev/null 2>&1 &',
+                escapeshellarg(realpath('install_server.php')),
+                escapeshellarg($vmIp),
+                $serverId,
+                escapeshellarg($postType),
+                escapeshellarg($installId)
+            );
+            exec($cmd);
 
-            // Crea directory remota
-            exec("$sshBase 'mkdir -p $remotePath && chmod 755 $remotePath'");
+            $qs = "server_id=$serverId";
+            if ($postType === 'modpack') {
+                $qs .= "&modpack_id=" . urlencode($postModpackId);
+            } else {
+                $qs .= "&version=" . urlencode($postVersion);
+            }
 
-            // Genera file eula.txt
-            exec("$sshBase 'echo \"eula=true\" > $remotePath/eula.txt'");
-
-            // Genera server.properties completo
-
-
-            // Variabili definite in precedenza
-
-// Crea il contenuto del server.properties
-$properties = <<<EOF
-enable-jmx-monitoring=false
-rcon.port=25575
-level-seed=
-gamemode=survival
-enable-command-block=false
-enable-query=false
-generator-settings=
-level-name=world
-motd=$postServerName $postVersion!
-query.port=25565
-pvp=true
-generate-structures=true
-difficulty=easy
-network-compression-threshold=256
-max-tick-time=60000
-use-native-transport=true
-max-players=50
-online-mode=true
-enable-status=true
-allow-flight=false
-broadcast-rcon-to-ops=true
-view-distance=10
-max-build-height=256
-server-ip=0.0.0.0
-allow-nether=true
-server-port=25565
-enable-rcon=false
-sync-chunk-writes=true
-op-permission-level=4
-prevent-proxy-connections=false
-resource-pack=
-entity-broadcast-range-percentage=100
-rcon.password=
-player-idle-timeout=0
-debug=false
-force-gamemode=false
-rate-limit=0
-hardcore=false
-white-list=false
-broadcast-console-to-ops=true
-spawn-npcs=true
-spawn-animals=true
-snooper-enabled=true
-function-permission-level=2
-text-filtering-config=
-spawn-monsters=true
-enforce-whitelist=false
-resource-pack-sha1=
-spawn-protection=16
-max-world-size=29999984
-EOF;
-
-// Codifica in base64 per evitare problemi con caratteri speciali
-$encoded = base64_encode($properties);
-
-$command = <<<EOT
-ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp "mkdir -p '$remotePath' && echo '$encoded' | base64 -d > '$remotePath/server.properties'"
-EOT;
-
-exec($command . ' 2>&1', $output, $exitCode);
-
-error_log("[server.properties] ExitCode: $exitCode");
-error_log("[server.properties] Output:\n" . implode("\n", $output));
-
-
-exec("$sshBase 'cat > $remotePath/start.sh <<EOF
-#!/bin/bash
-cd $remotePath
-screen -dmS $serverId java -Xmx10G -Xms10G -jar server.jar nogui
-EOF
-chmod +x $remotePath/start.sh'", $output1, $exit1);
-
-exec("$sshBase 'cat > $remotePath/stop.sh <<EOF
-#!/bin/bash
-screen -S $serverId -X quit
-EOF
-chmod +x $remotePath/stop.sh'", $output2, $exit2);
-
-// Determina quale valore usare come versione/install identifier
-$installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
-
-// Ottieni il percorso di PHP e dello script da eseguire
-$phpPath = trim(shell_exec('which php'));
-$scriptPath = realpath('install_server.php');
-
-// Costruisci il comando con escape per sicurezza
-$escapedCmd = escapeshellcmd("$phpPath $scriptPath");
-$escapedArgs = escapeshellarg($vmIp) . ' ' . escapeshellarg($serverId) . ' ' . escapeshellarg($postType) . ' ' . escapeshellarg($installVersion);
-
-// Esegui in background
-$cmd = "$escapedCmd $escapedArgs > /dev/null 2>&1 &";
-exec($cmd);
-
-$queryString = "server_id=$serverId";
-
-if ($postType === 'modpack') {
-    $queryString .= "&modpack_id=" . urlencode($postModpackId);
-} else {
-    $queryString .= "&version=" . urlencode($postVersion);
-}
-
-header("Location: create_tunnel_and_dns.php?$queryString");
-exit;
-
+            header("Location: create_tunnel_and_dns.php?$qs");
+            exit;
         }
     }
 }

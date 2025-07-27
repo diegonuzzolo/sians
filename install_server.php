@@ -9,9 +9,13 @@ $serverId = $argv[2];
 $type = $argv[3];
 $versionOrModpack = $argv[4] ?? null;
 
+if (!filter_var($vmIp, FILTER_VALIDATE_IP)) {
+    echo "❌ IP VM non valido: $vmIp\n";
+    exit(1);
+}
+
 require 'config/config.php';
 
-// Recupera dati server
 $stmt = $pdo->prepare("SELECT * FROM servers WHERE id = ?");
 $stmt->execute([$serverId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -21,11 +25,10 @@ if (!$server) {
     exit(1);
 }
 
-$sshUser = 'diego'; // utente fisso
+$sshUser = 'diego';
 $sshTarget = "$sshUser@$vmIp";
 $remoteScript = "/home/$sshUser/setup_server.sh";
 
-// Costruzione comando remoto
 switch ($type) {
     case 'vanilla':
     case 'bukkit':
@@ -33,10 +36,14 @@ switch ($type) {
             echo "❌ Devi specificare una versione per Vanilla/Bukkit.\n";
             exit(1);
         }
-        $version = escapeshellarg($versionOrModpack);
-        $escapedType = escapeshellarg($type);
-        $escapedServerId = escapeshellarg($serverId);
-        $installCmd = "ssh $sshTarget 'bash $remoteScript $escapedType $version $escapedServerId'";
+
+        $params = [
+            escapeshellarg($remoteScript),
+            escapeshellarg($type),
+            escapeshellarg($versionOrModpack),
+            escapeshellarg($serverId)
+        ];
+        $installCmd = "ssh $sshTarget " . implode(' ', $params);
         break;
 
     case 'modpack':
@@ -44,9 +51,8 @@ switch ($type) {
             echo "❌ Devi specificare un ID numerico valido per il modpack.\n";
             exit(1);
         }
-        $modpackId = intval($versionOrModpack);
 
-        // Carica dettagli modpack
+        $modpackId = intval($versionOrModpack);
         $modpackStmt = $pdo->prepare("SELECT * FROM modpacks WHERE id = ?");
         $modpackStmt->execute([$modpackId]);
         $modpack = $modpackStmt->fetch(PDO::FETCH_ASSOC);
@@ -56,12 +62,15 @@ switch ($type) {
             exit(1);
         }
 
-        $modpackSlug = escapeshellarg($modpack['slug']);
-        $downloadUrl = escapeshellarg($modpack['downloadUrl']);
-        $installMethod = escapeshellarg($modpack['installMethod']);
-        $escapedServerId = escapeshellarg($serverId);
-
-        $installCmd = "ssh $sshTarget 'bash $remoteScript modpack $modpackSlug $downloadUrl $installMethod $escapedServerId'";
+        $params = [
+            escapeshellarg($remoteScript),
+            escapeshellarg('modpack'),
+            escapeshellarg($modpack['slug']),
+            escapeshellarg($modpack['downloadUrl']),
+            escapeshellarg($modpack['installMethod']),
+            escapeshellarg($serverId)
+        ];
+        $installCmd = "ssh $sshTarget " . implode(' ', $params);
         break;
 
     default:
@@ -69,22 +78,15 @@ switch ($type) {
         exit(1);
 }
 
-// Debug (solo se necessario)
-// echo "[DEBUG] Comando: $installCmd\n";
+echo "➡️  Eseguo: $installCmd\n";
 
-// Esegui installazione
 exec($installCmd, $output, $exitCode);
 
 if ($exitCode === 0) {
     echo "✅ Installazione completata.\n";
     exit(0);
 } else {
-    echo "❌ Errore durante l'installazione:\n" . implode("\n", $output);
+    echo "❌ Errore durante l'installazione (exit code $exitCode):\n";
+    echo implode("\n", $output) . "\n";
     exit(1);
 }
-
-
-
-
-
-

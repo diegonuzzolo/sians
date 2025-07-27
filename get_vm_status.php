@@ -4,26 +4,43 @@ require 'includes/auth.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_GET['vmid'])) {
+if (!isset($_GET['server_id'])) {
     http_response_code(400);
-    echo json_encode(['error' => 'VMID mancante']);
+    echo json_encode(['error' => 'server_id mancante']);
     exit;
 }
 
-$vmid = intval($_GET['vmid']);
-
-if ($vmid <= 0) {
+$serverId = intval($_GET['server_id']);
+if ($serverId <= 0) {
     http_response_code(400);
-    echo json_encode(['error' => 'VMID non valido']);
+    echo json_encode(['error' => 'ID non valido']);
     exit;
 }
+
+// Recupera la VM collegata al server
+$stmt = $pdo->prepare("
+    SELECT v.proxmox_vmid
+    FROM servers s
+    JOIN minecraft_vms v ON s.vm_id = v.id
+    WHERE s.id = ?
+");
+$stmt->execute([$serverId]);
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$row) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Server non trovato']);
+    exit;
+}
+
+$proxmoxVmid = $row['proxmox_vmid'];
 
 $node = PROXMOX_NODE;
-$host = rtrim(PROXMOX_HOST, '/'); // rimuove eventuale slash finale
+$host = rtrim(PROXMOX_HOST, '/');
 $tokenId = PROXMOX_API_TOKEN_ID;
 $tokenSecret = PROXMOX_API_TOKEN_SECRET;
 
-$url = "$host/api2/json/nodes/$node/qemu/$vmid/status/current";
+$url = "$host/api2/json/nodes/$node/qemu/$proxmoxVmid/status/current";
 
 $ch = curl_init($url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -41,7 +58,6 @@ if ($response === false) {
     curl_close($ch);
     exit;
 }
-
 curl_close($ch);
 
 if ($httpCode === 200) {

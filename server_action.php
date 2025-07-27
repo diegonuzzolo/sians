@@ -52,11 +52,10 @@ if (!$ip) {
 $sshUser = 'diego';
 $privateKeyPath = '/home/diego/.ssh/id_rsa';
 
-// Comando da eseguire
+// ✅ NON usare escapeshellarg sul path (solo sul resto)
 $remoteCommand = "cd ~/{$serverId} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
 
-
-
+// Usa escapeshellarg solo dove necessario
 $sshCommand = sprintf(
     'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
     escapeshellarg($privateKeyPath),
