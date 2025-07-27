@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['server_id']) || empty
 }
 
 $userId = $_SESSION['user_id'];
-$serverId = intval($_POST['server_id']);
+$serverId = intval($_POST['proxmox_vmid']);
 $action = $_POST['action'];
 
 $allowedActions = ['start', 'stop'];
