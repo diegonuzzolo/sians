@@ -69,7 +69,7 @@ $cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";
 
 // Esegui comando e cattura output/errori
 exec($cmd . " 2>&1", $output, $return_var);
-exec("ssh {$sshUser}@{$vmIp} 'killall ngrok", $output, $return_var);
+exec("ssh {$sshUser}@{$vmIp} 'killall ngrok'", $output, $return_var);
 
 
 if ($return_var !== 0) {
