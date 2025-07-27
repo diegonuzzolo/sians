@@ -10,67 +10,94 @@ $postVersion = $_POST['version'] ?? '';
 $postModpackId = $_POST['modpack_id'] ?? '';
 
 // Esegui la logica CLI solo se chiamato da CLI
-if (php_sapi_name() === 'cli') {
-    // Parametri da CLI
-    if ($argc < 5) {
-        echo "❌ Parametri insufficienti.\n";
+
+if (php_sapi_name() !== 'cli') {
+    echo "❌ Questo script va eseguito solo da CLI.\n";
+    exit(1);
+}
+
+if ($argc < 5) {
+    echo "❌ Parametri insufficienti. Uso: php install_server.php <vmIp> <serverId> <tipo> <versione/modpackId>\n";
+    exit(1);
+}
+
+$vmIp = $argv[1];
+$serverId = $argv[2];
+$type = $argv[3];
+$versionOrModpack = $argv[4];
+
+// Percorso e SSH
+$basePath = "/home/diego/$serverId";
+$sshUser = 'diego';
+$sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
+
+// 1. Crea cartella server
+exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
+
+// 2. Scarica il server
+if ($type === 'vanilla') {
+    echo "🔍 Recupero URL server.jar per Vanilla $versionOrModpack...\n";
+
+    $manifestJson = file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json");
+    $manifest = json_decode($manifestJson, true);
+
+    $versionMetaUrl = null;
+    foreach ($manifest['versions'] as $v) {
+        if ($v['id'] === $versionOrModpack) {
+            $versionMetaUrl = $v['url'];
+            break;
+        }
+    }
+
+    if (!$versionMetaUrl) {
+        echo "❌ Versione $versionOrModpack non trovata.\n";
         exit(1);
     }
 
-    $vmIp = $argv[1];
-    $serverId = $argv[2];
-    $type = $argv[3];
-    $versionOrModpack = $argv[4];
+    $versionDetailJson = file_get_contents($versionMetaUrl);
+    $versionDetail = json_decode($versionDetailJson, true);
+    $jarUrl = $versionDetail['downloads']['server']['url'] ?? null;
 
-    // Percorso base sulla VM
-    $basePath = "/home/diego/$serverId";
-
-    // Comando SSH base (user e IP)
-    $sshUser = 'diego'; // fisso
-    $sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
-
-    // 1) Crea cartella server
-    exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
-
-    // 2) Scarica jar in base al tipo server
-    if ($type === 'vanilla') {
-        // Link server.jar versione vanilla (esempio base)
-        $jarUrl = "https://launcher.mojang.com/v1/objects/e2010d9bd008e4e017d9de744cf54f4e5cbb6c3e/server.jar";
-        exec("$sshBase 'curl -o $basePath/server.jar $jarUrl'");
-    } elseif ($type === 'modpack') {
-        // Per modpack, scarica da URL specifico da file locale JSON
-        $modpacksJson = file_get_contents("/var/www/html/modpacks.json");
-        $modpacks = json_decode($modpacksJson, true);
-        $downloadUrl = null;
-        foreach ($modpacks as $modpack) {
-            if ($modpack['id'] == intval($versionOrModpack)) {
-                $downloadUrl = $modpack['downloadUrl'] ?? null;
-                break;
-            }
-        }
-        if (!$downloadUrl) {
-            echo "❌ Modpack con ID $versionOrModpack non trovato o senza URL di download.\n";
-            exit(1);
-        }
-        $zipRemotePath = "$basePath/modpack.zip";
-        // Scarica zip, estrai e cancella zip
-        exec("$sshBase 'curl -o $zipRemotePath $downloadUrl && unzip -o $zipRemotePath -d $basePath && rm $zipRemotePath'");
-    } elseif ($type === 'bukkit') {
-        $bukkitUrl = "https://download.getbukkit.org/craftbukkit/craftbukkit-$versionOrModpack.jar";
-        exec("$sshBase 'curl -o $basePath/server.jar $bukkitUrl'");
-    } else {
-        echo "❌ Tipo server non supportato.\n";
+    if (!$jarUrl) {
+        echo "❌ Nessun server.jar trovato per $versionOrModpack.\n";
         exit(1);
     }
 
-    // 3) Crea eula.txt con eula=true
-    $eulaContent = "eula=true\n";
-    $eulaEscaped = escapeshellarg($eulaContent);
-    exec("$sshBase 'echo $eulaEscaped > $basePath/eula.txt'");
+    exec("$sshBase 'curl -o $basePath/server.jar $jarUrl'");
 
-    // 4) Crea server.properties completo (ti allego esempio completo)
-    $serverProperties = <<<EOL
-#Minecraft server properties
+} elseif ($type === 'modpack') {
+    $modpacksJson = file_get_contents("/var/www/html/modpacks.json");
+    $modpacks = json_decode($modpacksJson, true);
+    $downloadUrl = null;
+
+    foreach ($modpacks as $modpack) {
+        if ($modpack['id'] == intval($versionOrModpack)) {
+            $downloadUrl = $modpack['downloadUrl'] ?? null;
+            break;
+        }
+    }
+
+    if (!$downloadUrl) {
+        echo "❌ Modpack con ID $versionOrModpack non trovato o senza URL.\n";
+        exit(1);
+    }
+
+    $zipRemotePath = "$basePath/modpack.zip";
+    exec("$sshBase 'curl -L -o $zipRemotePath $downloadUrl && unzip -o $zipRemotePath -d $basePath && rm $zipRemotePath'");
+
+} elseif ($type === 'bukkit') {
+    $bukkitUrl = "https://download.getbukkit.org/craftbukkit/craftbukkit-$versionOrModpack.jar";
+    exec("$sshBase 'curl -o $basePath/server.jar $bukkitUrl'");
+} else {
+    echo "❌ Tipo server non supportato: $type\n";
+    exit(1);
+}
+
+// 3. Crea eula.txt
+exec("$sshBase 'echo \"eula=true\" > $basePath/eula.txt'");
+
+// 4. Crea server.properties completo
+$properties = <<<EOF
 enable-jmx-monitoring=false
 rcon.port=25575
 level-seed=
@@ -78,9 +105,8 @@ gamemode=survival
 enable-command-block=false
 enable-query=false
 generator-settings=
-enforce-secure-profile=true
 level-name=world
-motd=Benvenuto nel server $versionOrModpack!
+motd=Benvenuto nel server $serverId!
 query.port=25565
 pvp=true
 generate-structures=true
@@ -88,27 +114,25 @@ difficulty=easy
 network-compression-threshold=256
 max-tick-time=60000
 use-native-transport=true
-max-players=50
+max-players=20
 online-mode=true
 enable-status=true
 allow-flight=false
 broadcast-rcon-to-ops=true
 view-distance=10
 max-build-height=256
-server-ip=0.0.0.0
+server-ip=
 allow-nether=true
 server-port=25565
 enable-rcon=false
 sync-chunk-writes=true
 op-permission-level=4
 prevent-proxy-connections=false
-hide-online-players=false
-resource-pack-prompt=
 resource-pack=
 entity-broadcast-range-percentage=100
-simulation-distance=10
 rcon.password=
 player-idle-timeout=0
+debug=false
 force-gamemode=false
 rate-limit=0
 hardcore=false
@@ -116,6 +140,7 @@ white-list=false
 broadcast-console-to-ops=true
 spawn-npcs=true
 spawn-animals=true
+snooper-enabled=true
 function-permission-level=2
 text-filtering-config=
 spawn-monsters=true
@@ -123,36 +148,30 @@ enforce-whitelist=false
 resource-pack-sha1=
 spawn-protection=16
 max-world-size=29999984
-EOL;
+EOF;
 
-    $serverPropertiesEscaped = escapeshellarg($serverProperties);
-    exec("$sshBase 'echo $serverPropertiesEscaped > $basePath/server.properties'");
+exec("$sshBase 'echo ".escapeshellarg($properties)." > $basePath/server.properties'");
 
-    // 5) Crea start.sh
-    $startScript = <<<BASH
+// 5. Crea start.sh
+$startScript = <<<SH
 #!/bin/bash
 cd "$basePath"
-java -Xmx10G -Xms10G -jar server.jar nogui
-BASH;
+java -Xmx1024M -Xms1024M -jar server.jar nogui
+SH;
 
-    $startScriptEscaped = escapeshellarg($startScript);
-    exec("$sshBase 'echo $startScriptEscaped > $basePath/start.sh && chmod +x $basePath/start.sh'");
+exec("$sshBase 'echo ".escapeshellarg($startScript)." > $basePath/start.sh && chmod +x $basePath/start.sh'");
 
-    // 6) Crea stop.sh (esempio con screen)
-    $stopScript = <<<BASH
+// 6. Crea stop.sh
+$stopScript = <<<SH
 #!/bin/bash
-screen -S mc_$serverId -X quit
-BASH;
+screen -S $serverId -X quit
+SH;
 
-    $stopScriptEscaped = escapeshellarg($stopScript);
-    exec("$sshBase 'echo $stopScriptEscaped > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
+exec("$sshBase 'echo ".escapeshellarg($stopScript)." > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
 
-    // 7) Fine
-    echo "✅ Installazione completata con successo per il server $serverId ($type)\n";
-    exit(0);
-}
+echo "✅ Installazione completata su $vmIp ($type - $versionOrModpack)\n";
+header("Location: create_tunnel_and_dns.php?server_id=" . $serverId);
 
-// Da qui in poi, codice per la parte web (HTML, ecc.)
 ?>
 
 
