@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $_SESSION['user_id'];
 
             // Inserisci server nel DB
-            $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, assigned_vm_id, user_id, modpack_id) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, assigned_server_id, user_id, modpack_id) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $postServerName,
                 $postType,
