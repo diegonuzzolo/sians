@@ -14,13 +14,15 @@
       width: 100%;
       padding: 20px;
     }
-    .card-create-server {
-      flex: 1 1 450px;
-      background: #ffffffdd;
-      border-radius: 1rem;
-      box-shadow: 0 0 20px rgba(0,0,0,0.15);
-      padding: 2.5rem 2rem;
-    }
+.card-create-server {
+  flex: 1 1 450px;
+  max-width: 450px; /* Limite max */
+  background: #ffffffdd;
+  border-radius: 1rem;
+  box-shadow: 0 0 20px rgba(0,0,0,0.15);
+  padding: 2.5rem 2rem;
+}
+
     .card-create-server:hover {
       transform: translateY(-5px);
       transition: all 0.3s ease;

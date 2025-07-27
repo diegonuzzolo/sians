@@ -148,7 +148,7 @@ SH;
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/add_server.css" />
   <script>
-   document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function() {
   const typeSelect = document.getElementById('type');
   const versionGroup = document.getElementById('version-group');
   const modpackGroup = document.getElementById('modpack-group');
@@ -172,16 +172,20 @@ SH;
     }
   }
 
+  // Assicurati di chiamarlo subito al caricamento
+  toggleFields();
+
+  // E ogni volta che cambia il tipo
   typeSelect.addEventListener("change", toggleFields);
-  toggleFields(); // chiama al caricamento pagina
 });
+
 
   </script>
 </head>
 <body>
   <div class="main-container">
     <div class="card-create-server shadow-lg">
-      <h4>Crea il tuo Server Minecraft</h4>
+      <h1>Crea il tuo Server Minecraft</h1>
 
       <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
@@ -247,7 +251,7 @@ SH;
 
         </div>
 
-        <div class="mb-4" id="modpack-group">
+        <div div class="mb-4" id="modpack-group" style="display:none;">
           <label for="modpack_id" class="form-label">Scegli Modpack</label>
           <select name="modpack_id" id="modpack_id" class="form-select">
             <option value="">-- Seleziona un Modpack --</option>
