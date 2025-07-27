@@ -119,23 +119,15 @@ EOF;
 // Codifica in base64 per evitare problemi con caratteri speciali
 $encoded = base64_encode($properties);
 
-// Costruzione del comando SSH per scrivere il file in remoto
 $command = <<<EOT
-ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip "mkdir -p '$remotePath' && echo '$encoded' | base64 -d > '$remotePath/server.properties'"
+ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp "mkdir -p '$remotePath' && echo '$encoded' | base64 -d > '$remotePath/server.properties'"
 EOT;
 
-// Esegui il comando
 exec($command . ' 2>&1', $output, $exitCode);
 
-// Log di debug
-error_log("[server.properties] Exit code: $exitCode");
-error_log("[server.properties] Output:\n" . implode("\n", $output));
-// Esecuzione del comando
-exec($serverPropertiesCommand . ' 2>&1', $output, $exitCode);
-
-// Logging di debug (opzionale)
 error_log("[server.properties] ExitCode: $exitCode");
 error_log("[server.properties] Output:\n" . implode("\n", $output));
+
 
 
             // start.sh
