@@ -159,19 +159,22 @@ SH;
     if (typeSelect.value === 'modpack') {
       versionGroup.style.display = 'none';
       versionInput.disabled = true;
-      modpackGroup.style.display = 'block'; // usa block per un div
+
+      modpackGroup.style.display = 'block';
       modpackInput.disabled = false;
     } else {
       versionGroup.style.display = 'block';
       versionInput.disabled = false;
+
       modpackGroup.style.display = 'none';
       modpackInput.disabled = true;
     }
   }
 
   typeSelect.addEventListener('change', toggleFields);
-  toggleFields(); // esegui subito al caricamento pagina
+  toggleFields();
 });
+
 
 
   </script>
