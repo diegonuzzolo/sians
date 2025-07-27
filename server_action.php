@@ -51,10 +51,10 @@ if (!$ip) {
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
 $remoteDir = "/home/diego/{$serverId}";
-$scriptName = $action === 'start' ? 'start.sh' : 'stop.sh';
-echo '$scriptName: ' . $scriptName . "\n";
+$scriptName = $action === 'start' ? "/home/diego/{$serverId}/start.sh" : "/home/diego/{$serverId}/stop.sh";
+
 // Costruzione del comando remoto completo
-$remoteCommand = "cd {$remoteDir} && bash {$scriptName}";
+$remoteCommand = "bash {$scriptName}";
 
 // Comando SSH completo
 $sshCommand =
@@ -87,6 +87,6 @@ if ($exitCode === 0) {
     exit;
 } else {
     error_log("[server_action] Errore comando SSH (exitCode=$exitCode)");
-    #header('Location: dashboard.php?msg=ssh_error');
+    header('Location: dashboard.php?msg=ssh_error');
     exit;
 }
