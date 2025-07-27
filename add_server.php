@@ -31,15 +31,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $_SESSION['user_id'];
 
             // Inserisci server nel DB
-            $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, assigned_server_id, user_id, modpack_id) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $postServerName,
-                $postType,
-                $postVersion ?: null,
-                $vm['id'],
-                $userId,
-                $postType === 'modpack' ? $postModpackId : null
-            ]);
+     $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, vm_id, user_id, modpack_id) VALUES (?, ?, ?, ?, ?, ?)");
+$stmt->execute([
+    $postServerName,
+    $postType,
+    $postVersion ?: null,
+    $vm['id'],
+    $userId,
+    $postType === 'modpack' ? $postModpackId : null
+]);
             $serverId = $pdo->lastInsertId();
 
             // Assegna la VM
