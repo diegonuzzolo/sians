@@ -62,7 +62,7 @@ $sshCommand =
     $sshUser . '@' . $ip . ' ' .
     $remoteCommand;
 
-echo "[server_action] Esecuzione comando SSH: $sshCommand\n";
+
 // Log utile per debug
 error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteCommand}'");
 
@@ -87,6 +87,7 @@ if ($exitCode === 0) {
     exit;
 } else {
     error_log("[server_action] Errore comando SSH (exitCode=$exitCode)");
-    header('Location: dashboard.php?msg=ssh_error');
+    #header('Location: dashboard.php?msg=ssh_error');
+    echo "[server_action] Esecuzione comando SSH: $sshCommand\n";
     exit;
 }
