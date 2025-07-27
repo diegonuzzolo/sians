@@ -151,12 +151,14 @@ $servers = $stmt->fetchAll();
 
             <div class="d-flex justify-content-between">
               <form method="post" action="server_action.php">
-                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                        class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-                  <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                </button>
-              </form>
+  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+  </button>
+</form>
+
 
               <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">

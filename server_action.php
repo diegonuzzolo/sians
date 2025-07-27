@@ -3,91 +3,53 @@ session_start();
 require 'config/config.php';
 require 'includes/auth.php';
 
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(403);
-    error_log("[server_action] Utente non autenticato");
-    exit('Non autorizzato');
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['server_id']) || empty($_POST['action'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'], $_POST['action'], $_POST['proxmox_vmid'])) {
     http_response_code(400);
-    error_log("[server_action] Richiesta non valida");
-    exit('Richiesta non valida');
+    exit('❌ Richiesta non valida');
 }
 
-$userId = $_SESSION['user_id'];
-$serverId = intval($_POST['server_id']);
+$serverId = (int) $_POST['server_id'];
 $action = $_POST['action'];
+$proxmoxVmid = (int) $_POST['proxmox_vmid'];
 
-$allowedActions = ['start', 'stop'];
-if (!in_array($action, $allowedActions, true)) {
+if (!in_array($action, ['start', 'stop'])) {
     http_response_code(400);
-    error_log("[server_action] Azione non valida: $action");
-    exit('Azione non valida');
+    exit('❌ Azione non valida');
 }
 
-// Recupera IP della VM associata al server
-$stmt = $pdo->prepare("
-    SELECT vm.ip AS ip_address
-    FROM servers s
-    JOIN minecraft_vms vm ON s.vm_id = vm.id
-    WHERE s.id = ? AND s.user_id = ?
-    LIMIT 1
-");
-$stmt->execute([$serverId, $userId]);
-$server = $stmt->fetch(PDO::FETCH_ASSOC);
+// Recupera IP VM associata
+$stmt = $pdo->prepare("SELECT ip FROM minecraft_vms WHERE proxmox_vmid = ?");
+$stmt->execute([$proxmoxVmid]);
+$vm = $stmt->fetch();
 
-if (!$server) {
+if (!$vm) {
     http_response_code(404);
-    error_log("[server_action] Server non trovato per user_id=$userId e server_id=$serverId");
-    exit('Server non trovato');
+    exit('❌ VM non trovata');
 }
 
-$ip = $server['ip_address'] ?? null;
-if (!$ip) {
-    error_log("[server_action] IP VM mancante per server_id=".$serverId);
-    exit('IP VM mancante');
-}
+$ip = $vm['ip'];
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
-// NON usare escapeshellarg su nomi di cartelle
-$remoteDir = "/home/diego/$serverId";
-$scriptName = $remoteDir . '/' . ($action === 'start' ? 'start.sh' : 'stop.sh');
-$remoteCommand = "bash ".$scriptName;
 
-// Comando SSH finale
-$sshCommand =
-    'ssh -i ' . $privateKeyPath .
-    ' -o StrictHostKeyChecking=no ' .
-    $sshUser . '@' . $ip . ' ' .
-    $remoteCommand;
+$remoteCommand = "cd /home/diego/{$serverId} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
+$sshCommand = sprintf(
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
+    escapeshellarg($privateKeyPath),
+    $sshUser,
+    escapeshellarg($ip),
+    escapeshellarg($remoteCommand)
+);
 
+error_log("[server_action] Comando SSH: $sshCommand");
 
-// Log utile per debug
-error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteCommand}'");
-
-// Esecuzione comando
 exec($sshCommand . ' 2>&1', $output, $exitCode);
+error_log("[server_action] Output: " . implode("\n", $output));
+error_log("[server_action] Exit code: $exitCode");
 
-error_log("[server_action] Exit code: ".$exitCode);
-error_log("[server_action] Output:\n" . implode("\n", $output));
+// Aggiorna stato server nel DB
+$newStatus = $exitCode === 0 ? ($action === 'start' ? 'running' : 'stopped') : 'error';
+$stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+$stmt->execute([$newStatus, $serverId]);
 
-if ($exitCode === 0) {
-    $newStatus = $action === 'start' ? 'running' : 'stopped';
-    $update = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-    $res = $update->execute([$newStatus, $serverId]);
-
-    if ($res) {
-        error_log("[server_action] Stato aggiornato a '$newStatus' per server_id=".$serverId);
-    } else {
-        error_log("[server_action] Fallito aggiornamento stato per server_id=".$serverId);
-    }
-
-    header('Location: dashboard.php?msg=success');
-    exit;
-} else {
-    error_log("[server_action] Errore comando SSH (exitCode=$exitCode)");
-    #header('Location: dashboard.php?msg=ssh_error');
-    echo "[server_action] Esecuzione comando SSH: $sshCommand\n";
-    exit;
-}
+header('Location: dashboard.php');
+exit;
