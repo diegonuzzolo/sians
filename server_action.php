@@ -45,16 +45,25 @@ $sshCommand = sprintf(
     escapeshellarg($remoteCommand)
 );
 
+// Logging
 error_log("[server_action] Comando SSH: $sshCommand");
 
 exec($sshCommand . ' 2>&1', $output, $exitCode);
-error_log("[server_action] Output: " . implode("\n", $output));
+
+error_log("[server_action] Output:\n" . implode("\n", $output));
 error_log("[server_action] Exit code: $exitCode");
 
 // Aggiorna stato server nel DB
-$newStatus = $exitCode === 0 ? ($action === 'start' ? 'running' : 'stopped') : 'error';
-$stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-$stmt->execute([$newStatus, $serverId]);
+$newStatus = $exitCode === 0
+    ? ($action === 'start' ? 'running' : 'stopped')
+    : 'error';
+
+try {
+    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+    $stmt->execute([$newStatus, $serverId]);
+} catch (PDOException $e) {
+    error_log("[server_action] Errore aggiornamento stato: " . $e->getMessage());
+}
 
 header('Location: dashboard.php');
 exit;
