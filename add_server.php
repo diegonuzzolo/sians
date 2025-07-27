@@ -56,7 +56,7 @@ if (!$vm) {
 
     $sshCmd = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
 
-    $installCommand = "$sshCmd 'bash /home/diego/install_server.sh " . 
+    $installCommand = "$sshCmd 'bash /home/diego/setup_server.sh " . 
         escapeshellarg($postType) . " " .
         escapeshellarg($versionOrSlug) . " " .
         escapeshellarg($downloadUrl) . " " .
