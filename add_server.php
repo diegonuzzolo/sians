@@ -53,21 +53,20 @@ if (!$vm) {
     $versionOrSlug = ($postType === 'modpack') ? $postModpackId : $postVersion;
     $downloadUrl = ''; // Puoi impostare l'URL del modpack qui se serve
     $installMethod = ''; // es. 'forge' o 'curseforge' se modpack
-$sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
 
-$installCommand = "$sshCmd bash /home/diego/setup_server.sh " . 
-    escapeshellarg($postType) . " " .
-    escapeshellarg($versionOrSlug) . " " .
-    escapeshellarg($downloadUrl) . " " .
-    escapeshellarg($installMethod) . " " .
-    escapeshellarg($vmId);
+    $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
 
-exec($installCommand, $output, $returnCode);
-error_log("SSH Output: " . implode("\n", $output));
-error_log("SSH Exit Code: $returnCode");
+    $args = implode(' ', [
+    escapeshellarg($postType),
+    escapeshellarg($versionOrSlug),
+    escapeshellarg($downloadUrl),
+    escapeshellarg($installMethod),
+    escapeshellarg($vmId)
+]);
 
+$installCommand = "$sshCmd \"bash /home/diego/setup_server.sh $args\" > /dev/null 2>&1 &";
+exec($installCommand);
 
-    exec($installCommand);
 
     // Assegna VM
     $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
@@ -83,7 +82,7 @@ error_log("SSH Exit Code: $returnCode");
 
     header("Location: create_tunnel_and_dns.php?$queryString");
     exit;
-}
+        }
     }
 }
 ?>
