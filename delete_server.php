@@ -61,10 +61,10 @@ function getVmIpFromVmId(int $vmId): ?string {
 
 $sshUser = 'diego';
 $vmIp = getVmIpFromVmId($vmId); // funzione da implementare o recuperare IP VM
-$serverDir = "/home/diego/{$vmId}"; // esempio percorso cartella server
+$serverDir = "/home/diego/$vmId"; // esempio percorso cartella server
 
 // Comando per eliminare la cartella server sulla VM (con -rf per forzare cancellazione)
-$cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";
+$cmd = "ssh $sshUser@$vmIp 'rm -rf " . escapeshellarg($serverDir) . "'";
 
 // Esegui comando e cattura output/errori
 exec($cmd . " 2>&1", $output, $return_var);
@@ -75,6 +75,6 @@ if ($return_var !== 0) {
     // eventualmente mostra messaggio utente o logga
 }
 
-
-header('Location: dashboard.php?msg=server_deleted');
-exit;
+echo $cmd;
+// header('Location: dashboard.php?msg=server_deleted');
+// exit;
