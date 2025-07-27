@@ -48,23 +48,25 @@ if (!$ip) {
     error_log("[server_action] IP VM mancante per server_id=$serverId");
     exit('IP VM mancante');
 }
-
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
+$remoteDir = "/home/diego/{$serverId}";
+$scriptName = $action === 'start' ? 'start.sh' : 'stop.sh';
 
-// ✅ NON usare escapeshellarg sul path (solo sul resto)
-$remoteCommand = "cd /home/diego/{$serverId} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
+// Costruzione del comando remoto completo
+$remoteCommand = "cd {$remoteDir} && bash {$scriptName}";
 
-// Usa escapeshellarg solo dove necessario
-$sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no diego@%s %s',
-    escapeshellarg($privateKeyPath),
-    escapeshellarg($ip),
-    escapeshellarg($remoteCommand)
-);
+// Comando SSH completo
+$sshCommand =
+    'ssh -i ' . escapeshellarg($privateKeyPath) .
+    ' -o StrictHostKeyChecking=no ' .
+    $sshUser . '@' . escapeshellarg($ip) . ' ' .
+    escapeshellarg($remoteCommand);
 
-error_log("[server_action] Comando SSH: ssh -i <key> $sshUser@$ip '$remoteCommand'");
+// Log utile per debug
+error_log("[server_action] Comando SSH: ssh -i <key> {$sshUser}@{$ip} '{$remoteCommand}'");
 
+// Esecuzione comando
 exec($sshCommand . ' 2>&1', $output, $exitCode);
 
 error_log("[server_action] Exit code: $exitCode");
