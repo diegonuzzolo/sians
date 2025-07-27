@@ -128,22 +128,20 @@ error_log("[server.properties] ExitCode: $exitCode");
 error_log("[server.properties] Output:\n" . implode("\n", $output));
 
 
-
-            // start.sh
-            $startScript = <<<EOT
+exec("$sshBase 'cat > $remotePath/start.sh <<EOF
 #!/bin/bash
+cd $remotePath
 screen -dmS $serverId java -Xmx10G -Xms10G -jar server.jar nogui
-EOT;
-            exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $remotePath/start.sh && chmod +x $remotePath/start.sh'", $output1, $exit1);
-            error_log("start.sh - exit code: $exit1 - output: " . implode("\n", $output1));
-            // stop.sh
-            $stopScript = <<<EOT
+EOF
+chmod +x $remotePath/start.sh'", $output1, $exit1);
+
+exec("$sshBase 'cat > $remotePath/stop.sh <<EOF
 #!/bin/bash
 screen -S $serverId -X quit
-EOT;
-           
-            exec("$sshBase 'echo " . escapeshellarg($stopScript) . " > $remotePath/stop.sh && chmod +x $remotePath/stop.sh'", $output2, $exit2);
-            error_log("stop.sh - exit code: $exit2 - output: " . implode("\n", $output2));
+EOF
+chmod +x $remotePath/stop.sh'", $output2, $exit2);
+
+
             // Lancia install_server.php
             $installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
             $phpPath = trim(shell_exec('which php'));
