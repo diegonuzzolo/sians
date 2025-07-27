@@ -28,10 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vmId = $vm['proxmox_vmid'];
             $userId = $_SESSION['user_id'];
 
+            $modpackName = '';
             $downloadUrl = '';
             $installMethod = '';
-            $modpackName = '';
-            $versionOrSlug = '';
+            $versionOrSlug = $postVersion;
 
             if ($postType === 'modpack') {
                 // Carica dati modpack
@@ -45,10 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $modpackName = $modpack['name'] ?? '';
                     $downloadUrl = $modpack['downloadUrl'] ?? '';
                     $installMethod = $modpack['installMethod'] ?? '';
+                    $versionOrSlug = $modpack['version'] ?? '';
                 }
-            } elseif ($postType === 'vanilla' || $postType === 'bukkit') {
-                $versionOrSlug = $postVersion;
-            } else {
+            } elseif (!in_array($postType, ['vanilla', 'bukkit'])) {
                 $error = "❌ Tipo server non supportato.";
             }
 
@@ -77,26 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sshUser = 'diego';
                 $remoteScript = '/home/diego/setup_server.sh';
 
-                // Costruisci args in base al tipo
-                if ($postType === 'modpack') {
-                    $args = implode(' ', array_map('escapeshellarg', [
-                        $postType,
-                        "modpack",
-                        $downloadUrl,
-                        $installMethod,
-                        $vmId
-                    ]));
-                } else {
-                    // vanilla o bukkit
-                    $args = implode(' ', array_map('escapeshellarg', [
-                        $postType,
-                        $versionOrSlug,
-                        '',
-                        '',
-                        $vmId
-                    ]));
-                }
-
                 $sshCmd = sprintf(
                     'ssh -i %s -o StrictHostKeyChecking=no %s@%s',
                     escapeshellarg($sshKey),
@@ -104,14 +83,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     escapeshellarg($vmIp)
                 );
 
-                $installCommand = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
-                exec($installCommand);
+                if ($postType === 'vanilla') {
+                    $args = implode(' ', array_map('escapeshellarg', [
+                        'vanilla',
+                        $postVersion,
+                        '',
+                        '',
+                        $vmId
+                    ]));
+
+                    $command = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
+                    exec($command);
+
+                } elseif ($postType === 'modpack') {
+                    $args = implode(' ', array_map('escapeshellarg', [
+                        'modpack',
+                        $versionOrSlug,
+                        $downloadUrl,
+                        $installMethod,
+                        $vmId
+                    ]));
+
+                    $command = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
+                    exec($command);
+
+                } elseif ($postType === 'bukkit') {
+                    $args = implode(' ', array_map('escapeshellarg', [
+                        'bukkit',
+                        $postVersion,
+                        '',
+                        '',
+                        $vmId
+                    ]));
+
+                    $command = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
+                    exec($command);
+                }
 
                 // Assegna VM
                 $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
                     ->execute([$userId, $serverId, $vm['id']]);
 
-                // Redirect
+                // Redirect con parametri
                 $queryString = "server_id=$serverId";
                 if ($postType === 'modpack') {
                     $queryString .= "&modpack_id=" . urlencode($postModpackId);
