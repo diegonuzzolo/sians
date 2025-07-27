@@ -7,7 +7,6 @@ require 'config/config.php';
 require 'includes/auth.php';
 
 $error = '';
-$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postServerName = trim($_POST['server_name'] ?? '');
@@ -18,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName) || empty($postType)) {
         $error = "❌ Compila tutti i campi obbligatori.";
     } else {
-        // Trova VM libera
+        // Cerca VM libera
         $stmt = $pdo->query("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
         $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -26,14 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "❌ Nessuna VM disponibile.";
         } else {
             $vmIp = $vm['ip'];
-            $vmId = $vm['proxmox_vmid']; // <-- Usa VMID Proxmox per cartelle
+            $vmId = $vm['proxmox_vmid'];
             $userId = $_SESSION['user_id'];
 
-            // Se tipo modpack, recupera dati modpack dal DB
-            $modpackName = '';
             $downloadUrl = '';
             $installMethod = '';
+            $modpackName = '';
+            $versionOrSlug = '';
+
             if ($postType === 'modpack') {
+                // Carica dati modpack
                 $stmt = $pdo->prepare("SELECT * FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -45,6 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $downloadUrl = $modpack['downloadUrl'] ?? '';
                     $installMethod = $modpack['installMethod'] ?? '';
                 }
+            } elseif ($postType === 'vanilla' || $postType === 'bukkit') {
+                $versionOrSlug = $postVersion;
+            } else {
+                $error = "❌ Tipo server non supportato.";
             }
 
             if (!$error) {
@@ -56,10 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([
                     $postServerName,
                     $postType,
-                    $postVersion ?: null,
+                    ($postType === 'modpack') ? null : $postVersion,
                     $vm['id'],
                     $userId,
-                    $postType === 'modpack' ? $postModpackId : null,
+                    ($postType === 'modpack') ? $postModpackId : null,
                     $vmId,
                     null,
                     null,
@@ -68,11 +73,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $serverId = $pdo->lastInsertId();
 
-                $versionOrSlug = ($postType === 'modpack') ? $modpackName : $postVersion;
-
                 $sshKey = '/var/www/.ssh/id_rsa';
                 $sshUser = 'diego';
                 $remoteScript = '/home/diego/setup_server.sh';
+
+                // Costruisci args in base al tipo
+                if ($postType === 'modpack') {
+                    $args = implode(' ', array_map('escapeshellarg', [
+                        $postType,
+                        $modpackName,
+                        $downloadUrl,
+                        $installMethod,
+                        $vmId
+                    ]));
+                } else {
+                    // vanilla o bukkit
+                    $args = implode(' ', array_map('escapeshellarg', [
+                        $postType,
+                        $versionOrSlug,
+                        '',
+                        '',
+                        $vmId
+                    ]));
+                }
 
                 $sshCmd = sprintf(
                     'ssh -i %s -o StrictHostKeyChecking=no %s@%s',
@@ -81,23 +104,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     escapeshellarg($vmIp)
                 );
 
-                $args = implode(' ', array_map('escapeshellarg', [
-                    $postType,
-                    $versionOrSlug,
-                    $downloadUrl,
-                    $installMethod,
-                    $vmId
-                ]));
-
                 $installCommand = "$sshCmd \"bash $remoteScript $args\" > /dev/null 2>&1 &";
-
                 exec($installCommand);
 
                 // Assegna VM
                 $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
                     ->execute([$userId, $serverId, $vm['id']]);
 
-                // Redirect con query string
+                // Redirect
                 $queryString = "server_id=$serverId";
                 if ($postType === 'modpack') {
                     $queryString .= "&modpack_id=" . urlencode($postModpackId);
@@ -112,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
