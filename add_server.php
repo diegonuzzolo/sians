@@ -9,6 +9,29 @@ require 'includes/auth.php';
 $error = '';
 $success = '';
 
+$modpackId = $_POST['modpack_id'] ?? null;
+
+
+    $stmt = $pdo->prepare("SELECT * FROM modpacks WHERE id = ?");
+    $stmt->execute([$modpackId]);
+    $modpack = $stmt->fetch(PDO::FETCH_ASSOC);
+
+ 
+
+    // Ora hai:
+    // $modpack['downloadUrl']
+    // $modpack['forgeVersion']
+    // $modpack['version']
+    // $modpack['installMethod']
+    // ecc.
+
+    // E puoi usarli per costruire lo script di installazione sulla VM
+
+    $downloadUrl = $modpack["downloadUrl"] ?? null;
+    $forgeVersion = $modpack["forgeVersion"] ?? null;
+    $version = $modpack["version"] ?? null;
+    $installMethod = $modpack["installMethod"] ?? null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postServerName = trim($_POST['server_name'] ?? '');
     $postType = $_POST['type'] ?? 'vanilla';
@@ -51,8 +74,6 @@ if (!$vm) {
 
     // Comando per installare server remoto (passa VMID Proxmox come ID cartella)
     $versionOrSlug = ($postType === 'modpack') ? $postModpackId : $postVersion;
-    $downloadUrl = ''; // Puoi impostare l'URL del modpack qui se serve
-    $installMethod = ''; // es. 'forge' o 'curseforge' se modpack
 
 $sshKey = '/var/www/.ssh/id_rsa';
 $sshUser = 'diego';
@@ -96,6 +117,9 @@ exec($installCommand);
         }
     }
 }
+
+
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -199,6 +223,7 @@ exec($installCommand);
             ?>
           </select>
         </div>
+
 
         <div class="mb-4" id="modpack-group" style="display:none;">
           <label for="modpack_id" class="form-label">Scegli Modpack</label>
