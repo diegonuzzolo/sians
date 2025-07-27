@@ -87,6 +87,6 @@ if ($exitCode === 0) {
     exit;
 } else {
     error_log("[server_action] Errore comando SSH (exitCode=$exitCode)");
-    header('Location: dashboard.php?msg=ssh_error');
+    #header('Location: dashboard.php?msg=ssh_error');
     exit;
 }
