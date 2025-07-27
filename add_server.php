@@ -47,8 +47,7 @@ $stmt->execute([
                 ->execute([$userId, $serverId, $vm['id']]);
 
             // Percorsi remoti
-            $sshUser = 'diego';
-            $sshBase = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no $sshUser@$vmIp";
+            $sshBase = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$vmIp";
             $remotePath = "/home/diego/$serverId";
 
             // Crea directory remota
@@ -133,18 +132,18 @@ error_log("[server.properties] Output:\n" . implode("\n", $output));
             // start.sh
             $startScript = <<<EOT
 #!/bin/bash
-cd "$remotePath"
 screen -dmS $serverId java -Xmx10G -Xms10G -jar server.jar nogui
 EOT;
-            exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $remotePath/start.sh && chmod +x $remotePath/start.sh'");
-
+            exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $remotePath/start.sh && chmod +x $remotePath/start.sh'", $output1, $exit1);
+            error_log("start.sh - exit code: $exit1 - output: " . implode("\n", $output1));
             // stop.sh
             $stopScript = <<<EOT
 #!/bin/bash
 screen -S $serverId -X quit
 EOT;
-            exec("$sshBase 'echo " . escapeshellarg($stopScript) . " > $remotePath/stop.sh && chmod +x $remotePath/stop.sh'");
-
+           
+            exec("$sshBase 'echo " . escapeshellarg($stopScript) . " > $remotePath/stop.sh && chmod +x $remotePath/stop.sh'", $output2, $exit2);
+            error_log("stop.sh - exit code: $exit2 - output: " . implode("\n", $output2));
             // Lancia install_server.php
             $installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
             $phpPath = trim(shell_exec('which php'));
