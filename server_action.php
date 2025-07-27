@@ -52,7 +52,7 @@ $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
 $remoteDir = "/home/diego/{$serverId}";
 $scriptName = $action === 'start' ? 'start.sh' : 'stop.sh';
-
+echo '$scriptName: ' . $scriptName . "\n";
 // Costruzione del comando remoto completo
 $remoteCommand = "cd {$remoteDir} && bash {$scriptName}";
 
