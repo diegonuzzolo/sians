@@ -68,7 +68,7 @@ $serverDir = "/home/diego/{$proxmoxVmid}"; // esempio percorso cartella server
 $cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";
 
 // Esegui comando e cattura output/errori
-exec($cmd . " && killall ngrok 2>&1", $output, $return_var);
+exec($cmd . " 2>&1 && killall ngrok", $output, $return_var);
 
 if ($return_var !== 0) {
     // errore eliminazione cartella server
