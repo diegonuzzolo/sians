@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$vm) {
             $error = "❌ Nessuna VM disponibile.";
         } else {
-            $vmIp = $vm['ip_address'];
+            $vmIp = $vm['ip'];
             $userId = $_SESSION['user_id'];
 
             // Inserisci server nel DB
