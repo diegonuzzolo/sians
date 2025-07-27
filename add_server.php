@@ -141,16 +141,32 @@ screen -S $serverId -X quit
 EOF
 chmod +x $remotePath/stop.sh'", $output2, $exit2);
 
+// Determina quale valore usare come versione/install identifier
+$installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
 
-            // Lancia install_server.php
-            $installVersion = $postType === 'modpack' ? $postModpackId : $postVersion;
-            $phpPath = trim(shell_exec('which php'));
-            $scriptPath = realpath('install_server.php');
-            $cmd = "$phpPath $scriptPath $vmIp $serverId $postType $installVersion > /dev/null 2>&1 &";
-            exec($cmd);
+// Ottieni il percorso di PHP e dello script da eseguire
+$phpPath = trim(shell_exec('which php'));
+$scriptPath = realpath('install_server.php');
 
-            header("Location: create_tunnel_and_dns.php?server_id=$serverId");
-            exit;
+// Costruisci il comando con escape per sicurezza
+$escapedCmd = escapeshellcmd("$phpPath $scriptPath");
+$escapedArgs = escapeshellarg($vmIp) . ' ' . escapeshellarg($serverId) . ' ' . escapeshellarg($postType) . ' ' . escapeshellarg($installVersion);
+
+// Esegui in background
+$cmd = "$escapedCmd $escapedArgs > /dev/null 2>&1 &";
+exec($cmd);
+
+$queryString = "server_id=$serverId";
+
+if ($postType === 'modpack') {
+    $queryString .= "&modpack_id=" . urlencode($postModpackId);
+} else {
+    $queryString .= "&version=" . urlencode($postVersion);
+}
+
+header("Location: create_tunnel_and_dns.php?$queryString");
+exit;
+
         }
     }
 }

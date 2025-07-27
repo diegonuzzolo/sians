@@ -34,7 +34,9 @@ switch ($type) {
             exit(1);
         }
         $version = escapeshellarg($versionOrModpack);
-        $installCmd = "ssh $sshTarget 'bash $remoteScript $type $version'";
+        $escapedType = escapeshellarg($type);
+        $escapedServerId = escapeshellarg($serverId);
+        $installCmd = "ssh $sshTarget 'bash $remoteScript $escapedType $version $escapedServerId'";
         break;
 
     case 'modpack':
@@ -57,13 +59,18 @@ switch ($type) {
         $modpackSlug = escapeshellarg($modpack['slug']);
         $downloadUrl = escapeshellarg($modpack['downloadUrl']);
         $installMethod = escapeshellarg($modpack['installMethod']);
-        $installCmd = "ssh $sshTarget 'bash $remoteScript modpack $modpackSlug $downloadUrl $installMethod'";
+        $escapedServerId = escapeshellarg($serverId);
+
+        $installCmd = "ssh $sshTarget 'bash $remoteScript modpack $modpackSlug $downloadUrl $installMethod $escapedServerId'";
         break;
 
     default:
         echo "❌ Tipo di server non valido: $type\n";
         exit(1);
 }
+
+// Debug (solo se necessario)
+// echo "[DEBUG] Comando: $installCmd\n";
 
 // Esegui installazione
 exec($installCmd, $output, $exitCode);
