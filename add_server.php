@@ -1,169 +1,72 @@
 <?php
-// Detect if running from CLI or web
-if (php_sapi_name() === 'cli') {
-    if ($argc < 5) {
-        echo "❌ Parametri insufficienti.\n";
-        exit(1);
-    }
+session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-    $vmIp = $argv[1];
-    $serverId = $argv[2];
-    $type = $argv[3];
-    $versionOrModpack = $argv[4];
-    $basePath = "/var/minecraft_servers/$serverId";
+require 'config/config.php';
+require 'includes/auth.php';
 
-    if (!is_dir($basePath)) {
-        mkdir($basePath, 0777, true);
-    }
+$error = '';
+$success = '';
 
-    function downloadFile($url, $dest) {
-        $ctx = stream_context_create(['http' => ['timeout' => 30]]);
-        $content = @file_get_contents($url, false, $ctx);
-        if ($content === false) {
-            return false;
-        }
-        return file_put_contents($dest, $content) !== false;
-    }
+$postServerName = $_POST['server_name'] ?? '';
+$postType = $_POST['type'] ?? '';
+$postVersion = $_POST['version'] ?? '';
+$postModpackId = $_POST['modpack_id'] ?? '';
 
-    if ($type === 'vanilla') {
-        // URL jar vanilla (potresti aggiornare con API Mojang)
-        $jarUrl = "https://launcher.mojang.com/v1/objects/e2010d9bd008e4e017d9de744cf54f4e5cbb6c3e/server.jar";
-        $jarFile = "$basePath/server.jar";
-        if (!downloadFile($jarUrl, $jarFile)) {
-            echo "❌ Errore nel download del jar vanilla.\n";
-            exit(1);
-        }
-    } elseif ($type === 'modpack') {
-        $modpackId = intval($versionOrModpack);
-        $modpacksJson = @file_get_contents("/var/www/html/modpacks.json");
-        if (!$modpacksJson) {
-            echo "❌ Impossibile leggere il file modpacks.json.\n";
-            exit(1);
-        }
-        $modpacks = json_decode($modpacksJson, true);
-        $found = false;
-        foreach ($modpacks as $modpack) {
-            if ($modpack['id'] == $modpackId) {
-                $downloadUrl = $modpack['downloadUrl'] ?? null;
-                if (!$downloadUrl) {
-                    echo "❌ URL di download non trovato per il modpack.\n";
-                    exit(1);
-                }
-                $zipPath = "$basePath/modpack.zip";
-                if (!downloadFile($downloadUrl, $zipPath)) {
-                    echo "❌ Errore nel download del modpack.\n";
-                    exit(1);
-                }
-                $zip = new ZipArchive;
-                if ($zip->open($zipPath) === TRUE) {
-                    $zip->extractTo($basePath);
-                    $zip->close();
-                    unlink($zipPath);
-                    $found = true;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $serverName = trim($postServerName);
+    $userId = $_SESSION['user_id'] ?? null;
+    $type = trim($postType);
+    $version = trim($postVersion);
+    $modpackId = ($type === 'modpack' && !empty($postModpackId)) ? intval($postModpackId) : null;
+
+    if (!$serverName || !$userId) {
+        $error = "Il nome del server e il login sono obbligatori.";
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
+        $stmt->execute();
+        $vm = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$vm) {
+            $error = "Nessuna VM libera disponibile.";
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO servers (name, user_id, vm_id, proxmox_vmid, status, type, version, modpack_id) VALUES (?, ?, ?, ?, 'created', ?, ?, ?)");
+            $successInsert = $stmt->execute([$serverName, $userId, $vm['id'], $vm['proxmox_vmid'], $type, $version, $modpackId]);
+
+            if (!$successInsert) {
+                $error = "Errore durante la creazione del server.";
+            } else {
+                $serverId = $pdo->lastInsertId();
+                $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+                $stmt->execute([$userId, $serverId, $vm['id']]);
+
+                $sshUser = 'diego';
+                $vmIp = $vm['ip'];
+                $remoteScript = "/var/www/html/install_server.php";
+
+                // Costruisco il comando con il tipo e la versione/modpack corretti
+                if ($type === 'modpack') {
+                    $installCommand = "php $remoteScript $vmIp $serverId $type $modpackId";
                 } else {
-                    echo "❌ Errore nell'estrazione del modpack.\n";
-                    exit(1);
+                    $installCommand = "php $remoteScript $vmIp $serverId $type $version";
                 }
-                break;
+
+                // Debug: log del comando
+                error_log("Comando installazione: $installCommand");
+
+                exec($installCommand, $output, $exitCode);
+
+                if ($exitCode !== 0) {
+                    $error = "Errore durante l'installazione del server Minecraft sulla VM. Output: " . implode("\n", $output);
+                } else {
+                    header("Location: create_tunnel_and_dns.php?server_id=$serverId");
+                    exit;
+                }
             }
         }
-        if (!$found) {
-            echo "❌ Modpack con ID $modpackId non trovato.\n";
-            exit(1);
-        }
-    } elseif ($type === 'bukkit') {
-        $bukkitUrl = "https://download.getbukkit.org/craftbukkit/craftbukkit-$versionOrModpack.jar";
-        $jarFile = "$basePath/server.jar";
-        if (!downloadFile($bukkitUrl, $jarFile)) {
-            echo "❌ Errore nel download del jar Bukkit.\n";
-            exit(1);
-        }
-    } else {
-        echo "❌ Tipo server non supportato.\n";
-        exit(1);
     }
-
-    // File eula.txt
-    file_put_contents("$basePath/eula.txt", "eula=true\n");
-
-    // File server.properties completo
-    $serverProperties = <<<EOL
-# Minecraft server properties
-enable-jmx-monitoring=false
-rcon.port=25575
-level-seed=
-gamemode=survival
-enable-command-block=false
-enable-query=false
-generator-settings=
-enforce-secure-profile=true
-level-name=world
-motd=Benvenuto nel server!
-query.port=25565
-pvp=true
-generate-structures=true
-difficulty=easy
-network-compression-threshold=256
-max-tick-time=60000
-use-native-transport=true
-max-players=20
-online-mode=true
-enable-status=true
-allow-flight=false
-broadcast-rcon-to-ops=true
-view-distance=10
-max-build-height=256
-server-ip=
-allow-nether=true
-server-port=25565
-enable-rcon=false
-sync-chunk-writes=true
-op-permission-level=4
-prevent-proxy-connections=false
-hide-online-players=false
-resource-pack-prompt=
-resource-pack=
-entity-broadcast-range-percentage=100
-simulation-distance=10
-rcon.password=
-player-idle-timeout=0
-force-gamemode=false
-rate-limit=0
-hardcore=false
-white-list=false
-broadcast-console-to-ops=true
-spawn-npcs=true
-spawn-animals=true
-function-permission-level=2
-text-filtering-config=
-spawn-monsters=true
-enforce-whitelist=false
-resource-pack-sha1=
-spawn-protection=16
-max-world-size=29999984
-EOL;
-
-    file_put_contents("$basePath/server.properties", $serverProperties);
-
-    // start.sh
-    $startScript = <<<BASH
-#!/bin/bash
-cd "$(dirname "\$0")"
-java -Xmx2G -Xms2G -jar server.jar nogui
-BASH;
-    file_put_contents("$basePath/start.sh", $startScript);
-    chmod("$basePath/start.sh", 0755);
-
-    // stop.sh (usando screen session mc_$serverId)
-    $stopScript = <<<BASH
-#!/bin/bash
-screen -S mc_$serverId -X quit
-BASH;
-    file_put_contents("$basePath/stop.sh", $stopScript);
-    chmod("$basePath/stop.sh", 0755);
-
-    echo "✅ Installazione completata con successo per il server $serverId ($type)\n";
-    exit(0);
 }
 ?>
 
@@ -171,31 +74,31 @@ BASH;
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Crea Server Minecraft</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/add_server.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/add_server.css">
 </head>
 <body>
 
 <div class="main-container">
-  <div class="card-create-server shadow-lg p-4">
-    <h1 class="mb-4">Crea il tuo Server Minecraft</h1>
+  <div class="card-create-server shadow-lg">
+    <h1>Crea il tuo Server Minecraft</h1>
 
     <?php if ($error): ?>
       <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
     <form method="POST" action="">
-      <div class="mb-3">
-        <label for="server_name" class="form-label">Nome Server</label>
-        <input type="text" name="server_name" id="server_name" class="form-control" required placeholder="Es. AvventuraMagica" value="<?= htmlspecialchars($postServerName) ?>" />
+      <div class="mb-4">
+        <label for="server_name">Nome Server</label>
+        <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($postServerName) ?>" placeholder="Es. AvventuraMagica">
       </div>
 
-      <div class="mb-3">
-        <label for="type" class="form-label">Tipo di Server</label>
+      <div class="mb-4">
+        <label for="type">Tipo di Server</label>
         <select name="type" id="type" class="form-select" required>
           <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
           <option value="bukkit" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
@@ -203,8 +106,8 @@ BASH;
         </select>
       </div>
 
-      <div class="mb-3" id="version_wrapper" style="display: <?= ($postType === 'vanilla' || $postType === 'bukkit') ? 'block' : 'none' ?>;">
-        <label for="version" class="form-label">Versione Minecraft</label>
+      <div class="mb-4" id="version_wrapper" style="display: <?= ($postType === 'vanilla' || $postType === 'bukkit') ? 'block' : 'none' ?>;">
+        <label for="version">Versione Minecraft</label>
         <select name="version" id="version" class="form-select" required>
           <?php
           $versions = [
@@ -232,8 +135,8 @@ BASH;
         </select>
       </div>
 
-      <div class="mb-3" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
-        <label for="modpack_id" class="form-label">Scegli Modpack</label>
+      <div class="mb-4" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
+        <label for="modpack_id">Scegli Modpack</label>
         <select name="modpack_id" id="modpack_id" class="form-select">
           <option value="">-- Seleziona un Modpack --</option>
           <?php
@@ -254,43 +157,44 @@ BASH;
     </form>
   </div>
 
-  <div class="side-panel p-4">
+  <div class="side-panel">
     <h3>Hai già un server?</h3>
-    <a href="dashboard.php" class="btn btn-light btn-lg shadow mb-2"><i class="bi bi-house-door"></i> Vai alla Dashboard</a>
+    <a href="dashboard.php" class="btn btn-light btn-lg shadow"><i class="bi bi-house-door"></i> Vai alla Dashboard</a>
     <a href="logout.php" class="btn btn-danger btn-lg shadow"><i class="bi bi-box-arrow-right"></i> Esci</a>
   </div>
 </div>
 
 <script>
+ 
 document.addEventListener("DOMContentLoaded", function() {
     const typeSelect = document.getElementById("type");
-    const versionGroup = document.getElementById("version_wrapper");
-    const modpackGroup = document.getElementById("modpack_selector");
+    const versionGroup = document.getElementById("version-group");
+    const modpackGroup = document.getElementById("modpack-group");
     const versionInput = document.getElementById("version");
     const modpackInput = document.getElementById("modpack_id");
 
     function toggleFields() {
-        if (typeSelect.value === "modpack") {
+        const selectedType = typeSelect.value;
+
+        if (selectedType === "modpack") {
             modpackGroup.style.display = "block";
             modpackInput.disabled = false;
 
             versionGroup.style.display = "none";
             versionInput.disabled = true;
-            versionInput.required = false;
-            modpackInput.required = true;
         } else {
             versionGroup.style.display = "block";
             versionInput.disabled = false;
-            versionInput.required = true;
 
             modpackGroup.style.display = "none";
             modpackInput.disabled = true;
-            modpackInput.required = false;
         }
     }
+
     typeSelect.addEventListener("change", toggleFields);
-    toggleFields();
+    toggleFields(); // iniziale
 });
+
 </script>
 
 </body>
