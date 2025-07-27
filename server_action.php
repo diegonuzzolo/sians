@@ -43,7 +43,7 @@ if (!$server) {
     exit('Server non trovato');
 }
 
-$ip = $server['ip'] ?? null;
+$ip = $server['ip_address'] ?? null;
 if (!$ip) {
     error_log("[server_action] IP VM mancante per server_id=$serverId");
     exit('IP VM mancante');
