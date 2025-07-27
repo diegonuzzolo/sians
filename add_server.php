@@ -63,7 +63,7 @@ enable-command-block=false
 enable-query=false
 generator-settings=
 level-name=world
-motd=Benvenuto nel server $serverId!
+motd=$postServerName $postVersion!
 query.port=25565
 pvp=true
 generate-structures=true
@@ -71,14 +71,14 @@ difficulty=easy
 network-compression-threshold=256
 max-tick-time=60000
 use-native-transport=true
-max-players=20
+max-players=50
 online-mode=true
 enable-status=true
 allow-flight=false
 broadcast-rcon-to-ops=true
 view-distance=10
 max-build-height=256
-server-ip=
+server-ip=0.0.0.0
 allow-nether=true
 server-port=25565
 enable-rcon=false
@@ -113,7 +113,7 @@ EOF;
             $startScript = <<<SH
 #!/bin/bash
 cd "$remotePath"
-screen -dmS $serverId java -Xmx1024M -Xms1024M -jar server.jar nogui
+screen -dmS $serverId java -Xmx10G -Xms10G -jar server.jar nogui
 SH;
             exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $remotePath/start.sh && chmod +x $remotePath/start.sh'");
 
