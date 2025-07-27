@@ -46,14 +46,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $vmIp = $vm['ip'];
                 $remoteScript = "/var/www/html/install_server.php";
 
-                // Costruisco il comando con il tipo e la versione/modpack corretti
                 if ($type === 'modpack') {
                     $installCommand = "php $remoteScript $vmIp $serverId $type $modpackId";
                 } else {
                     $installCommand = "php $remoteScript $vmIp $serverId $type $version";
                 }
 
-                // Debug: log del comando
                 error_log("Comando installazione: $installCommand");
 
                 exec($installCommand, $output, $exitCode);
@@ -84,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 
 <div class="main-container">
-  <div class="card-create-server shadow-lg">
+  <div class="card-create-server shadow-lg p-4">
     <h1>Crea il tuo Server Minecraft</h1>
 
     <?php if ($error): ?>
@@ -106,9 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select>
       </div>
 
-      <div class="mb-4" id="version_wrapper" style="display: <?= ($postType === 'vanilla' || $postType === 'bukkit') ? 'block' : 'none' ?>;">
+      <div class="mb-4" id="version-group" style="display: <?= ($postType === 'vanilla' || $postType === 'bukkit') ? 'block' : 'none' ?>;">
         <label for="version">Versione Minecraft</label>
-        <select name="version" id="version" class="form-select" required>
+        <select name="version" id="version" class="form-select" <?= ($postType === 'vanilla' || $postType === 'bukkit') ? 'required' : 'disabled' ?>>
           <?php
           $versions = [
               "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
@@ -135,9 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select>
       </div>
 
-      <div class="mb-4" id="modpack_selector" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
+      <div class="mb-4" id="modpack-group" style="display: <?= $postType === 'modpack' ? 'block' : 'none' ?>;">
         <label for="modpack_id">Scegli Modpack</label>
-        <select name="modpack_id" id="modpack_id" class="form-select">
+        <select name="modpack_id" id="modpack_id" class="form-select" <?= $postType === 'modpack' ? 'required' : 'disabled' ?>>
           <option value="">-- Seleziona un Modpack --</option>
           <?php
           $stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
@@ -165,7 +163,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
- 
 document.addEventListener("DOMContentLoaded", function() {
     const typeSelect = document.getElementById("type");
     const versionGroup = document.getElementById("version-group");
@@ -174,27 +171,28 @@ document.addEventListener("DOMContentLoaded", function() {
     const modpackInput = document.getElementById("modpack_id");
 
     function toggleFields() {
-        const selectedType = typeSelect.value;
-
-        if (selectedType === "modpack") {
+        if (typeSelect.value === "modpack") {
             modpackGroup.style.display = "block";
             modpackInput.disabled = false;
+            modpackInput.required = true;
 
             versionGroup.style.display = "none";
             versionInput.disabled = true;
+            versionInput.required = false;
         } else {
             versionGroup.style.display = "block";
             versionInput.disabled = false;
+            versionInput.required = true;
 
             modpackGroup.style.display = "none";
             modpackInput.disabled = true;
+            modpackInput.required = false;
         }
     }
 
     typeSelect.addEventListener("change", toggleFields);
-    toggleFields(); // iniziale
+    toggleFields();
 });
-
 </script>
 
 </body>
