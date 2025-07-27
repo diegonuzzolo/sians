@@ -9,11 +9,9 @@ $postType = $_POST['type'] ?? 'vanilla';
 $postVersion = $_POST['version'] ?? '';
 $postModpackId = $_POST['modpack_id'] ?? '';
 
-// Esegui la logica CLI solo se chiamato da CLI
-
+// Se lo script non è eseguito da CLI, esce silenziosamente
 if (php_sapi_name() !== 'cli') {
-    echo "❌ Questo script va eseguito solo da CLI.\n";
-    exit(1);
+    return;
 }
 
 if ($argc < 5) {
@@ -26,15 +24,12 @@ $serverId = $argv[2];
 $type = $argv[3];
 $versionOrModpack = $argv[4];
 
-// Percorso e SSH
 $basePath = "/home/diego/$serverId";
 $sshUser = 'diego';
 $sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
 
-// 1. Crea cartella server
 exec("$sshBase 'mkdir -p $basePath && chmod 755 $basePath'");
 
-// 2. Scarica il server
 if ($type === 'vanilla') {
     echo "🔍 Recupero URL server.jar per Vanilla $versionOrModpack...\n";
 
@@ -93,10 +88,8 @@ if ($type === 'vanilla') {
     exit(1);
 }
 
-// 3. Crea eula.txt
 exec("$sshBase 'echo \"eula=true\" > $basePath/eula.txt'");
 
-// 4. Crea server.properties completo
 $properties = <<<EOF
 enable-jmx-monitoring=false
 rcon.port=25575
@@ -152,25 +145,20 @@ EOF;
 
 exec("$sshBase 'echo ".escapeshellarg($properties)." > $basePath/server.properties'");
 
-// 5. Crea start.sh
 $startScript = <<<SH
 #!/bin/bash
 cd "$basePath"
-java -Xmx1024M -Xms1024M -jar server.jar nogui
+screen -dmS $serverId java -Xmx1024M -Xms1024M -jar server.jar nogui
 SH;
-
 exec("$sshBase 'echo ".escapeshellarg($startScript)." > $basePath/start.sh && chmod +x $basePath/start.sh'");
 
-// 6. Crea stop.sh
 $stopScript = <<<SH
 #!/bin/bash
 screen -S $serverId -X quit
 SH;
-
 exec("$sshBase 'echo ".escapeshellarg($stopScript)." > $basePath/stop.sh && chmod +x $basePath/stop.sh'");
 
-echo "✅ Installazione completata su $vmIp ($type - $versionOrModpack)\n";
-header("Location: create_tunnel_and_dns.php?server_id=" . $serverId);
+// Redirezione SOLO SE eseguito da browser (quindi non qui)
 
 ?>
 
