@@ -10,13 +10,14 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'], $_POST['proxmox_vmid'])) {
     http_response_code(400);
     exit('Richiesta non valida');
 }
 
 $userId = $_SESSION['user_id'];
 $serverId = intval($_POST['server_id']);
+$proxmoxVmid = intval($_POST['proxmox_vmid']);
 
 // Recupera il server per verificarne la proprietà e ottenere info VM per aggiornamento
 $stmt = $pdo->prepare("SELECT vm_id, subdomain FROM servers WHERE id = ? AND user_id = ?");
@@ -61,7 +62,7 @@ function getVmIpFromVmId(int $vmId): ?string {
 
 $sshUser = 'diego';
 $vmIp = getVmIpFromVmId($vmId); // funzione da implementare o recuperare IP VM
-$serverDir = "/home/diego/{$serverId}"; // esempio percorso cartella server
+$serverDir = "/home/diego/{$proxmoxVmid}"; // esempio percorso cartella server
 
 // Comando per eliminare la cartella server sulla VM (con -rf per forzare cancellazione)
 $cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";

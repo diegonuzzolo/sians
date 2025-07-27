@@ -162,6 +162,7 @@ $servers = $stmt->fetchAll();
 
               <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
                 <button type="submit" class="btn btn-danger action-btn">Elimina</button>
               </form>
             </div>
