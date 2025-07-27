@@ -48,7 +48,7 @@ $stmt->execute([
 
             // Percorsi remoti
             $sshUser = 'diego';
-            $sshBase = "ssh -o StrictHostKeyChecking=no $sshUser@$vmIp";
+            $sshBase = "ssh -i /home/diego/.ssh/id_rsa -o StrictHostKeyChecking=no $sshUser@$vmIp";
             $remotePath = "/home/diego/$serverId";
 
             // Crea directory remota
