@@ -19,7 +19,7 @@ $userId = $_SESSION['user_id'];
 $serverId = intval($_POST['server_id']);
 
 // Recupera il server per verificarne la proprietà e ottenere info VM per aggiornamento
-$stmt = $pdo->prepare("SELECT proxmox_vmid, subdomain FROM servers WHERE id = ? AND user_id = ?");
+$stmt = $pdo->prepare("SELECT vm_id, subdomain FROM servers WHERE id = ? AND user_id = ?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -28,7 +28,7 @@ if (!$server) {
     exit('Server non trovato o accesso negato');
 }
 
-$vmId = $server['proxmox_vmid'];
+$vmId = $server['vm_id'];
 $subdomain = $server['subdomain'] ?? null;
 
 // -- Opzionale: Elimina record DNS su Cloudflare se vuoi (funzione da implementare se vuoi)
@@ -61,10 +61,10 @@ function getVmIpFromVmId(int $vmId): ?string {
 
 $sshUser = 'diego';
 $vmIp = getVmIpFromVmId($vmId); // funzione da implementare o recuperare IP VM
-$serverDir = "/home/diego/$vmId"; // esempio percorso cartella server
+$serverDir = "/home/diego/{$serverId}"; // esempio percorso cartella server
 
 // Comando per eliminare la cartella server sulla VM (con -rf per forzare cancellazione)
-$cmd = "ssh $sshUser@$vmIp 'rm -rf " . escapeshellarg($serverDir) . "'";
+$cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";
 
 // Esegui comando e cattura output/errori
 exec($cmd . " 2>&1", $output, $return_var);
@@ -75,6 +75,6 @@ if ($return_var !== 0) {
     // eventualmente mostra messaggio utente o logga
 }
 
-echo $cmd;
-// header('Location: dashboard.php?msg=server_deleted');
-// exit;
+
+header('Location: dashboard.php?msg=server_deleted');
+exit;
