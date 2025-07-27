@@ -131,18 +131,18 @@ error_log("[server.properties] Output:\n" . implode("\n", $output));
 
 
             // start.sh
-            $startScript = <<<SH
+            $startScript = <<<EOT
 #!/bin/bash
 cd "$remotePath"
 screen -dmS $serverId java -Xmx10G -Xms10G -jar server.jar nogui
-SH;
+EOT;
             exec("$sshBase 'echo " . escapeshellarg($startScript) . " > $remotePath/start.sh && chmod +x $remotePath/start.sh'");
 
             // stop.sh
-            $stopScript = <<<SH
+            $stopScript = <<<EOT
 #!/bin/bash
 screen -S $serverId -X quit
-SH;
+EOT;
             exec("$sshBase 'echo " . escapeshellarg($stopScript) . " > $remotePath/stop.sh && chmod +x $remotePath/stop.sh'");
 
             // Lancia install_server.php
