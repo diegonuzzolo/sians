@@ -149,31 +149,31 @@ $servers = $stmt->fetchAll();
       <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
       <p class="card-text">Tipo: <?= htmlspecialchars($server['type']) ?><br>
         Stato: <?= htmlspecialchars($server['status']) ?></p>
-<span class="badge bg-warning text-dark"><?= ucfirst($server['status']) ?></span>
 
       <?php if ($server['status'] === 'installing'): ?>
-    <div class="progress" style="height: 25px;">
-        <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 100%;">
-            In fase di installazione...
+        <div class="progress mt-2 mb-2">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
+               style="width: 100%">Setup in corso...
+          </div>
         </div>
-    </div>
-<?php else: ?>
-    <!-- Bottoni Avvia/Ferma -->
-    <?php if ($server['status'] === 'running'): ?>
-        <form action="server_action.php" method="POST" style="display:inline;">
-            <input type="hidden" name="action" value="stop">
-            <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-            <button class="btn btn-danger btn-sm">Ferma</button>
-        </form>
-    <?php else: ?>
-        <form action="server_action.php" method="POST" style="display:inline;">
-            <input type="hidden" name="action" value="start">
-            <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-            <button class="btn btn-success btn-sm">Avvia</button>
-        </form>
-    <?php endif; ?>
-<?php endif; ?>
+      <?php endif; ?>
 
+      <div class="d-flex justify-content-between">
+        <form method="post" action="server_action.php">
+          <input type="hidden" name="action" value="start">
+          <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+          <button type="submit" class="btn btn-success btn-sm">Avvia</button>
+        </form>
+
+        <form method="post" action="server_action.php">
+          <input type="hidden" name="action" value="stop">
+          <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+          <button type="submit" class="btn btn-danger btn-sm">Ferma</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
 
                 <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
@@ -199,41 +199,38 @@ $servers = $stmt->fetchAll();
   </div>
 </div>
 <script>
-let wasInstalling = true;
+  function checkInstallationStatus() {
+    fetch('check_lock.php')
+      .then(response => response.json())
+      .then(data => {
+        const installing = data.installing;
+        document.querySelectorAll('.server-card').forEach(card => {
+          const progressBar = card.querySelector('.progress');
+          const actions = card.querySelector('.d-flex');
 
-function checkInstallationStatus() {
-  fetch('check_lock.php')
-    .then(response => response.json())
-    .then(data => {
-      const installing = data.installing;
+          if (installing) {
+            if (progressBar) {
+              progressBar.style.display = 'block';
+            }
+            if (actions) {
+              actions.style.display = 'none';
+            }
+          } else {
+            if (progressBar) {
+              progressBar.style.display = 'none';
+            }
+            if (actions) {
+              actions.style.display = 'flex';
+            }
+          }
+        });
+      })
+      .catch(err => console.error('Errore nel check installazione:', err));
+  }
 
-      if (!installing && wasInstalling) {
-        location.reload(); // Ricarica pagina una volta completata l'installazione
-      }
-
-      wasInstalling = installing;
-
-      document.querySelectorAll('.server-card').forEach(card => {
-        const isInstalling = card.innerHTML.includes("Setup in corso");
-        const progressBar = card.querySelector('.progress');
-        const actions = card.querySelector('.d-flex');
-
-        if (isInstalling && installing) {
-          if (progressBar) progressBar.style.display = 'block';
-          if (actions) actions.style.display = 'none';
-        } else {
-          if (progressBar) progressBar.style.display = 'none';
-          if (actions) actions.style.display = 'flex';
-        }
-      });
-    })
-    .catch(err => console.error('Errore nel check installazione:', err));
-}
-
-// setInterval(checkInstallationStatus, 5000); // Ogni 5 secondi
-// checkInstallationStatus(); // Avvio immediato
+  setInterval(checkInstallationStatus, 3000); // ogni 3 secondi
+  window.addEventListener('load', checkInstallationStatus);
 </script>
-
 
 </body>
 </html>
