@@ -1,10 +1,7 @@
 <?php
-require __DIR__.'/../config/config.php';  // connessione DB
+require '../config/config.php';  // connessione DB
 
 
-// URL API Modrinth per i modpack Fabric
-// Ad esempio: https://api.modrinth.com/v2/projects?query=fabric&type=modpack
-// oppure lista modpack: https://api.modrinth.com/v2/projects?categories=modpacks&facets=["categories:fabric"]
 
 function fetchModpacksFromModrinth() {
     $url = "https://api.modrinth.com/v2/projects?categories=modpacks&facets=[\"categories:fabric\"]&limit=50";
