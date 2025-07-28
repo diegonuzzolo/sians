@@ -1,5 +1,7 @@
 <?php
 session_start();
+ob_start();  // ATTENZIONE: avvia il buffer di output
+
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -93,7 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         '',
                         $vmId
                     ];
-
                 } elseif ($postType === 'modpack') {
                     $args = [
                         'modpack',
@@ -102,7 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $installMethod,
                         $vmId
                     ];
-
                 } elseif ($postType === 'bukkit') {
                     $args = [
                         'bukkit',
@@ -114,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $escapedArgs = implode(' ', array_map('escapeshellarg', $args));
+                // Esegui il comando in background, redirigi output su log remoto
                 $command = "$sshCmd \"bash $remoteScript $escapedArgs > $remoteLog 2>&1\" &";
                 exec($command);
 
@@ -135,6 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Alla fine del file
+ob_end_flush();
 ?>
 
 

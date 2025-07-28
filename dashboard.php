@@ -123,7 +123,6 @@ $servers = $stmt->fetchAll();
 <div class="container my-5">
 
   <?php if (empty($servers)): ?>
-    <p class="text-muted">Non hai ancora creato nessun server Minecraft.</p>
   <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
