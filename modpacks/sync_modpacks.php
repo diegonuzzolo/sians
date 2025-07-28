@@ -1,77 +1,54 @@
 <?php
-require __DIR__.'/../config/config.php';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
-// Slug dei modpack che vuoi importare
-$modpacksToSync = [
-    'better-mc-fabric',      // esempio: Better MC [FABRIC]
-    'another-fabric-pack'    // aggiungi gli slug che ti interessano
-];
+require __DIR__ . '/../config/config.php';
 
-foreach ($modpacksToSync as $slug) {
-    echo "📦 Recupero modpack: $slug\n";
+// Percorso file JSON modpacks locale
+$jsonFile = __DIR__ . '/modpacks.json';
 
-    // Recupera info progetto
-    $projectJson = file_get_contents("https://api.modrinth.com/v2/project/$slug");
-    if (!$projectJson) {
-        echo "❌ Errore nel recupero del progetto $slug\n";
-        continue;
-    }
-
-    $project = json_decode($projectJson, true);
-    $projectId = $project['id'];
-    $name = $project['title'];
-    $description = $project['description'] ?? '';
-    $iconUrl = $project['icon_url'] ?? '';
-    $slug = $project['slug'];
-
-    // Recupera l'ultima versione compatibile con Fabric
-    $versionJson = file_get_contents("https://api.modrinth.com/v2/project/$slug/version");
-    $versions = json_decode($versionJson, true);
-
-    $selectedVersion = null;
-    foreach ($versions as $v) {
-        if (in_array("fabric", $v['loaders'])) {
-            $selectedVersion = $v;
-            break;
-        }
-    }
-
-    if (!$selectedVersion) {
-        echo "❌ Nessuna versione Fabric trovata per $slug\n";
-        continue;
-    }
-
-    $versionId = $selectedVersion['id'];
-    $versionName = $selectedVersion['name'];
-    $files = $selectedVersion['files'];
-    $downloadUrl = $files[0]['url'] ?? null;
-
-    if (!$downloadUrl) {
-        echo "❌ Nessun file da scaricare per $slug\n";
-        continue;
-    }
-
-    // Inserisci nel DB
-    $stmt = $pdo->prepare("INSERT INTO modpacks (modrinth_id, slug, name, version_id, version_name, download_url, description, icon_url)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                           ON DUPLICATE KEY UPDATE
-                             name = VALUES(name),
-                             version_id = VALUES(version_id),
-                             version_name = VALUES(version_name),
-                             download_url = VALUES(download_url),
-                             description = VALUES(description),
-                             icon_url = VALUES(icon_url)");
-                             
-    $stmt->execute([
-        $projectId,
-        $slug,
-        $name,
-        $versionId,
-        $versionName,
-        $downloadUrl,
-        $description,
-        $iconUrl
-    ]);
-
-    echo "✅ Modpack $name ($versionName) sincronizzato\n";
+if (!file_exists($jsonFile)) {
+    die("❌ File modpacks.json non trovato in $jsonFile\n");
 }
+
+$jsonContent = file_get_contents($jsonFile);
+$modpacksArray = json_decode($jsonContent, true);
+
+if (!is_array($modpacksArray)) {
+    die("❌ Errore: modpacks.json non contiene un array valido\n");
+}
+
+echo "📦 Sincronizzazione modpacks da modpacks.json...\n";
+
+foreach ($modpacksArray as $modpack) {
+    // Validazione campi
+    $slug = $modpack['slug'] ?? '';
+    $name = $modpack['name'] ?? '';
+    $minecraftVersion = isset($modpack['minecraftVersion']) && !empty($modpack['minecraftVersion']) 
+                        ? $modpack['minecraftVersion'] 
+                        : '';
+
+    if (empty($slug) || empty($name)) {
+        echo "⚠️  Skipping modpack con dati mancanti (slug o name).\n";
+        continue;
+    }
+
+    // Verifica se modpack esiste già nel DB tramite slug
+    $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE slug = ?");
+    $stmt->execute([$slug]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existing) {
+        // Aggiorna record esistente
+        $stmt = $pdo->prepare("UPDATE modpacks SET name = ?, minecraftVersion = ?, updated_at = NOW() WHERE slug = ?");
+        $stmt->execute([$name, $minecraftVersion, $slug]);
+        echo "🔄 Aggiornato modpack: $name ($slug)\n";
+    } else {
+        // Inserisci nuovo record
+        $stmt = $pdo->prepare("INSERT INTO modpacks (slug, name, minecraftVersion, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())");
+        $stmt->execute([$slug, $name, $minecraftVersion]);
+        echo "➕ Inserito modpack: $name ($slug)\n";
+    }
+}
+
+echo "✅ Sincronizzazione completata.\n";
