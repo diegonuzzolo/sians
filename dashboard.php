@@ -133,7 +133,9 @@ $servers = $stmt->fetchAll();
 ?>
 
         <div class="col-md-12 col-lg-6">
-          <div class="server-card">
+  <div class="server-card" data-server-id="<?= htmlspecialchars($server['id']) ?>" data-installing="<?= $isInstalling ? 'true' : 'false' ?>">
+
+
             <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
             <p class="mb-1"><strong>ID VM:</strong> <?= htmlspecialchars($server['proxmox_vmid']) ?></p>
             <p class="mb-1"><strong>IP:</strong> 
