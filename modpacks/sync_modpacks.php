@@ -1,94 +1,77 @@
 <?php
-// sync_modpacks.php
-// Sincronizza modpack Fabric da Modrinth e aggiorna DB
+require 'config/config.php';
 
-require __DIR__.'/../config/config.php';  // connessione DB
+// Slug dei modpack che vuoi importare
+$modpacksToSync = [
+    'better-mc-fabric',      // esempio: Better MC [FABRIC]
+    'another-fabric-pack'    // aggiungi gli slug che ti interessano
+];
 
-// Config
-$modrinthApiUrl = 'https://api.modrinth.com/v2/search';
-$perPage = 50;  // quanti modpack prendere per pagina
-$page = 1;
+foreach ($modpacksToSync as $slug) {
+    echo "📦 Recupero modpack: $slug\n";
 
-// Connessione DB
-
-// Funzione per chiamata API Modrinth
-
-function fetchModpacksFromModrinth($page, $perPage) {
-    $url = "https://api.modrinth.com/v2/search";
-
-    // Parametri di ricerca:
-    // facciamo filtro per modpack Fabric (esempio tag: 'fabric-modpack' oppure 'modpack')
-    $postData = [
-        "facets" => [["project_type:modpack"], ["categories:fabric"]],
-        "limit" => $perPage,
-        "offset" => ($page - 1) * $perPage,
-        "sort" => "downloads"
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-    $response = curl_exec($ch);
-    if (curl_errno($ch)) {
-        echo "Errore curl: " . curl_error($ch);
-        return null;
+    // Recupera info progetto
+    $projectJson = file_get_contents("https://api.modrinth.com/v2/project/$slug");
+    if (!$projectJson) {
+        echo "❌ Errore nel recupero del progetto $slug\n";
+        continue;
     }
-    curl_close($ch);
 
-    return json_decode($response, true);
-}
+    $project = json_decode($projectJson, true);
+    $projectId = $project['id'];
+    $name = $project['title'];
+    $description = $project['description'] ?? '';
+    $iconUrl = $project['icon_url'] ?? '';
+    $slug = $project['slug'];
 
-// Funzione per inserire o aggiornare modpack in DB
-function upsertModpack($pdo, $modpack) {
-    // Campi di esempio da Modrinth:
-    // id, slug, title, description, categories (array), versions (array di version id)
-    // Qui salviamo solo i dati base e il JSON versione completa come stringa
-    
-    $sql = "INSERT INTO modpacks (id, slug, title, description, categories, versions_json, last_updated)
-            VALUES (:id, :slug, :title, :description, :categories, :versions_json, NOW())
-            ON DUPLICATE KEY UPDATE
-            slug = VALUES(slug),
-            title = VALUES(title),
-            description = VALUES(description),
-            categories = VALUES(categories),
-            versions_json = VALUES(versions_json),
-            last_updated = NOW()";
+    // Recupera l'ultima versione compatibile con Fabric
+    $versionJson = file_get_contents("https://api.modrinth.com/v2/project/$slug/version");
+    $versions = json_decode($versionJson, true);
 
-    $stmt = $pdo->prepare($sql);
+    $selectedVersion = null;
+    foreach ($versions as $v) {
+        if (in_array("fabric", $v['loaders'])) {
+            $selectedVersion = $v;
+            break;
+        }
+    }
+
+    if (!$selectedVersion) {
+        echo "❌ Nessuna versione Fabric trovata per $slug\n";
+        continue;
+    }
+
+    $versionId = $selectedVersion['id'];
+    $versionName = $selectedVersion['name'];
+    $files = $selectedVersion['files'];
+    $downloadUrl = $files[0]['url'] ?? null;
+
+    if (!$downloadUrl) {
+        echo "❌ Nessun file da scaricare per $slug\n";
+        continue;
+    }
+
+    // Inserisci nel DB
+    $stmt = $pdo->prepare("INSERT INTO modpacks (modrinth_id, slug, name, version_id, version_name, download_url, description, icon_url)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                           ON DUPLICATE KEY UPDATE
+                             name = VALUES(name),
+                             version_id = VALUES(version_id),
+                             version_name = VALUES(version_name),
+                             download_url = VALUES(download_url),
+                             description = VALUES(description),
+                             icon_url = VALUES(icon_url)");
+                             
     $stmt->execute([
-        ':id' => $modpack['id'],
-        ':slug' => $modpack['slug'],
-        ':title' => $modpack['title'],
-        ':description' => $modpack['description'] ?? '',
-        ':categories' => json_encode($modpack['categories'] ?? []),
-        ':versions_json' => json_encode($modpack['versions'] ?? [])
+        $projectId,
+        $slug,
+        $name,
+        $versionId,
+        $versionName,
+        $downloadUrl,
+        $description,
+        $iconUrl
     ]);
+
+    echo "✅ Modpack $name ($versionName) sincronizzato\n";
 }
-
-// Start sync
-echo "Inizio sincronizzazione modpack Fabric da Modrinth...\n";
-
-$page = 1;
-while (true) {
-    $data = fetchModpacksFromModrinth($page, $perPage);
-    if (!$data || empty($data['hits'])) {
-        echo "Fine risultati o errore.\n";
-        break;
-    }
-
-    foreach ($data['hits'] as $modpack) {
-        upsertModpack($pdo, $modpack);
-        echo "Aggiornato modpack: {$modpack['title']} ({$modpack['id']})\n";
-    }
-
-    // Se meno risultati del perPage, significa ultima pagina
-    if (count($data['hits']) < $perPage) {
-        break;
-    }
-
-    $page++;
-}
-
-echo "Sincronizzazione completata.\n";
