@@ -2,7 +2,7 @@
 // sync_modpacks_modrinth.php
 // Script per scaricare modpack Fabric da Modrinth e salvare modpacks.json
 
-$apiUrl = 'https://api.modrinth.com/v2/search?facets=%5B%5B%22project_type:modpack%22%5D,%5B%22categories:fabric%22%5D%5D&limit=50';
+$apiUrl = 'https://api.modrinth.com/v2/search?facets=%5B%5B%22project_type:modpack%22%5D,%5B%22categories:fabric%22%5D%5D&limit=500';
 
 echo "📦 Recupero modpack Fabric da Modrinth...\n";
 
