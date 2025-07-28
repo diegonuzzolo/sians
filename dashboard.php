@@ -143,31 +143,41 @@ $servers = $stmt->fetchAll();
               <?php endif; ?>
             </p>
 
-            <p class="mb-2"><strong>Stato:</strong></p>
-            <?php if ($server['status'] === 'installing'): ?>
-              <div class="progress mt-2 mb-2">
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
-                     style="width: 100%">Setup in corso...
-                </div>
-              </div>
-            <?php else: ?>
-              <div class="d-flex justify-content-between">
-                <form method="post" action="server_action.php">
-                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                  </button>
-                </form>
+<p class="mb-2"><strong>Stato:</strong></p>
 
-                <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                  <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-                </form>
-              </div>
-            <?php endif; ?>
+<?php if ($server['status'] === 'installing'): ?>
+  <div class="progress mt-2 mb-2">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
+         style="width: 100%">Setup in corso...
+    </div>
+  </div>
+
+<?php elseif ($server['status'] === 'downloading_mods'): ?>
+  <div class="progress mt-2 mb-2">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar"
+         style="width: 100%">Scaricamento modpack in corso...
+    </div>
+  </div>
+
+<?php else: ?>
+  <div class="d-flex justify-content-between">
+    <form method="post" action="server_action.php">
+      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+      <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+              class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+        <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+      </button>
+    </form>
+
+    <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+      <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+    </form>
+  </div>
+<?php endif; ?>
+
           </div>
         </div>
       <?php endforeach; ?>
