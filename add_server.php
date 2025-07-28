@@ -99,15 +99,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 // Comando finale con lock
-                $command = "$sshCmd \"touch $remoteLock && $remoteScript $escapedArgs > $remoteLog 2>&1; rm -f $remoteLock\" &";
-                while (exec($command)){
-                  header("Location: dashboard.php");
-                  $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
+                $command = "$sshCmd \"touch $remoteLock && bash $remoteScript $escapedArgs > $remoteLog 2>&1; rm -f $remoteLock\" &";
+                exec($command);
+
+                // Assegna la VM
+                $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
                     ->execute([$userId, $serverId, $vm['id']]);
-                  exit;
-                };
 
-
+                // Reindirizza alla dashboard
+                header("Location: dashboard.php");
+                exit;
             }
         }
     }
