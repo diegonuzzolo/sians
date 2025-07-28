@@ -121,9 +121,7 @@ $servers = $stmt->fetchAll();
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5">
-
-  <?php if (empty($servers)): ?>
-  <?php else: ?>
+  <?php if (!empty($servers)): ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
         <div class="col-md-12 col-lg-6">
@@ -143,41 +141,31 @@ $servers = $stmt->fetchAll();
               <?php endif; ?>
             </p>
 
-<p class="mb-2"><strong>Stato:</strong></p>
-
-<?php if ($server['status'] === 'installing'): ?>
-  <div class="progress mt-2 mb-2">
-    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
-         style="width: 100%">Setup in corso...
-    </div>
-  </div>
-
-<?php elseif ($server['status'] === 'downloading_mods'): ?>
-  <div class="progress mt-2 mb-2">
-    <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar"
-         style="width: 100%">Scaricamento modpack in corso...
-    </div>
-  </div>
-
-<?php else: ?>
-  <div class="d-flex justify-content-between">
-    <form method="post" action="server_action.php">
-      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-      <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-              class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-        <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-      </button>
-    </form>
-
-    <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-      <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-    </form>
-  </div>
-<?php endif; ?>
-
+            <p class="mb-2"><strong>Stato:</strong></p>
+            <?php if (in_array($server['status'], ['installing', 'downloading_mods'])): ?>
+              <div class="progress mt-2 mb-2">
+                <div class="progress-bar progress-bar-striped progress-bar-animated <?= $server['status'] === 'installing' ? 'bg-info' : 'bg-warning' ?>" role="progressbar"
+                     style="width: 100%">
+                  <?= $server['status'] === 'installing' ? 'Setup in corso...' : 'Scaricamento modpack in corso...' ?>
+                </div>
+              </div>
+            <?php else: ?>
+              <div class="d-flex justify-content-between">
+                <form method="post" action="server_action.php">
+                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                  </button>
+                </form>
+                <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                  <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+                </form>
+              </div>
+            <?php endif; ?>
           </div>
         </div>
       <?php endforeach; ?>
@@ -194,6 +182,7 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
   </div>
 </div>
+
 <script>
   function checkInstallationStatus() {
     fetch('check_lock.php')
@@ -205,26 +194,18 @@ $servers = $stmt->fetchAll();
           const actions = card.querySelector('.d-flex');
 
           if (installing) {
-            if (progressBar) {
-              progressBar.style.display = 'block';
-            }
-            if (actions) {
-              actions.style.display = 'none';
-            }
+            if (progressBar) progressBar.style.display = 'block';
+            if (actions) actions.style.display = 'none';
           } else {
-            if (progressBar) {
-              progressBar.style.display = 'none';
-            }
-            if (actions) {
-              actions.style.display = 'flex';
-            }
+            if (progressBar) progressBar.style.display = 'none';
+            if (actions) actions.style.display = 'flex';
           }
         });
       })
       .catch(err => console.error('Errore nel check installazione:', err));
   }
 
-  setInterval(checkInstallationStatus, 3000); // ogni 3 secondi
+  setInterval(checkInstallationStatus, 3000);
   window.addEventListener('load', checkInstallationStatus);
 </script>
 
