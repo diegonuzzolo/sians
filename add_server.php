@@ -115,8 +115,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $escapedArgs = implode(' ', array_map('escapeshellarg', $args));
                 // Esegui il comando in background, redirigi output su log remoto
-                $command = "$sshCmd \"$remoteScript $escapedArgs /dev/null 2>&1 & > $remoteLog 2>&1\" &";
-                exec($command);
+                $remoteCmd = "$remoteScript $escapedArgs > $remoteLog 2>&1 &";
+
+$command = sprintf(
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
+    escapeshellarg($sshKey),
+    escapeshellarg($sshUser),
+    escapeshellarg($vmIp),
+    escapeshellarg($remoteCmd)
+);
+
+exec($command);
+
 
                 // Assegna VM
                 $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
