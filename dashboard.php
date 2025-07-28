@@ -38,84 +38,83 @@ $servers = $stmt->fetchAll();
       font-weight: 600;
     }
     .server-card {
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 16px;
-  padding: 25px 20px;
-  margin-bottom: 25px;
-  box-shadow: inset 0 0 10px rgba(51, 65, 85, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease-in-out;
-  color: #e2e8f0;
-  font-size: 1.05rem;
-}
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 25px 20px;
+      margin-bottom: 25px;
+      box-shadow: inset 0 0 10px rgba(51, 65, 85, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease-in-out;
+      color: #e2e8f0;
+      font-size: 1.05rem;
+    }
 
-.server-card:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 25px rgba(250, 204, 21, 0.2);
-}
+    .server-card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 25px rgba(250, 204, 21, 0.2);
+    }
 
-.server-card h5 {
-  font-size: 1.3rem;
-  font-weight: bold;
-  color: #facc15;
-}
+    .server-card h5 {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #facc15;
+    }
 
-.server-status {
-  font-weight: bold;
-  font-size: 1rem;
-}
+    .server-status {
+      font-weight: bold;
+      font-size: 1rem;
+    }
 
-.badge-running {
-  background-color: #16a34a;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 8px;
-}
+    .badge-running {
+      background-color: #16a34a;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
 
-.badge-stopped {
-  background-color: #475569;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 8px;
-}
+    .badge-stopped {
+      background-color: #475569;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
 
-.ip-box {
-  background-color: #1e293b;
-  color: #93c5fd;
-  padding: 6px 12px;
-  border-radius: 8px;
-  display: inline-block;
-  font-size: 0.95rem;
-  font-family: monospace;
-}
+    .ip-box {
+      background-color: #1e293b;
+      color: #93c5fd;
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: inline-block;
+      font-size: 0.95rem;
+      font-family: monospace;
+    }
 
-.action-btn {
-  padding: 10px 16px;
-  font-size: 1rem;
-  font-weight: 500;
-  border-radius: 10px;
-  transition: transform 0.2s ease-in-out;
-}
+    .action-btn {
+      padding: 10px 16px;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 10px;
+      transition: transform 0.2s ease-in-out;
+    }
 
-.action-btn:hover {
-  transform: scale(1.05);
-}
+    .action-btn:hover {
+      transform: scale(1.05);
+    }
 
-.card-create {
-  background: linear-gradient(to right, #0ea5e9, #22d3ee);
-  color: #0f172a;
-  font-weight: bold;
-  transition: 0.3s;
-  border-radius: 12px;
-  font-size: 1.2rem;
-  padding: 14px 24px;
-}
+    .card-create {
+      background: linear-gradient(to right, #0ea5e9, #22d3ee);
+      color: #0f172a;
+      font-weight: bold;
+      transition: 0.3s;
+      border-radius: 12px;
+      font-size: 1.2rem;
+      padding: 14px 24px;
+    }
 
-.card-create:hover {
-  background: linear-gradient(to right, #06b6d4, #38bdf8);
-  transform: scale(1.04);
-}
-
+    .card-create:hover {
+      background: linear-gradient(to right, #06b6d4, #38bdf8);
+      transform: scale(1.04);
+    }
   </style>
 </head>
 <body>
@@ -124,21 +123,15 @@ $servers = $stmt->fetchAll();
 <div class="container my-5">
 
   <?php if (empty($servers)): ?>
+    <p class="text-muted">Non hai ancora creato nessun server Minecraft.</p>
   <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
-        <?php
-  $lockFile = "/home/diego/installing_{$server['id']}.lock";
-  $isInstalling = file_exists($lockFile);
-?>
-
         <div class="col-md-12 col-lg-6">
-  <div class="server-card" data-server-id="<?= htmlspecialchars($server['id']) ?>" data-installing="<?= $isInstalling ? 'true' : 'false' ?>">
-
-
+          <div class="server-card">
             <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
             <p class="mb-1"><strong>ID VM:</strong> <?= htmlspecialchars($server['proxmox_vmid']) ?></p>
-            <p class="mb-1"><strong>IP:</strong> 
+            <p class="mb-1"><strong>IP:</strong>
               <?php if (!empty($server['tunnel_url'])):
                 $url = $server['tunnel_url'];
                 $parts = parse_url(str_replace('tcp://', 'tcp://', $url));
@@ -150,52 +143,38 @@ $servers = $stmt->fetchAll();
                 <span class="text-muted">Non disponibile</span>
               <?php endif; ?>
             </p>
-            <p class="mb-2"><strong>Stato:</strong>
-  <?php if ($isInstalling): ?>
-    <span class="badge badge-warning">Installazione in corso...</span>
-    <div class="progress mt-2" role="progressbar" aria-valuemin="0" aria-valuemax="100">
-      <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 100%">Setup</div>
-    </div>
-  <?php else: ?>
-    <span class="badge <?= $server['status'] === 'running' ? 'badge-running' : 'badge-stopped' ?>">
-      <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
-    </span>
-  <?php endif; ?>
-</p>
 
- <div class="d-flex justify-content-between">
-  <!-- Bottone Avvia/Ferma -->
-  <form method="post" action="server_action.php">
-    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-    <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-    <button 
-      name="action" 
-      value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-      class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn"
-      <?= $isInstalling ? 'disabled title="Attendi fine installazione..."' : '' ?>>
-      <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-    </button>
-  </form>
+            <p class="mb-2"><strong>Stato:</strong></p>
+            <?php if ($server['status'] === 'installing'): ?>
+              <div class="progress mt-2 mb-2">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
+                     style="width: 100%">Setup in corso...
+                </div>
+              </div>
+            <?php else: ?>
+              <div class="d-flex justify-content-between">
+                <form method="post" action="server_action.php">
+                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                  </button>
+                </form>
 
-  <!-- Bottone Elimina -->
-  <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-    <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-    <button 
-      type="submit" 
-      class="btn btn-danger action-btn"
-      <?= $isInstalling ? 'disabled title="Attendi fine installazione..."' : '' ?>>
-      Elimina
-    </button>
-  </form>
-</div>
+                <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                  <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+                </form>
+              </div>
+            <?php endif; ?>
           </div>
         </div>
       <?php endforeach; ?>
     </div>
   <?php endif; ?>
 
-  <!-- Card per creare nuovo server -->
   <div class="text-center mt-5">
     <?php if ($slotDisponibili > 0): ?>
       <a href="add_server.php" class="btn btn-lg card-create px-5 py-3">
