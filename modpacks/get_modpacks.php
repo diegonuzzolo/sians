@@ -33,7 +33,7 @@ foreach ($data['hits'] as $project) {
     $modpacks[] = [
         'slug' => $project['slug'],
         'name' => $project['title'],
-        'minecraftVersion' => isset($project['game_version']) ? implode(", ", $project['game_version']) : ''
+        'minecraftVersion' => isset($project['version']) ? implode(", ", $project['version']) : ''
     ];
 }
 
