@@ -1,9 +1,11 @@
 <?php
+require 'config/config.php';
+
 header('Content-Type: application/json');
 
-// Controlla se ci sono file install.lock in /home/diego/*/
-$lockFiles = glob('/home/diego/*/install.lock');
+$stmt = $pdo->query("SELECT id FROM servers WHERE status IN ('installing', 'downloading_mods')");
+$installingServers = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 echo json_encode([
-    'installing' => !empty($lockFiles)
+    'installing_ids' => $installingServers
 ]);

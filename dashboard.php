@@ -121,11 +121,13 @@ $servers = $stmt->fetchAll();
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5">
-  <?php if (!empty($servers)): ?>
+
+  <?php if (empty($servers)): ?>
+  <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
         <div class="col-md-12 col-lg-6">
-          <div class="server-card">
+          <div class="server-card" data-server-id="<?= $server['id'] ?>">
             <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
             <p class="mb-1"><strong>ID VM:</strong> <?= htmlspecialchars($server['proxmox_vmid']) ?></p>
             <p class="mb-1"><strong>IP:</strong>
@@ -141,31 +143,41 @@ $servers = $stmt->fetchAll();
               <?php endif; ?>
             </p>
 
-            <p class="mb-2"><strong>Stato:</strong></p>
-            <?php if (in_array($server['status'], ['installing', 'downloading_mods'])): ?>
-              <div class="progress mt-2 mb-2">
-                <div class="progress-bar progress-bar-striped progress-bar-animated <?= $server['status'] === 'installing' ? 'bg-info' : 'bg-warning' ?>" role="progressbar"
-                     style="width: 100%">
-                  <?= $server['status'] === 'installing' ? 'Setup in corso...' : 'Scaricamento modpack in corso...' ?>
-                </div>
-              </div>
-            <?php else: ?>
-              <div class="d-flex justify-content-between">
-                <form method="post" action="server_action.php">
-                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                  </button>
-                </form>
-                <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                  <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-                </form>
-              </div>
-            <?php endif; ?>
+<p class="mb-2"><strong>Stato:</strong></p>
+
+<?php if ($server['status'] === 'installing'): ?>
+  <div class="progress mt-2 mb-2">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
+         style="width: 100%">Setup in corso...
+    </div>
+  </div>
+
+<?php elseif ($server['status'] === 'downloading_mods'): ?>
+  <div class="progress mt-2 mb-2">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar"
+         style="width: 100%">Scaricamento modpack in corso...
+    </div>
+  </div>
+
+<?php else: ?>
+  <div class="d-flex justify-content-between">
+    <form method="post" action="server_action.php">
+      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+      <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+              class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+        <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+      </button>
+    </form>
+
+    <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+      <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+    </form>
+  </div>
+<?php endif; ?>
+
           </div>
         </div>
       <?php endforeach; ?>
@@ -182,30 +194,32 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
   </div>
 </div>
-
 <script>
   function checkInstallationStatus() {
-    fetch('check_lock.php')
-      .then(response => response.json())
-      .then(data => {
-        const installing = data.installing;
-        document.querySelectorAll('.server-card').forEach(card => {
-          const progressBar = card.querySelector('.progress');
-          const actions = card.querySelector('.d-flex');
+  fetch('check_lock.php')
+    .then(response => response.json())
+    .then(data => {
+      const installingIds = data.installing_ids || [];
 
-          if (installing) {
-            if (progressBar) progressBar.style.display = 'block';
-            if (actions) actions.style.display = 'none';
-          } else {
-            if (progressBar) progressBar.style.display = 'none';
-            if (actions) actions.style.display = 'flex';
-          }
-        });
-      })
-      .catch(err => console.error('Errore nel check installazione:', err));
-  }
+      document.querySelectorAll('.server-card').forEach(card => {
+        const serverId = card.getAttribute('data-server-id');
+        const progressBar = card.querySelector('.progress');
+        const actions = card.querySelector('.d-flex');
 
-  setInterval(checkInstallationStatus, 3000);
+        if (installingIds.includes(serverId)) {
+          if (progressBar) progressBar.style.display = 'block';
+          if (actions) actions.style.display = 'none';
+        } else {
+          if (progressBar) progressBar.style.display = 'none';
+          if (actions) actions.style.display = 'flex';
+        }
+      });
+    })
+    .catch(err => console.error('Errore nel check installazione:', err));
+}
+
+
+  setInterval(checkInstallationStatus, 3000); // ogni 3 secondi
   window.addEventListener('load', checkInstallationStatus);
 </script>
 
