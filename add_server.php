@@ -99,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 // Comando finale con lock
+                header("Location: dashboard.php");
                 $command = "$sshCmd \"touch $remoteLock && bash $remoteScript $escapedArgs > $remoteLog 2>&1; rm -f $remoteLock\" &";
                 exec($command);
 
@@ -107,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$userId, $serverId, $vm['id']]);
 
                 // Reindirizza alla dashboard
-                header("Location: dashboard.php");
                 exit;
             }
         }
