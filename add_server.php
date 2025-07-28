@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $escapedArgs = implode(' ', array_map('escapeshellarg', $args));
                 // Esegui il comando in background, redirigi output su log remoto
-                $command = "$sshCmd \"bash $remoteScript $escapedArgs /dev/null 2>&1 & > $remoteLog 2>&1\" &";
+                $command = "$sshCmd \"nohup bash $remoteScript $escapedArgs > $remoteLog 2>&1\" &";
                 exec($command);
 
                 // Assegna VM
