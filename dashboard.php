@@ -143,23 +143,38 @@ $servers = $stmt->fetchAll();
               <?php endif; ?>
             </p>
 
-            <p class="mb-2"><strong>Stato:</strong></p>
-            <?php if ($server['status'] === 'installing'): ?>
-              <div class="progress mt-2 mb-2">
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
-                     style="width: 100%">Setup in corso...
-                </div>
-              </div>
-            <?php else: ?>
-              <div class="d-flex justify-content-between">
-                <form method="post" action="server_action.php">
-                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                  </button>
-                </form>
+           <div class="col-md-4 mb-4 server-card">
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
+      <p class="card-text">Tipo: <?= htmlspecialchars($server['type']) ?><br>
+        Stato: <?= htmlspecialchars($server['status']) ?></p>
+<span class="badge bg-warning text-dark"><?= ucfirst($server['status']) ?></span>
+
+      <?php if ($server['status'] === 'installing'): ?>
+    <div class="progress" style="height: 25px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 100%;">
+            In fase di installazione...
+        </div>
+    </div>
+<?php else: ?>
+    <!-- Bottoni Avvia/Ferma -->
+    <?php if ($server['status'] === 'running'): ?>
+        <form action="server_action.php" method="POST" style="display:inline;">
+            <input type="hidden" name="action" value="stop">
+            <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+            <button class="btn btn-danger btn-sm">Ferma</button>
+        </form>
+    <?php else: ?>
+        <form action="server_action.php" method="POST" style="display:inline;">
+            <input type="hidden" name="action" value="start">
+            <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+            <button class="btn btn-success btn-sm">Avvia</button>
+        </form>
+    <?php endif; ?>
+<?php endif; ?>
+
+
 
                 <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
                   <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
@@ -167,7 +182,6 @@ $servers = $stmt->fetchAll();
                   <button type="submit" class="btn btn-danger action-btn">Elimina</button>
                 </form>
               </div>
-            <?php endif; ?>
           </div>
         </div>
       <?php endforeach; ?>
@@ -185,38 +199,41 @@ $servers = $stmt->fetchAll();
   </div>
 </div>
 <script>
-  function checkInstallationStatus() {
-    fetch('check_lock.php')
-      .then(response => response.json())
-      .then(data => {
-        const installing = data.installing;
-        document.querySelectorAll('.server-card').forEach(card => {
-          const progressBar = card.querySelector('.progress');
-          const actions = card.querySelector('.d-flex');
+let wasInstalling = true;
 
-          if (installing) {
-            if (progressBar) {
-              progressBar.style.display = 'block';
-            }
-            if (actions) {
-              actions.style.display = 'none';
-            }
-          } else {
-            if (progressBar) {
-              progressBar.style.display = 'none';
-            }
-            if (actions) {
-              actions.style.display = 'flex';
-            }
-          }
-        });
-      })
-      .catch(err => console.error('Errore nel check installazione:', err));
-  }
+function checkInstallationStatus() {
+  fetch('check_lock.php')
+    .then(response => response.json())
+    .then(data => {
+      const installing = data.installing;
 
-  setInterval(checkInstallationStatus, 3000); // ogni 3 secondi
-  window.addEventListener('load', checkInstallationStatus);
+      if (!installing && wasInstalling) {
+        location.reload(); // Ricarica pagina una volta completata l'installazione
+      }
+
+      wasInstalling = installing;
+
+      document.querySelectorAll('.server-card').forEach(card => {
+        const isInstalling = card.innerHTML.includes("Setup in corso");
+        const progressBar = card.querySelector('.progress');
+        const actions = card.querySelector('.d-flex');
+
+        if (isInstalling && installing) {
+          if (progressBar) progressBar.style.display = 'block';
+          if (actions) actions.style.display = 'none';
+        } else {
+          if (progressBar) progressBar.style.display = 'none';
+          if (actions) actions.style.display = 'flex';
+        }
+      });
+    })
+    .catch(err => console.error('Errore nel check installazione:', err));
+}
+
+setInterval(checkInstallationStatus, 5000); // Ogni 5 secondi
+checkInstallationStatus(); // Avvio immediato
 </script>
+
 
 </body>
 </html>

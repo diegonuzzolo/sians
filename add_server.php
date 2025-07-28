@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $vmId,
                     null,
                     null,
-                    'stopped'
+                    'installing'
                 ]);
 
                 $serverId = $pdo->lastInsertId();
