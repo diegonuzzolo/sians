@@ -127,6 +127,11 @@ $servers = $stmt->fetchAll();
   <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
+        <?php
+  $lockFile = "/home/diego/installing_{$server['id']}.lock";
+  $isInstalling = file_exists($lockFile);
+?>
+
         <div class="col-md-12 col-lg-6">
           <div class="server-card">
             <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
@@ -143,36 +148,45 @@ $servers = $stmt->fetchAll();
                 <span class="text-muted">Non disponibile</span>
               <?php endif; ?>
             </p>
-            <p class="mb-2"><strong>Stato:</strong> 
-              <span class="badge <?= $server['status'] === 'running' ? 'badge-running' : 'badge-stopped' ?>">
-                <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
-              </span>
-            </p>
+            <p class="mb-2"><strong>Stato:</strong>
+  <?php if ($isInstalling): ?>
+    <span class="badge badge-warning">Installazione in corso...</span>
+    <div class="progress mt-2" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 100%">Setup</div>
+    </div>
+  <?php else: ?>
+    <span class="badge <?= $server['status'] === 'running' ? 'badge-running' : 'badge-stopped' ?>">
+      <?= $server['status'] === 'running' ? 'Attivo' : 'Spento' ?>
+    </span>
+  <?php endif; ?>
+</p>
 
-            <div class="d-flex justify-content-between">
-              <form method="post" action="server_action.php">
-  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-  </button>
-</form>
+ <div class="d-flex justify-content-between">
+  <!-- Bottone Avvia/Ferma -->
+  <form method="post" action="server_action.php">
+    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+    <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+    <button 
+      name="action" 
+      value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+      class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn"
+      <?= $isInstalling ? 'disabled title="Attendi fine installazione..."' : '' ?>>
+      <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+    </button>
+  </form>
 
-<div class="progress my-2" style="height: 20px;">
-  <div id="progress-bar-<?= htmlspecialchars($server['id']) ?>" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
-       style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+  <!-- Bottone Elimina -->
+  <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+    <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+    <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+    <button 
+      type="submit" 
+      class="btn btn-danger action-btn"
+      <?= $isInstalling ? 'disabled title="Attendi fine installazione..."' : '' ?>>
+      Elimina
+    </button>
+  </form>
 </div>
-<div id="progress-msg-<?= htmlspecialchars($server['id']) ?>" style="color: #facc15; font-weight: 600; font-size: 0.9rem;"></div>
-
-
-
-              <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-              </form>
-            </div>
           </div>
         </div>
       <?php endforeach; ?>
