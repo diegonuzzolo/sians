@@ -195,33 +195,35 @@ $servers = $stmt->fetchAll();
   </div>
 </div>
 <script>
+
   function checkInstallationStatus() {
-  fetch('check_lock.php')
-    .then(response => response.json())
-    .then(data => {
-      const installingIds = data.installing_ids || [];
+    fetch('check_lock.php')
+      .then(response => response.json())
+      .then(data => {
+        const statuses = data.statuses;
 
-      document.querySelectorAll('.server-card').forEach(card => {
-        const serverId = card.getAttribute('data-server-id');
-        const progressBar = card.querySelector('.progress');
-        const actions = card.querySelector('.d-flex');
+        document.querySelectorAll('.server-card').forEach(card => {
+          const serverId = card.getAttribute('data-server-id');
+          const status = statuses[serverId];
+          const progressBar = card.querySelector('.progress');
+          const actions = card.querySelector('.d-flex');
 
-        if (installingIds.includes(serverId)) {
-          if (progressBar) progressBar.style.display = 'block';
-          if (actions) actions.style.display = 'none';
-        } else {
-          if (progressBar) progressBar.style.display = 'none';
-          if (actions) actions.style.display = 'flex';
-        }
-      });
-    })
-    .catch(err => console.error('Errore nel check installazione:', err));
-}
+          if (status === 'installing' || status === 'downloading_mods') {
+            if (progressBar) progressBar.style.display = 'block';
+            if (actions) actions.style.display = 'none';
+          } else {
+            if (progressBar) progressBar.style.display = 'none';
+            if (actions) actions.style.display = 'flex';
+          }
+        });
+      })
+      .catch(err => console.error('Errore nel check:', err));
+  }
 
-
-  setInterval(checkInstallationStatus, 3000); // ogni 3 secondi
+  setInterval(checkInstallationStatus, 3000);
   window.addEventListener('load', checkInstallationStatus);
 </script>
+
 
 </body>
 </html>
