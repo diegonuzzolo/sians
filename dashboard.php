@@ -230,8 +230,8 @@ function checkInstallationStatus() {
     .catch(err => console.error('Errore nel check installazione:', err));
 }
 
-setInterval(checkInstallationStatus, 5000); // Ogni 5 secondi
-checkInstallationStatus(); // Avvio immediato
+// setInterval(checkInstallationStatus, 5000); // Ogni 5 secondi
+// checkInstallationStatus(); // Avvio immediato
 </script>
 
 

@@ -1,13 +1,15 @@
 <?php
-// File: /var/www/html/update_status_api.php
 require 'config/config.php';
 
 $serverId = $_GET['id'] ?? null;
 $newStatus = $_GET['status'] ?? null;
+$token = $_GET['token'] ?? '';
 
-if (!$serverId || !$newStatus) {
-    http_response_code(400);
-    exit("❌ Parametri mancanti");
+$expectedToken = 'ILgaTToiDellaLorenza87rhIUNonSaVolare'; // 🔐 Inserisci qui un token forte
+
+if (!$serverId || !$newStatus || $token !== $expectedToken) {
+    http_response_code(403);
+    exit("❌ Accesso negato o parametri mancanti.");
 }
 
 $stmt = $pdo->prepare("UPDATE servers SET status = ?, updated_at = NOW() WHERE id = ?");
