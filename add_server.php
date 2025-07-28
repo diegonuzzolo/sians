@@ -1,5 +1,7 @@
 <?php
 session_start();
+ob_start();  // ATTENZIONE: avvia il buffer di output
+
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -67,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $vmId,
                     null,
                     null,
-                    'installing'
+                    'stopped'
                 ]);
 
                 $serverId = $pdo->lastInsertId();
@@ -76,20 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sshUser = 'diego';
                 $remoteScript = '/home/diego/setup_server.sh';
                 $remoteLog = "/home/diego/install_$vmId.log";
-                $remoteLock = "/home/diego/install.lock";
-
-                // Comando SSH per installazione in background
-                $args = [];
-
-                if ($postType === 'vanilla') {
-                    $args = ['vanilla', $postVersion, '', '', $vmId];
-                } elseif ($postType === 'modpack') {
-                    $args = ['modpack', $versionOrSlug, $downloadUrl, $installMethod, $vmId];
-                } elseif ($postType === 'bukkit') {
-                    $args = ['bukkit', $postVersion, '', '', $vmId];
-                }
-
-                $escapedArgs = implode(' ', array_map('escapeshellarg', $args));
 
                 $sshCmd = sprintf(
                     'ssh -i %s -o StrictHostKeyChecking=no %s@%s',
@@ -98,23 +86,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     escapeshellarg($vmIp)
                 );
 
-                // Comando finale con lock
-                header("Location: dashboard.php");
-                $command = "$sshCmd \"touch $remoteLock && bash $remoteScript $escapedArgs > $remoteLog 2>&1; rm -f $remoteLock\" &";
+                $args = [];
+                if ($postType === 'vanilla') {
+                    $args = [
+                        'vanilla',
+                        $postVersion,
+                        '',
+                        '',
+                        $vmId
+                    ];
+                } elseif ($postType === 'modpack') {
+                    $args = [
+                        'modpack',
+                        $versionOrSlug,
+                        $downloadUrl,
+                        $installMethod,
+                        $vmId
+                    ];
+                } elseif ($postType === 'bukkit') {
+                    $args = [
+                        'bukkit',
+                        $postVersion,
+                        '',
+                        '',
+                        $vmId
+                    ];
+                }
+
+                $escapedArgs = implode(' ', array_map('escapeshellarg', $args));
+                // Esegui il comando in background, redirigi output su log remoto
+                $command = "$sshCmd \"bash $remoteScript $escapedArgs > $remoteLog 2>&1\" &";
                 exec($command);
 
-                // Assegna la VM
+                // Assegna VM
                 $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?")
                     ->execute([$userId, $serverId, $vm['id']]);
 
-                // Reindirizza alla dashboard
+                // Redirect con parametri
+                $queryString = "server_id=$serverId";
+                if ($postType === 'modpack') {
+                    $queryString .= "&modpack_id=" . urlencode($postModpackId);
+                } else {
+                    $queryString .= "&version=" . urlencode($postVersion);
+                }
+
+                header("Location: create_tunnel_and_dns.php?$queryString");
                 exit;
             }
         }
     }
 }
-?>
 
+// Alla fine del file
+ob_end_flush();
+?>
 
 
 <!DOCTYPE html>
