@@ -2,7 +2,7 @@
 // sync_modpacks.php
 // Sincronizza modpack Fabric da Modrinth e aggiorna DB
 
-require '../config/config.php';  // connessione DB
+require __DIR__.'/../config/config.php';  // connessione DB
 
 // Config
 $modrinthApiUrl = 'https://api.modrinth.com/v2/search';
