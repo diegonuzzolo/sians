@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $modpackName = $modpack['name'] ?? '';
                     $downloadUrl = $modpack['downloadUrl'] ?? '';
                     $installMethod = $modpack['installMethod'] ?? '';
-                    $versionOrSlug = $modpack['version'] ?? '';
+                    $versionOrSlug = $modpack['forgeVersion'] ?? '';
                 }
             } elseif (!in_array($postType, ['vanilla', 'bukkit'])) {
                 $error = "❌ Tipo server non supportato.";
