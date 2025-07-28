@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 // Comando finale con lock
-                $command = "$sshCmd \"touch $remoteLock && bash $remoteScript $escapedArgs > $remoteLog 2>&1; rm -f $remoteLock\" &";
+                $command = "$sshCmd \"touch $remoteLock && $remoteScript $escapedArgs > $remoteLog 2>&1; rm -f $remoteLock\" &";
                 exec($command);
 
                 // Assegna la VM
