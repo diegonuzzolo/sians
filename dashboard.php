@@ -159,6 +159,13 @@ $servers = $stmt->fetchAll();
   </button>
 </form>
 
+<div class="progress my-2" style="height: 20px;">
+  <div id="progress-bar-<?= htmlspecialchars($server['id']) ?>" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+       style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+</div>
+<div id="progress-msg-<?= htmlspecialchars($server['id']) ?>" style="color: #facc15; font-weight: 600; font-size: 0.9rem;"></div>
+
+
 
               <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
                 <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
