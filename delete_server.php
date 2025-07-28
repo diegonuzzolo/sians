@@ -63,9 +63,9 @@ function getVmIpFromVmId(int $vmId): ?string {
 $sshUser = 'diego';
 $vmIp = getVmIpFromVmId($vmId); // funzione da implementare o recuperare IP VM
 $serverDir = "/home/diego/{$proxmoxVmid}"; // esempio percorso cartella server
-$cmd_final = "sudo bash /home/diego/clean.sh";
+$cmd_final = "bash /home/diego/clean.sh";
 
-exec($cmd_final . " 2>&1", $output, $return_var);
+exec($cmd_final, $output, $return_var);
 
 
 // Comando per eliminare la cartella server sulla VM (con -rf per forzare cancellazione)
