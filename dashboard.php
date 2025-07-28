@@ -185,6 +185,39 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
   </div>
 </div>
+<script>
+  function checkInstallationStatus() {
+    fetch('check_lock.php')
+      .then(response => response.json())
+      .then(data => {
+        const installing = data.installing;
+        document.querySelectorAll('.server-card').forEach(card => {
+          const progressBar = card.querySelector('.progress');
+          const actions = card.querySelector('.d-flex');
+
+          if (installing) {
+            if (progressBar) {
+              progressBar.style.display = 'block';
+            }
+            if (actions) {
+              actions.style.display = 'none';
+            }
+          } else {
+            if (progressBar) {
+              progressBar.style.display = 'none';
+            }
+            if (actions) {
+              actions.style.display = 'flex';
+            }
+          }
+        });
+      })
+      .catch(err => console.error('Errore nel check installazione:', err));
+  }
+
+  setInterval(checkInstallationStatus, 3000); // ogni 3 secondi
+  window.addEventListener('load', checkInstallationStatus);
+</script>
 
 </body>
 </html>
