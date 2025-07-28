@@ -143,38 +143,23 @@ $servers = $stmt->fetchAll();
               <?php endif; ?>
             </p>
 
-           <div class="col-md-4 mb-4 server-card">
-  <div class="card">
-    <div class="card-body">
-      <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
-      <p class="card-text">Tipo: <?= htmlspecialchars($server['type']) ?><br>
-        Stato: <?= htmlspecialchars($server['status']) ?></p>
-
-      <?php if ($server['status'] === 'installing'): ?>
-        <div class="progress mt-2 mb-2">
-          <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
-               style="width: 100%">Setup in corso...
-          </div>
-        </div>
-      <?php endif; ?>
-
-      <div class="d-flex justify-content-between">
-        <form method="post" action="server_action.php">
-          <input type="hidden" name="action" value="start">
-          <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-          <button type="submit" class="btn btn-success btn-sm">Avvia</button>
-        </form>
-
-        <form method="post" action="server_action.php">
-          <input type="hidden" name="action" value="stop">
-          <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-          <button type="submit" class="btn btn-danger btn-sm">Ferma</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
+            <p class="mb-2"><strong>Stato:</strong></p>
+            <?php if ($server['status'] === 'installing'): ?>
+              <div class="progress mt-2 mb-2">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
+                     style="width: 100%">Setup in corso...
+                </div>
+              </div>
+            <?php else: ?>
+              <div class="d-flex justify-content-between">
+                <form method="post" action="server_action.php">
+                  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                  <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                          class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                  </button>
+                </form>
 
                 <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
                   <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
@@ -182,6 +167,7 @@ $servers = $stmt->fetchAll();
                   <button type="submit" class="btn btn-danger action-btn">Elimina</button>
                 </form>
               </div>
+            <?php endif; ?>
           </div>
         </div>
       <?php endforeach; ?>
