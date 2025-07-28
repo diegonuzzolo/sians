@@ -5,7 +5,7 @@ if (!isset($_GET['server_id'])) {
 }
 
 $serverId = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['server_id']);
-$lockFile = "/home/diego/installing_{$serverId}.lock";
+$lockFile = "/home/diego/install.lock";
 
 echo json_encode([
     'installing' => file_exists($lockFile)
