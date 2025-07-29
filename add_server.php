@@ -122,10 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <div class="side-panel">
-      <a href="dashboard.php" class="btn btn-outline-secondary w-100 mb-2">← Torna alla Dashboard</a>
-      <a href="logout.php" class="btn btn-outline-danger w-100">Esci dall’Account</a>
-    </div>
-  </div>
+  <a href="dashboard.php" class="btn btn-secondary shadow d-flex align-items-center justify-content-center gap-2 mb-3" style="width: 100%;">
+    <i class="bi bi-house-door"></i> Torna alla Dashboard
+  </a>
+  <a href="logout.php" class="btn btn-danger shadow d-flex align-items-center justify-content-center gap-2" style="width: 100%;">
+    <i class="bi bi-box-arrow-right"></i> Esci dall’Account
+  </a>
+</div>
 
   <script>
     function toggleFields() {
