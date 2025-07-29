@@ -52,43 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8" />
-  <title>Crea un nuovo server Minecraft</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="assets/css/add_server.css" rel="stylesheet" />
-</head>
-<body>
-  <div class="main-container">
-    <div class="card-create-server">
-      <h1>Crea un nuovo server</h1>
+<?php
+session_start();
+require 'config/config.php';
+require 'includes/auth.php';
 
-      <?php if (!empty($error)): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-      <?php endif; ?>
+$stmt = $pdo->query("SELECT id, name FROM modpacks ORDER BY name ASC");
+$modpacks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-      <form method="POST" action="">
-        <div class="mb-3">
-          <label for="server_name" class="form-label">Nome Server</label>
-          <input type="text" class="form-control" name="server_name" id="server_name" required />
-        </div>
-
-        <div class="mb-3">
-          <label for="type" class="form-label">Tipo Server</label>
-          <select name="type" id="type" class="form-select" required onchange="toggleFields()">
-            <option value="vanilla" <?= $postType === 'vanilla' ? 'selected' : '' ?>>Vanilla</option>
-            <option value="modpack" <?= $postType === 'modpack' ? 'selected' : '' ?>>Modpack (Fabric - Modrinth)</option>
-            <option value="bukkit" <?= $postType === 'bukkit' ? 'selected' : '' ?>>Bukkit</option>
-          </select>
-        </div>
-
-        <div class="mb-3" id="version-group">
-          <label for="version" class="form-label">Versione Minecraft</label>
-          <select class="form-select" id="version" name="version" required>
-            <?php
-            $versions = [
+$versions = [
               "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
               "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
               "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
@@ -104,79 +76,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
               "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
               "1.7.10", "1.7.9", "1.7.8", "1.7.6", "1.7.5", "1.7.4"
-            ];
-            foreach ($versions as $v) {
-              $selected = ($postVersion === $v) ? 'selected' : '';
-              echo "<option value=\"$v\" $selected>$v</option>";
-            }
-            ?>
+];
+?>
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Crea Server Minecraft</title>
+  <link href="assets/css/add_server.css" rel="stylesheet">
+</head>
+<body>
+  <div class="main-container">
+
+    <div class="card-create-server">
+      <h1>Crea un nuovo Server Minecraft</h1>
+
+      <form action="install_server.php" method="POST">
+        <div class="mb-3">
+          <label for="server_name">Nome Server</label>
+          <input type="text" name="server_name" id="server_name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="type">Tipo di Server</label>
+          <select name="type" id="type" class="form-select" required onchange="toggleFields()">
+            <option value="vanilla">Vanilla</option>
+            <option value="bukkit">Bukkit</option>
+            <option value="modpack">Modpack</option>
           </select>
         </div>
 
-        <div class="mb-3" id="modpack-group" style="display: none;">
-          <label for="modpack_id" class="form-label">Modpack</label>
-          <select name="modpack_id" id="modpack_id" class="form-select">
-            <option value="">-- Seleziona un Modpack --</option>
-            <?php foreach ($modpacks as $modpack): ?>
-              <option value="<?= htmlspecialchars($modpack['id']) ?>" <?= ($postModpackId == $modpack['id']) ? 'selected' : '' ?>>
-                <?= htmlspecialchars($modpack['name']) ?> (<?= htmlspecialchars($modpack['minecraftVersion']) ?>)
-              </option>
+        <div class="mb-3" id="version-group">
+          <label for="version">Versione Minecraft</label>
+          <select name="version" id="version" class="form-select" multiple size="5">
+            <?php foreach ($versions as $version): ?>
+              <option value="<?= htmlspecialchars($version) ?>"><?= htmlspecialchars($version) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
 
-        <div class="d-grid">
-           <button type="submit" class="btn btn-primary">Crea Server</button>
+        <div class="mb-3" id="modpack-group" style="display: none;">
+          <label for="modpack_id">Scegli un Modpack</label>
+          <select name="modpack_id" id="modpack_id" class="form-select">
+            <?php foreach ($modpacks as $modpack): ?>
+              <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
         </div>
+
+        <button type="submit" class="btn btn-primary w-100">Crea Server</button>
       </form>
     </div>
 
     <div class="side-panel">
-      <a href="dashboard.php" class="btn btn-secondary shadow d-flex align-items-center justify-content-center gap-3 mb-4"
-         style="
-           width: 100%;
-           font-weight: 800;
-           font-size: 1.15rem;
-           padding: 12px 0;
-           border-radius: 40px;
-           background: linear-gradient(90deg, #4ade80, #22c55e);
-           color: #0f3d00;
-           box-shadow: 0 6px 12px rgba(34,197,94,0.5);
-           transition: all 0.3s ease;
-         "
-         onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 10px 20px rgba(34,197,94,0.7)';"
-         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 12px rgba(34,197,94,0.5)';"
-      >
-        <i class="bi bi-house-door" style="font-size: 1.5rem;"></i> Torna alla Dashboard
-      </a>
-
-      <a href="logout.php" class="btn btn-danger shadow d-flex align-items-center justify-content-center gap-3"
-         style="
-           width: 100%;
-           font-weight: 800;
-           font-size: 1.15rem;
-           padding: 12px 0;
-           border-radius: 40px;
-           background: linear-gradient(90deg, #f87171, #ef4444);
-           color: #640000;
-           box-shadow: 0 6px 12px rgba(239,68,68,0.5);
-           transition: all 0.3s ease;
-         "
-         onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.7)';"
-         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 12px rgba(239,68,68,0.5)';"
-      >
-        <i class="bi bi-box-arrow-right" style="font-size: 1.5rem;"></i> Esci
-      </a>
+      <h3>Azioni Rapide</h3>
+      <a href="dashboard.php" class="btn btn-secondary">🏠 Torna alla Dashboard</a>
+      <a href="logout.php" class="btn btn-secondary">🔒 Logout</a>
     </div>
   </div>
 
-<script>
+  <script>
     function toggleFields() {
-        const type = document.getElementById("type").value;
-        document.getElementById("versionField").style.display = (type === "vanilla") ? "block" : "none";
-        document.getElementById("modpackField").style.display = (type === "modpack") ? "block" : "none";
+      const type = document.getElementById('type').value;
+      const versionGroup = document.getElementById('version-group');
+      const modpackGroup = document.getElementById('modpack-group');
+
+      if (type === 'modpack') {
+        versionGroup.style.display = 'none';
+        modpackGroup.style.display = 'block';
+      } else {
+        versionGroup.style.display = 'block';
+        modpackGroup.style.display = 'none';
+      }
     }
-    toggleFields(); // chiamata iniziale al caricamento
-</script>
+    toggleFields(); // iniziale
+  </script>
 </body>
 </html>
