@@ -83,6 +83,50 @@ $versions = [
     <link href="assets/css/add_server.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+
+    .quick-actions-title {
+        font-size: 28px;
+        margin-bottom: 15px;
+        color: #00ffcc;
+        text-align: center;
+    }
+
+    .quick-action-button {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        background: linear-gradient(135deg, #00ffaa, #0077ff);
+        color: white;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        text-decoration: none;
+        font-weight: bold;
+        border-radius: 8px;
+        transition: transform 0.2s, box-shadow 0.3s;
+    }
+
+    .quick-action-button i {
+        margin-right: 10px;
+        font-size: 1.2em;
+    }
+
+    .quick-action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0, 255, 200, 0.4);
+    }
+
+    .quick-action-button.logout {
+        background: linear-gradient(135deg, #ff3c3c, #ff7b00);
+    }
+
+    .quick-action-button.logout:hover {
+        box-shadow: 0 6px 14px rgba(255, 60, 60, 0.4);
+    }
+</style>
+
+
 </head>
 <body>
 <div class="main-container">
@@ -127,7 +171,7 @@ $versions = [
         </form>
     </div>
 <div class="side-panel">
-    <h3 class="quick-actions-title">⚡</h3>
+    <h3 class="quick-actions-title">⚡ Azioni Rapide</h3>
 
     <a href="dashboard.php" class="quick-action-button dashboard">
         <i class="bi bi-speedometer2"></i> Torna alla Dashboard
@@ -137,6 +181,7 @@ $versions = [
         <i class="bi bi-box-arrow-right"></i> Esci dall'Account
     </a>
 </div>
+
 
 
 
