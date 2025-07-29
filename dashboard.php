@@ -232,7 +232,7 @@ function checkAndUpdateServers() {
   });
 }
 
-setInterval(checkAndUpdateServers, 3000);
+setInterval(checkAndUpdateServers, 500);
 </script>
 
 
