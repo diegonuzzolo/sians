@@ -36,7 +36,7 @@ $ip = $vm['ip'];
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
 
-$remoteCommand = "cd /home/diego/minecraft_servers/{$proxmoxVmid} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
+$remoteCommand = "cd /home/diego/minecraft_servers/{$serverId} && bash " . ($action === 'start' ? 'start.sh' : 'stop.sh');
 $sshCommand = sprintf(
     'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
     escapeshellarg($privateKeyPath),
