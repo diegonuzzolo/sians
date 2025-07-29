@@ -47,4 +47,3 @@ try {
     die("❌ Errore connessione DB: " . $e->getMessage());
 }
 
-define('SETUP_SERVER_TOKEN', 'la_luna_il_mio_cane_numero_uno'); // scegli un token complesso

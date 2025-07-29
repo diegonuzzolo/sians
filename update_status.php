@@ -1,6 +1,8 @@
 <?php
 require 'config/config.php';
 
+define('SETUP_SERVER_TOKEN', 'la_luna_il_mio_cane_numero_uno'); // ← aggiungi questa riga
+
 $headers = getallheaders();
 $authToken = $headers['Authorization'] ?? '';
 
@@ -9,7 +11,6 @@ if ($authToken !== 'Bearer ' . SETUP_SERVER_TOKEN) {
     echo "Accesso non autorizzato";
     exit;
 }
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo "Metodo non permesso";

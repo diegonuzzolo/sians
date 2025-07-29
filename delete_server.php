@@ -59,7 +59,7 @@ if (!$vmIp) {
 }
 
 // Percorso server corretto e dinamico (cartella server specifica)
-$serverDir = "/home/diego/minecraft_servers/server_$serverId";
+$serverDir = "/home/diego/minecraft_servers/$serverId";
 
 $escapedServerDir = escapeshellarg($serverDir);
 $escapedVmIp = escapeshellarg($vmIp);
