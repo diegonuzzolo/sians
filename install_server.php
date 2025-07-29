@@ -60,7 +60,7 @@ try {
     updateProgress($pdo, $serverId, 50);
     echo "📡 Eseguo comando remoto su $ip:\n$remoteCommand\n";
 
-    $privateKeyPath = '/home/diego/.ssh/id_rsa'; // Percorso della chiave privata
+    $privateKeyPath = '/var/www/.ssh/id_rsa'; // Percorso della chiave privata
     $sshCommand = "ssh -i $privateKeyPath -o StrictHostKeyChecking=no $sshUser@$ip \"$remoteCommand\"";
 
     exec($sshCommand, $output, $resultCode);
