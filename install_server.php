@@ -47,15 +47,13 @@ try {
     // Seleziona comando in base al tipo
     switch ($type) {
         case 'vanilla':
-            $remoteCommand = "bash /home/diego/setup_server.sh 'vanilla' '1.20.1' '' '' '12'";
+        case 'bukkit':
+            $remoteCommand = "bash /home/diego/setup_server.sh '$type' '$versionOrSlug' '' '' '$serverId'";
             break;
         case 'modpack':
             $remoteCommand = "bash /home/diego/setup_server.sh 'modpack' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
             break;
-        case "bukkit":
-            $remoteCommand = "bash /home/diego/setup_server.sh 'bukkit' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
-            break;
-            default:
+        default:
             throw new Exception("❌ Tipo server sconosciuto: $type");
     }
 
