@@ -221,7 +221,7 @@ $versions = [
                 <label for="modpack_id">Modpack</label>
                 <select name="modpack_id" class="form-select">
                     <?php foreach ($modpacks as $modpack): ?>
-                        <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['name']) ?> (<?= $modpack['version'] ?>)</option>
+                        <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['name']) ?> (<?= $modpack['minecraftVersion'] ?>)</option>
                     <?php endforeach; ?>
                 </select>
             </div>
