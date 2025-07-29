@@ -149,7 +149,7 @@ $servers = $stmt->fetchAll();
     <h5><?= htmlspecialchars($server['name']) ?></h5>
     <div class="progress">
         <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
-            style="width: <?= $server['progress'] ?? 0 ?>%;" 
+            style="width: <?= $server['progress'] ?? 0 ?>%;"
             aria-valuenow="<?= $server['progress'] ?? 0 ?>" aria-valuemin="0" aria-valuemax="100">
             <?= $server['progress'] ?? 0 ?>%
         </div>
@@ -157,19 +157,23 @@ $servers = $stmt->fetchAll();
     <div class="server-status" id="status-<?= $server['id'] ?>">
         <?= htmlspecialchars($server['status']) ?>
     </div>
+
+    <div class="d-flex justify-content-between mt-2">
+        <?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
+            <form method="post" action="server_action.php">
+                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                <button name="action" 
+                        value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                        class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                </button>
+            </form>
+        <?php else: ?>
+            <div class="text-warning align-self-center">Installazione in corso...</div>
+        <?php endif; ?>
+    </div>
 </div>
-
-
-
-  <div class="d-flex justify-content-between">
-    <form method="post" action="server_action.php">
-      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-      <button name="action" value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-              class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-        <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-      </button>
-    </form>
 
     <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
       <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
@@ -233,7 +237,7 @@ $servers = $stmt->fetchAll();
 }
 
 // Aggiorna ogni 3 secondi
-setInterval(fetchProgress, 3000);
+setInterval(fetchProgress, 500);
 window.onload = fetchProgress;
 
 </script>
