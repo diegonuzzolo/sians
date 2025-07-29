@@ -1,7 +1,11 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'config/config.php';
 
-define('SETUP_SERVER_TOKEN', 'la_luna_il_mio_cane_numero_uno'); // ← aggiungi questa riga
+define('SETUP_SERVER_TOKEN', 'la_luna_il_mio_cane_numero_uno');
 
 $headers = getallheaders();
 $authToken = $headers['Authorization'] ?? '';
@@ -11,6 +15,7 @@ if ($authToken !== 'Bearer ' . SETUP_SERVER_TOKEN) {
     echo "Accesso non autorizzato";
     exit;
 }
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo "Metodo non permesso";
@@ -29,7 +34,12 @@ if (!$serverId || $status === null || $progress === null) {
     exit;
 }
 
-$stmt = $pdo->prepare("UPDATE servers SET status = ?, progress = ? WHERE id = ?");
-$stmt->execute([$status, $progress, $serverId]);
-
-echo "OK";
+try {
+    $stmt = $pdo->prepare("UPDATE servers SET status = ?, progress = ? WHERE id = ?");
+    $stmt->execute([$status, $progress, $serverId]);
+    echo "OK";
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo "Errore database: " . $e->getMessage();
+    exit;
+}
