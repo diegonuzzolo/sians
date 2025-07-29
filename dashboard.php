@@ -170,7 +170,7 @@ $servers = $stmt->fetchAll();
                 </button>
             </form>
         <?php else: ?>
-            <div class="text-warning align-self-center">Attendere...</div>
+            <div class="text-warning align-self-center">Attendi mentre il tuo server minecraft viene preparato...</div>
         <?php endif; ?>
     </div>
 </div>
