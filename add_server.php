@@ -228,5 +228,6 @@ $versions = [
     // Init state on load
     document.addEventListener("DOMContentLoaded", toggleFields);
 </script>
+<?php echo $serverId;?>
 </body>
 </html>
