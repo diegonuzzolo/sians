@@ -24,6 +24,23 @@ $type = $argv[2];
 $versionOrSlug = $argv[3];
 $downloadUrl = $argv[4] ?? '';
 $installMethod = $argv[5] ?? '';
+// Esempio semplificato in install_server.php
+
+function updateProgress($pdo, $serverId, $progress, $status = null) {
+    if ($status) {
+        $stmt = $pdo->prepare("UPDATE servers SET progress = ?, status = ? WHERE id = ?");
+        $stmt->execute([$progress, $status, $serverId]);
+    } else {
+        $stmt = $pdo->prepare("UPDATE servers SET progress = ? WHERE id = ?");
+        $stmt->execute([$progress, $serverId]);
+    }
+}
+
+// All’inizio
+
+// Dopo scaricamento file
+
+// Alla fine
 
 // Dati SSH statici
 $sshUser = 'diego';
@@ -31,11 +48,12 @@ $sshUser = 'diego';
 try {
     // Connessione al database per recuperare IP della VM assegnata
     require 'config/config.php';
-
+    
+    updateProgress($pdo, $serverId, 10, 'installing');
     $stmt = $pdo->prepare("SELECT v.ip FROM servers s JOIN minecraft_vms v ON s.vm_id = v.id WHERE s.id = ?");
     $stmt->execute([$serverId]);
     $vm = $stmt->fetch();
-
+    
     if (!$vm) {
         throw new Exception("❌ VM non trovata per server ID $serverId.");
     }
@@ -45,6 +63,7 @@ try {
 
     // Composizione comando remoto
     $remoteCommand = "bash /home/diego/setup_server.sh '$type' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
+    updateProgress($pdo, $serverId, 50);
 
     echo "📡 Eseguo comando remoto su $ip:\n$remoteCommand\n";
 
@@ -63,6 +82,8 @@ try {
     }
 
     echo "✅ Installazione completata con successo.\n";
+    updateProgress($pdo, $serverId, 100, 'ready');
+
     exit(0);
 
 } catch (Exception $e) {

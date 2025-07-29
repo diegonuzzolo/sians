@@ -145,21 +145,22 @@ $servers = $stmt->fetchAll();
 
 <p class="mb-2"><strong>Stato:</strong></p>
 
-<?php if ($server['status'] === 'installing'): ?>
-  <div class="progress mt-2 mb-2">
-    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
-         style="width: 100%">Setup in corso...
+<div class="server" id="server-<?= $server['id'] ?>">
+    <h5><?= htmlspecialchars($server['name']) ?></h5>
+    <div class="progress">
+        <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
+            style="width: <?= $server['progress'] ?? 0 ?>%;" 
+            aria-valuenow="<?= $server['progress'] ?? 0 ?>" aria-valuemin="0" aria-valuemax="100">
+            <?= $server['progress'] ?? 0 ?>%
+        </div>
     </div>
-  </div>
-
-<?php elseif ($server['status'] === 'downloading_mods'): ?>
-  <div class="progress mt-2 mb-2">
-    <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar"
-         style="width: 100%">Scaricamento modpack in corso...
+    <div class="server-status" id="status-<?= $server['id'] ?>">
+        <?= htmlspecialchars($server['status']) ?>
     </div>
-  </div>
+</div>
 
-<?php else: ?>
+
+
   <div class="d-flex justify-content-between">
     <form method="post" action="server_action.php">
       <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
@@ -176,7 +177,6 @@ $servers = $stmt->fetchAll();
       <button type="submit" class="btn btn-danger action-btn">Elimina</button>
     </form>
   </div>
-<?php endif; ?>
 
           </div>
         </div>
@@ -196,32 +196,46 @@ $servers = $stmt->fetchAll();
 </div>
 <script>
 
-  function checkInstallationStatus() {
-    fetch('check_lock.php')
-      .then(response => response.json())
-      .then(data => {
-        const statuses = data.statuses;
+ async function fetchProgress() {
+    try {
+        const res = await fetch('check_progress.php');
+        const servers = await res.json();
 
-        document.querySelectorAll('.server-card').forEach(card => {
-          const serverId = card.getAttribute('data-server-id');
-          const status = statuses[serverId];
-          const progressBar = card.querySelector('.progress');
-          const actions = card.querySelector('.d-flex');
+        servers.forEach(server => {
+            const bar = document.getElementById(`progress-bar-${server.id}`);
+            const statusDiv = document.getElementById(`status-${server.id}`);
 
-          if (status === 'installing' || status === 'downloading_mods') {
-            if (progressBar) progressBar.style.display = 'block';
-            if (actions) actions.style.display = 'none';
-          } else {
-            if (progressBar) progressBar.style.display = 'none';
-            if (actions) actions.style.display = 'flex';
-          }
+            if (bar) {
+                bar.style.width = server.progress + '%';
+                bar.setAttribute('aria-valuenow', server.progress);
+                bar.textContent = server.progress + '%';
+
+                // Cambia colore in base allo status
+                if(server.status === 'ready') {
+                    bar.classList.remove('bg-info');
+                    bar.classList.add('bg-success');
+                } else if(server.status === 'error') {
+                    bar.classList.remove('bg-info', 'bg-success');
+                    bar.classList.add('bg-danger');
+                } else {
+                    bar.classList.add('bg-info');
+                    bar.classList.remove('bg-success', 'bg-danger');
+                }
+            }
+
+            if(statusDiv) {
+                statusDiv.textContent = server.status;
+            }
         });
-      })
-      .catch(err => console.error('Errore nel check:', err));
-  }
+    } catch (e) {
+        console.error('Errore durante fetch progress:', e);
+    }
+}
 
-  setInterval(checkInstallationStatus, 3000);
-  window.addEventListener('load', checkInstallationStatus);
+// Aggiorna ogni 3 secondi
+setInterval(fetchProgress, 3000);
+window.onload = fetchProgress;
+
 </script>
 
 

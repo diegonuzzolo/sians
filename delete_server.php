@@ -62,10 +62,8 @@ function getVmIpFromVmId(int $vmId): ?string {
 
 $sshUser = 'diego';
 $vmIp = getVmIpFromVmId($vmId); // funzione da implementare o recuperare IP VM
-$serverDir = "/home/diego/{$proxmoxVmid}"; // esempio percorso cartella server
-$cmd_final = "ssh {$sshUser}@{$vmIp} sudo -n /bin/bash /home/diego/clean.sh";
+$serverDir = "/home/diego/minecarft_servers"; // esempio percorso cartella server
 
-exec($cmd_final, $output, $return_var);
 
 
 // Comando per eliminare la cartella server sulla VM (con -rf per forzare cancellazione)
@@ -73,7 +71,6 @@ $cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";
 
 // Esegui comando e cattura output/errori
 exec($cmd . " 2>&1", $output, $return_var);
-exec("ssh {$sshUser}@{$vmIp} 'killall ngrok'", $output, $return_var);
 
 
 if ($return_var !== 0) {
