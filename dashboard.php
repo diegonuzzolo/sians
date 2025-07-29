@@ -147,14 +147,17 @@ $servers = $stmt->fetchAll();
 
 <div class="server" id="server-<?= $server['id'] ?>">
     <h5><?= htmlspecialchars($server['name']) ?></h5>
+    <?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
     <div class="progress">
-  <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
-       style="width: <?= $server['progress'] ?>%;" 
-       aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
-       data-server-id="<?= $server['id'] ?>">
-       <?= $server['progress'] ?>%
-  </div>
-</div>
+        <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
+            style="width: <?= $server['progress'] ?>%;" 
+            aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
+            data-server-id="<?= $server['id'] ?>">
+            <?= $server['progress'] ?>%
+        </div>
+    </div>
+<?php endif; ?>
+
 
     <div class="server-status" id="status-<?= $server['id'] ?>">
         <?= htmlspecialchars($server['status']) ?>
