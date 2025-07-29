@@ -21,7 +21,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($postType === 'modpack' && empty($postModpackId)) {
         $error = "❌ Seleziona un Modpack.";
     } else {
-        // Recupera una VM disponibile
         $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
         $stmt->execute();
         $vm = $stmt->fetch();
@@ -34,46 +33,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $proxmoxVmid = $vm['proxmox_vmid'];
             $createdAt = date('Y-m-d H:i:s');
 
-            // Inserisci nuovo server
             $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, modpack_id, user_id, vm_id, proxmox_vmid, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'installing', ?)");
             $stmt->execute([$postServerName, $postType, $postVersion, $postModpackId, $userId, $vmId, $proxmoxVmid, $createdAt]);
 
             $serverId = $pdo->lastInsertId();
-
-            // Assegna la VM
             $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
             $stmt->execute([$userId, $serverId, $vmId]);
 
-            // Prepara parametri per install_server.php CLI
-            $escapedServerId = escapeshellarg($serverId);
-            $escapedType = escapeshellarg($postType);
-            $escapedVersion = escapeshellarg($postVersion);
+            $stmt = $pdo->prepare("SELECT ip FROM minecraft_vms WHERE id = ?");
+            $stmt->execute([$vmId]);
+            $vmData = $stmt->fetch();
+            $ip = $vmData['ip'];
 
-            // Per modpack carica URL e metodo
-            $downloadUrl = '';
-            $installMethod = '';
+            $remoteType = escapeshellarg($postType);
+            $remoteVersion = escapeshellarg($postVersion);
+            $remoteServerId = escapeshellarg($serverId);
+            $remoteUrl = '';
+            $remoteMethod = '';
+
             if ($postType === 'modpack') {
-                // Recupera dati modpack
                 $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
                 if ($modpack) {
-                    $downloadUrl = "https://api.modrinth.com/v2/project/" . $modpack['slug'] . "/version/" . $modpack['version_id'];
-                    $installMethod = 'modrinth-fabric';
-                    $escapedVersion = escapeshellarg($modpack['minecraftVersion']);
+                    $remoteUrl = escapeshellarg("https://api.modrinth.com/v2/project/{$modpack['slug']}/version/{$modpack['version_id']}");
+                    $remoteMethod = escapeshellarg('modrinth-fabric');
+                    $remoteVersion = escapeshellarg($modpack['minecraftVersion']);
                 }
             }
 
-            $escapedDownloadUrl = escapeshellarg($downloadUrl);
-            $escapedInstallMethod = escapeshellarg($installMethod);
+            $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
+                escapeshellarg("bash /home/diego/setup_server.sh $postType $postVersion $remoteUrl $remoteMethod $serverId") .
+                " > /dev/null 2>&1 &";
 
-            // Comando CLI per install_server.php in background
-            $cmd = "/usr/bin/php /var/www/html/install_server.php $escapedServerId $escapedType $escapedVersion $escapedDownloadUrl $escapedInstallMethod > /dev/null 2>&1 &";
-
-            exec($cmd);
-
-            // Reindirizza subito alla dashboard
+            exec($sshCmd);
             header("Location: dashboard.php");
             exit;
         }
@@ -81,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
+<!-- HTML remains the same (not repeated here to keep the focus on PHP logic) -->
 
 <?php
 
