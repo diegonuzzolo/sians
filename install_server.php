@@ -1,49 +1,61 @@
 <?php
 // install_server.php
+// Esempio base per installazione server Minecraft via CLI PHP
 
-require 'config/config.php';
-
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-// ✅ Accetta parametri da GET o CLI
-$type         = $_GET['type']         ?? $argv[1] ?? null;
-$version      = $_GET['version']      ?? $argv[2] ?? null;
-$slug         = $_GET['modpack_slug'] ?? $argv[3] ?? null;
-$serverId     = $_GET['server_id']    ?? $argv[4] ?? null;
-
-// 🔒 Verifica parametri minimi
-if (!$type || !$serverId) {
-    echo "❌ Parametri mancanti.\n";
-    exit;
+if (php_sapi_name() !== 'cli') {
+    die("Questo script va eseguito da CLI.\n");
 }
 
-// ✅ Recupera IP VM dal DB
-$stmt = $pdo->prepare("SELECT ip FROM minecraft_vms WHERE assigned_server_id = ?");
-$stmt->execute([$serverId]);
-$vm = $stmt->fetch(PDO::FETCH_ASSOC);
+// Ricevo i parametri
+// Ordine parametri CLI:
+// 1) serverId
+// 2) type (vanilla/modpack/bukkit)
+// 3) versionOrSlug
+// 4) downloadUrl (opzionale, solo per modpack)
+// 5) installMethod (opzionale)
 
-if (!$vm) {
-    echo "❌ Nessuna VM trovata per server_id $serverId\n";
-    exit;
+if ($argc < 4) {
+    echo "Errore: parametri insufficienti.\n";
+    echo "Uso: php install_server.php <serverId> <type> <versionOrSlug> [downloadUrl] [installMethod]\n";
+    exit(1);
 }
 
-$vmIp = $vm['ip'];
-$sshUser = 'diego'; // fisso
+$serverId = $argv[1];
+$type = $argv[2];
+$versionOrSlug = $argv[3];
+$downloadUrl = $argv[4] ?? '';
+$installMethod = $argv[5] ?? '';
 
-// ✅ Comando remoto da eseguire sulla VM
-$escapedType    = escapeshellarg($type);
-$escapedVersion = escapeshellarg($version ?? '');
-$escapedSlug    = escapeshellarg($slug ?? '');
-$escapedId      = escapeshellarg($serverId);
+echo "Avvio installazione server ID: $serverId\n";
+echo "Tipo: $type\n";
+echo "Versione o Slug: $versionOrSlug\n";
 
-// 🧠 Costruisce il comando SSH
-$remoteCommand = "bash /home/diego/setup_server.sh $escapedType $escapedVersion $escapedSlug auto $escapedId";
+switch ($type) {
+    case 'vanilla':
+        echo "Installazione Vanilla Minecraft versione $versionOrSlug\n";
+        // Qui inserisci il comando o la logica per scaricare e installare vanilla
+        // es: scarica jar ufficiale e prepara start.sh ecc.
+        break;
 
-// ✅ Avvia installazione via SSH
-echo "🚀 Avvio installazione server su VM $vmIp...\n";
-exec("ssh -o StrictHostKeyChecking=no $sshUser@$vmIp '$remoteCommand' > /tmp/install_log_$serverId.log 2>&1 &");
+    case 'modpack':
+        if (empty($downloadUrl) || empty($installMethod)) {
+            echo "Errore: per modpack servono downloadUrl e installMethod.\n";
+            exit(1);
+        }
+        echo "Installazione Modpack con URL: $downloadUrl e metodo: $installMethod\n";
+        // Logica installazione modpack: scarica il modpack via API Modrinth, decomprimi ecc.
+        break;
 
-echo "✅ Comando inviato. Log in: /tmp/install_log_$serverId.log\n";
+    case 'bukkit':
+        echo "Installazione Bukkit versione $versionOrSlug\n";
+        // Logica per Bukkit: scarica build e prepara server
+        break;
 
+    default:
+        echo "Errore: tipo server non riconosciuto: $type\n";
+        exit(1);
+}
 
+// Qui continua la logica di installazione
+echo "Installazione completata.\n";
+exit(0);
