@@ -123,20 +123,21 @@ $versions = [
                     <?php endforeach; ?>
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Crea Server</button>
+            <button type="submit" class="">Crea Server</button>
         </form>
     </div>
 <div class="side-panel">
-    <h3 class="quick-actions-title">⚡</h3>
-    
-    <a href="dashboard.php" class="button.btn-primary">
-        <i class=""></i> Torna alla Dashboard
+    <h3 class="quick-actions-title">⚡ Azioni Rapide</h3>
+
+    <a href="dashboard.php" class="quick-action-button dashboard">
+        <i class="bi bi-speedometer2"></i> Torna alla Dashboard
     </a>
 
-    <a href="logout.php" class="alert-danger">
+    <a href="logout.php" class="quick-action-button logout">
         <i class="bi bi-box-arrow-right"></i> Esci dall'Account
     </a>
 </div>
+
 
 
 <script>
