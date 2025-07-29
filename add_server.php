@@ -129,11 +129,11 @@ $versions = [
 <div class="side-panel">
     <h3 class="quick-actions-title">⚡</h3>
     
-    <a href="dashboard.php" class="quick-action-btn dashboard">
-        <i class="bi bi-speedometer2"></i> Torna alla Dashboard
+    <a href="dashboard.php" class="button.btn-primary">
+        <i class=""></i> Torna alla Dashboard
     </a>
 
-    <a href="logout.php" class="quick-action-btn logout">
+    <a href="logout.php" class="alert-danger">
         <i class="bi bi-box-arrow-right"></i> Esci dall'Account
     </a>
 </div>
