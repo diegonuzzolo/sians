@@ -52,16 +52,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $remoteMethod = '';
 
             if ($postType === 'modpack') {
-                $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
-                $stmt->execute([$postModpackId]);
-                $modpack = $stmt->fetch();
+    $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
+    $stmt->execute([$postModpackId]);
+    $modpack = $stmt->fetch();
 
-                if ($modpack) {
-                    $remoteUrl = escapeshellarg("https://api.modrinth.com/v2/project/{$modpack['slug']}/version/{$modpack['version_id']}");
-                    $remoteMethod = escapeshellarg('modrinth-fabric');
-                    $remoteVersion = escapeshellarg($modpack['minecraftVersion']);
-                }
-            }
+    if ($modpack) {
+        $remoteUrl = escapeshellarg("https://api.modrinth.com/v2/project/{$modpack['slug']}/version/{$modpack['version_id']}");
+        $remoteMethod = escapeshellarg('modrinth-fabric');
+        $remoteVersion = escapeshellarg($modpack['minecraftVersion']);
+    }
+} else {
+    // Vanilla o Bukkit
+    $remoteVersion = escapeshellarg($postVersion);
+    $remoteUrl = escapeshellarg("https://launcher.mojang.com/v1/objects/$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r --arg ver $postVersion '.versions[] | select(.id == $ver) | .url' | xargs curl -s | jq -r '.downloads.server.url')");
+    $remoteMethod = escapeshellarg('');
+}
+
+
+
 
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
                 escapeshellarg("bash /home/diego/setup_server.sh '$postType' '$postVersion' '$remoteUrl' '$remoteMethod' '$remoteServerId'") .
