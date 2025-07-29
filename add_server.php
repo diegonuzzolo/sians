@@ -120,15 +120,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </form>
     </div>
-
-    <div class="side-panel">
-  <a href="dashboard.php" class="btn btn-secondary shadow d-flex align-items-center justify-content-center gap-2 mb-3" style="width: 100%;">
-    <i class="bi bi-house-door"></i> Torna alla Dashboard
+<div class="side-panel">
+  <a href="dashboard.php" class="btn btn-secondary shadow d-flex align-items-center justify-content-center gap-3 mb-4"
+     style="
+       width: 100%;
+       font-weight: 800;
+       font-size: 1.15rem;
+       padding: 12px 0;
+       border-radius: 40px;
+       background: linear-gradient(90deg, #4ade80, #22c55e);
+       color: #0f3d00;
+       box-shadow: 0 6px 12px rgba(34,197,94,0.5);
+       transition: all 0.3s ease;
+     "
+     onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 10px 20px rgba(34,197,94,0.7)';"
+     onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 12px rgba(34,197,94,0.5)';"
+  >
+    <i class="bi bi-house-door" style="font-size: 1.5rem;"></i> Torna alla Dashboard
   </a>
-  <a href="logout.php" class="btn btn-danger shadow d-flex align-items-center justify-content-center gap-2" style="width: 100%;">
-    <i class="bi bi-box-arrow-right"></i> Esci dall’Account
+
+  <a href="logout.php" class="btn btn-danger shadow d-flex align-items-center justify-content-center gap-3"
+     style="
+       width: 100%;
+       font-weight: 800;
+       font-size: 1.15rem;
+       padding: 12px 0;
+       border-radius: 40px;
+       background: linear-gradient(90deg, #f87171, #ef4444);
+       color: #640000;
+       box-shadow: 0 6px 12px rgba(239,68,68,0.5);
+       transition: all 0.3s ease;
+     "
+     onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.7)';"
+     onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 12px rgba(239,68,68,0.5)';"
+  >
+    <i class="bi bi-box-arrow-right" style="font-size: 1.5rem;"></i> Esci dall’Account
   </a>
 </div>
+
 
   <script>
     function toggleFields() {
