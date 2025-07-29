@@ -123,11 +123,11 @@ $versions = [
                     <?php endforeach; ?>
                 </select>
             </div>
-            <button type="submit" class="">Crea Server</button>
+            <button type="submit" class="btn btn-primary w-100">Crea Server</button>
         </form>
     </div>
 <div class="side-panel">
-    <h3 class="quick-actions-title">⚡ Azioni Rapide</h3>
+    <h3 class="quick-actions-title">⚡</h3>
 
     <a href="dashboard.php" class="quick-action-button dashboard">
         <i class="bi bi-speedometer2"></i> Torna alla Dashboard

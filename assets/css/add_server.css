@@ -117,6 +117,62 @@ button.btn-primary:hover {
   cursor: pointer;
   text-decoration: none;
 }
+
+.side-panel {
+    background-color: #151627;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 0 25px rgba(0, 255, 170, 0.15);
+    text-align: center;
+    margin-top: 30px;
+}
+
+.quick-actions-title {
+    font-size: 22px;
+    color: #00ffc6;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.quick-action-button {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    margin: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 14px;
+    text-decoration: none;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0, 255, 170, 0.2);
+    color: white;
+    background: linear-gradient(135deg, #00ffaa, #0077ff);
+    text-align: center;
+}
+
+.quick-action-button i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.quick-action-button:hover {
+    transform: translateY(-2px) scale(1.04);
+    background: linear-gradient(135deg, #00e6aa, #0066dd);
+    box-shadow: 0 6px 20px rgba(0, 255, 170, 0.35);
+}
+
+.quick-action-button.logout {
+    background: linear-gradient(135deg, #ff4d4d, #cc0000);
+    box-shadow: 0 4px 12px rgba(255, 50, 50, 0.25);
+}
+
+.quick-action-button.logout:hover {
+    background: linear-gradient(135deg, #ff1a1a, #990000);
+    box-shadow: 0 6px 20px rgba(255, 50, 50, 0.4);
+}
+
 .side-panel {
     background-color: #151627;
     padding: 25px;
