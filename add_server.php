@@ -1,4 +1,10 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// il resto del codice...
+
 session_start();
 require 'config/config.php';
 require 'includes/auth.php';
