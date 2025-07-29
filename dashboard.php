@@ -205,49 +205,34 @@ $servers = $stmt->fetchAll();
 </div>
 
 <script>
-function checkServerStatus() {
-  const progressBars = document.querySelectorAll('.progress-bar');
+function checkAndUpdateServers() {
+  document.querySelectorAll('.server').forEach(function (el) {
+    const serverId = el.dataset.serverId;
 
-  progressBars.forEach(bar => {
-    const serverId = bar.dataset.serverId;
-
-    fetch(`check_lock.php?server_id=${serverId}`)
-      .then(response => response.json())
+    fetch('check_lock.php?server_id=' + serverId)
+      .then(res => res.json())
       .then(data => {
-        const statusDiv = document.getElementById(`status-${serverId}`);
-        const progressBar = document.getElementById(`progress-bar-${serverId}`);
-        const card = document.querySelector(`[data-server-id='${serverId}']`);
-
-        if (statusDiv && progressBar && card) {
-          statusDiv.textContent = data.status;
-
-          if (data.status === 'installing' || data.status === 'downloading_mods') {
-            const progress = data.progress;
-            progressBar.style.width = `${progress}%`;
-            progressBar.setAttribute('aria-valuenow', progress);
-            progressBar.textContent = `${progress}%`;
-          } else {
-            if (progressBar.style.width === '100%') {
-              setTimeout(() => {
-                // Nascondi progressbar
-                progressBar.parentElement.style.display = 'none';
-                // Mostra i pulsanti
-                const buttons = card.querySelectorAll('.action-btn');
-                buttons.forEach(btn => btn.style.display = 'inline-block');
-              }, 500);
-            } else {
-              // Nascondi progressbar direttamente se non è al 100%
-              progressBar.parentElement.style.display = 'none';
-              const buttons = card.querySelectorAll('.action-btn');
-              buttons.forEach(btn => btn.style.display = 'inline-block');
-            }
+        if (data && data.status !== 'installing' && data.status !== 'downloading_mods') {
+          // Se stato è finale, aggiorna il blocco HTML
+          fetch('server_partial.php?server_id=' + serverId)
+            .then(res => res.text())
+            .then(html => {
+              document.getElementById('server-inner-' + serverId).innerHTML = html;
+            });
+        } else {
+          // Aggiorna solo progress bar
+          const bar = document.getElementById('progress-bar-' + serverId);
+          if (bar && data.progress !== undefined) {
+            bar.style.width = data.progress + '%';
+            bar.textContent = data.progress + '%';
+            bar.setAttribute('aria-valuenow', data.progress);
           }
         }
       });
+  });
 }
 
-setInterval(checkServerStatus, 3000);
-
+setInterval(checkAndUpdateServers, 3000);
 </script>
 
 
