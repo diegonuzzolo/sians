@@ -55,8 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $escapedInstallMethod = escapeshellarg($installMethod);
                 $escapedServerId = escapeshellarg($serverId);
 
-                $command = "/usr/bin/php install_server.php $escapedServerId $escapedType $escapedVersionOrSlug $escapedDownloadUrl $escapedInstallMethod > /dev/null 2>&1 &";
-                exec($command);
+                $command = "/usr/bin/php /var/www/html/install_server.php $escapedServerId $escapedType $escapedVersionOrSlug $escapedDownloadUrl $escapedInstallMethod > /dev/null 2>&1 &";
+exec($command);
+
 
                 header("Location: create_tunnel_and_dns.php?server_id=$serverId");
                 exit;
@@ -83,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
 
-      <form action="install_server.php" method="POST">
+      <form method="POST" action="add_server.php">
         <div class="mb-3">
           <label for="server_name" class="form-label">Nome Server</label>
           <input type="text" class="form-control" name="server_name" id="server_name" required />
@@ -140,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="d-grid">
-          <button type="submit" class="btn btn-primary">Crea Server</button>
+           <button type="submit" class="btn btn-primary">Crea Server</button>
         </div>
       </form>
     </div>
