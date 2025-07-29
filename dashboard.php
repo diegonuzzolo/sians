@@ -159,26 +159,17 @@ $servers = $stmt->fetchAll();
 <?php endif; ?>
 
 
-    <div class="server-status" id="status-<?= $server['id'] ?>">
-        <?= htmlspecialchars($server['status']) ?>
-    </div>
-
-    <div class="d-flex justify-content-between mt-2">
-        <?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
-            <form method="post" action="server_action.php">
-                <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-                <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-                <button name="action" 
-                        value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                        class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-                    <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-                </button>
-            </form>
-        <?php else: ?>
-            
-        <?php endif; ?>
-    </div>
-</div>
+    <?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
+  <div class="d-flex justify-content-start gap-2 mt-3">
+    <form method="post" action="server_action.php">
+        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+        <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+        <button name="action" 
+                value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+            <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+        </button>
+    </form>
 
     <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
       <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
@@ -186,6 +177,8 @@ $servers = $stmt->fetchAll();
       <button type="submit" class="btn btn-danger action-btn">Elimina</button>
     </form>
   </div>
+<?php endif; ?>
+
 
           </div>
         </div>
