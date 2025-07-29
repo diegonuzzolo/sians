@@ -120,9 +120,10 @@ $servers = $stmt->fetchAll();
 <body>
 <?php include 'includes/header.php'; ?>
 
-<div class="container my-5">
 
+<div class="container my-5">
   <?php if (empty($servers)): ?>
+    <p class="text-muted">Nessun server creato.</p>
   <?php else: ?>
     <div class="row">
       <?php foreach ($servers as $server): ?>
@@ -143,42 +144,48 @@ $servers = $stmt->fetchAll();
               <?php endif; ?>
             </p>
 
-<p class="mb-2"><strong>Stato:</strong></p>
+            <p class="mb-2"><strong>Stato:</strong></p>
 
-<div class="server" id="server-<?= $server['id'] ?>">
-    <h5><?= htmlspecialchars($server['name']) ?></h5>
-    <?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
-    <div class="progress">
-        <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
-            style="width: <?= $server['progress'] ?>%;" 
-            aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
-            data-server-id="<?= $server['id'] ?>">
-            <?= $server['progress'] ?>%
-        </div>
-    </div>
-<?php endif; ?>
+            <div class="server" id="server-<?= $server['id'] ?>" data-server-id="<?= $server['id'] ?>">
+              <div class="server-inner" id="server-inner-<?= $server['id'] ?>">
+                <h5><?= htmlspecialchars($server['name']) ?></h5>
 
+                <?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
+                  <div class="progress">
+                    <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
+                        style="width: <?= $server['progress'] ?>%;" 
+                        aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
+                        data-server-id="<?= $server['id'] ?>">
+                        <?= $server['progress'] ?>%
+                    </div>
+                  </div>
+                <?php endif; ?>
 
-    <?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
-  <div class="d-flex justify-content-start gap-2 mt-3">
-    <form method="post" action="server_action.php">
-        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-        <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-        <button name="action" 
-                value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-            <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-        </button>
-    </form>
+                <div class="server-status" id="status-<?= $server['id'] ?>">
+                    <?= htmlspecialchars($server['status']) ?>
+                </div>
 
-    <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-      <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-    </form>
-  </div>
-<?php endif; ?>
+                <?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
+                  <div class="d-flex justify-content-start gap-2 mt-3">
+                    <form method="post" action="server_action.php">
+                        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                        <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                        <button name="action" 
+                                value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                                class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                            <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+                        </button>
+                    </form>
 
+                    <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+                      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+                      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+                      <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+                    </form>
+                  </div>
+                <?php endif; ?>
+              </div>
+            </div>
 
           </div>
         </div>
@@ -196,33 +203,36 @@ $servers = $stmt->fetchAll();
     <?php endif; ?>
   </div>
 </div>
-<script>
-function aggiornaProgressBar(serverId) {
-    fetch('check_lock.php?server_id=' + serverId)
-        .then(response => response.json())
-        .then(data => {
-            if (data.progress !== undefined) {
-                const progressBar = document.getElementById('progress-bar-' + serverId);
-                progressBar.style.width = data.progress + '%';
-                progressBar.innerText = data.progress + '%';
-                progressBar.classList.remove('bg-success', 'bg-warning');
 
-                if (data.status === 'installing') {
-                    progressBar.classList.add('bg-warning');
-                } else if (data.status === 'ready') {
-                    progressBar.classList.add('bg-success');
-                }
-            }
-        });
+<script>
+function checkAndUpdateServers() {
+  document.querySelectorAll('.server').forEach(function (el) {
+    const serverId = el.dataset.serverId;
+
+    fetch('check_lock.php?server_id=' + serverId)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.status !== 'installing' && data.status !== 'downloading_mods') {
+          // Se stato è finale, aggiorna il blocco HTML
+          fetch('server_partial.php?server_id=' + serverId)
+            .then(res => res.text())
+            .then(html => {
+              document.getElementById('server-inner-' + serverId).innerHTML = html;
+            });
+        } else {
+          // Aggiorna solo progress bar
+          const bar = document.getElementById('progress-bar-' + serverId);
+          if (bar && data.progress !== undefined) {
+            bar.style.width = data.progress + '%';
+            bar.textContent = data.progress + '%';
+            bar.setAttribute('aria-valuenow', data.progress);
+          }
+        }
+      });
+  });
 }
 
-// Esegui ogni 3 secondi
-setInterval(() => {
-    document.querySelectorAll('.progress-bar').forEach(bar => {
-        const serverId = bar.dataset.serverId;
-        aggiornaProgressBar(serverId);
-    });
-}, 100);
+setInterval(checkAndUpdateServers, 3000);
 </script>
 
 
