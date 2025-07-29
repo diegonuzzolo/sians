@@ -100,4 +100,54 @@ button.btn-primary:hover {
 #modpack-group {
   margin-bottom: 1rem;
   transition: opacity 0.3s ease;
+
+  /* Pulsanti accentuati e grandi per side-panel */
+.side-panel .btn-accent {
+  width: 100%;
+  font-weight: 800;
+  font-size: 1.15rem;
+  padding: 12px 0;
+  border-radius: 40px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* Dashboard button - verde a tema */
+.side-panel .btn-accent.dashboard {
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+  color: #0f3d00;
+  box-shadow: 0 6px 12px rgba(34,197,94,0.5);
+}
+
+.side-panel .btn-accent.dashboard:hover {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  box-shadow: 0 10px 20px rgba(34,197,94,0.7);
+  transform: scale(1.05);
+}
+
+/* Logout button - rosso a tema */
+.side-panel .btn-accent.logout {
+  background: linear-gradient(90deg, #f87171, #ef4444);
+  color: #640000;
+  box-shadow: 0 6px 12px rgba(239,68,68,0.5);
+}
+
+.side-panel .btn-accent.logout:hover {
+  background: linear-gradient(90deg, #ef4444, #b91c1c);
+  box-shadow: 0 10px 20px rgba(239,68,68,0.7);
+  transform: scale(1.05);
+}
+
+/* Icone pulsanti */
+.side-panel .btn-accent i {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
 }
