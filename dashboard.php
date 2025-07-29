@@ -148,7 +148,6 @@ $servers = $stmt->fetchAll();
 
             <div class="server" id="server-<?= $server['id'] ?>" data-server-id="<?= $server['id'] ?>">
               <div class="server-inner" id="server-inner-<?= $server['id'] ?>">
-                <h5><?= htmlspecialchars($server['name']) ?></h5>
 
                 <?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
                   <div class="progress">
