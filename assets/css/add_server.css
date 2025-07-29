@@ -100,7 +100,7 @@ button.btn-primary:hover {
 #modpack-group {
   margin-bottom: 1rem;
   transition: opacity 0.3s ease;
-
+}
   /* Pulsanti accentuati e grandi per side-panel */
 .side-panel .btn-accent {
   width: 100%;
@@ -150,46 +150,3 @@ button.btn-primary:hover {
   line-height: 1;
 }
 
-}
-
-.side-panel {
-    background: #1e1e2f;
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 0 20px rgba(0, 255, 150, 0.15);
-    margin-top: 30px;
-    text-align: center;
-}
-
-.quick-actions-title {
-    color: #00ffcc;
-    margin-bottom: 20px;
-    font-size: 20px;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
-
-.quick-action-btn {
-    display: block;
-    background: linear-gradient(135deg, #00ffaa, #0077ff);
-    color: white;
-    text-decoration: none;
-    padding: 12px 20px;
-    margin: 10px 0;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 255, 150, 0.2);
-}
-
-.quick-action-btn:hover {
-    background: linear-gradient(135deg, #00dd99, #0055cc);
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0, 255, 150, 0.4);
-}
-
-.quick-action-btn i {
-    margin-right: 8px;
-    font-size: 18px;
-}
