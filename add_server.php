@@ -44,13 +44,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
             $stmt->execute([$userId, $serverId, $vmId]);
 
-            // Reindirizza all'installazione
-            header("Location: install_server.php?server_id=$serverId");
+            // Prepara parametri per install_server.php CLI
+            $escapedServerId = escapeshellarg($serverId);
+            $escapedType = escapeshellarg($postType);
+            $escapedVersion = escapeshellarg($postVersion);
+
+            // Per modpack carica URL e metodo
+            $downloadUrl = '';
+            $installMethod = '';
+            if ($postType === 'modpack') {
+                // Recupera dati modpack
+                $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
+                $stmt->execute([$postModpackId]);
+                $modpack = $stmt->fetch();
+
+                if ($modpack) {
+                    $downloadUrl = "https://api.modrinth.com/v2/project/" . $modpack['slug'] . "/version/" . $modpack['version_id'];
+                    $installMethod = 'modrinth-fabric';
+                    $escapedVersion = escapeshellarg($modpack['minecraftVersion']);
+                }
+            }
+
+            $escapedDownloadUrl = escapeshellarg($downloadUrl);
+            $escapedInstallMethod = escapeshellarg($installMethod);
+
+            // Comando CLI per install_server.php in background
+            $cmd = "/usr/bin/php /var/www/html/install_server.php $escapedServerId $escapedType $escapedVersion $escapedDownloadUrl $escapedInstallMethod > /dev/null 2>&1 &";
+
+            exec($cmd);
+
+            // Reindirizza subito alla dashboard
+            header("Location: dashboard.php");
             exit;
         }
     }
 }
 ?>
+
 
 <?php
 
