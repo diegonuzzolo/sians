@@ -53,12 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <?php
-session_start();
-require 'config/config.php';
-require 'includes/auth.php';
 
-$stmt = $pdo->query("SELECT id, name FROM modpacks ORDER BY name ASC");
-$modpacks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $versions = [
               "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
@@ -112,9 +107,12 @@ $versions = [
             <div class="mb-3" id="version-group">
                 <label for="version">Versione Minecraft</label>
                 <select name="version" class="form-select">
-                    <option value="1.20.1">1.20.1</option>
-                    <option value="1.19.4">1.19.4</option>
-                    <option value="1.18.2">1.18.2</option>
+                   <?php
+                   foreach ($versions as $ver) {
+            echo "<option value=\"$ver\">$ver</option>";
+        }
+        ?>
+                   ?>
                 </select>
             </div>
             <div class="mb-3" id="modpack-group" style="display:none;">
