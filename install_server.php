@@ -47,20 +47,22 @@ try {
     // Seleziona comando in base al tipo
     switch ($type) {
         case 'vanilla':
-        case 'bukkit':
-            $remoteCommand = "bash /home/diego/setup_server.sh '$type' '$versionOrSlug' '' '' '$serverId'";
+            $remoteCommand = "bash /home/diego/setup_server.sh 'vanilla' '$versionOrSlug' '' '' '$serverId'";
             break;
         case 'modpack':
             $remoteCommand = "bash /home/diego/setup_server.sh 'modpack' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
             break;
-        default:
+        case "bukkit":
+            $remoteCommand = "bash /home/diego/setup_server.sh 'bukkit' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
+            break;
+            default:
             throw new Exception("❌ Tipo server sconosciuto: $type");
     }
 
     updateProgress($pdo, $serverId, 50);
     echo "📡 Eseguo comando remoto su $ip:\n$remoteCommand\n";
 
-    $sshCommand = "ssh -o StrictHostKeyChecking=no $sshUser@$ip \"$remoteCommand\"";
+    $sshCommand = "ssh -o StrictHostKeyChecking=no diego@$ip \"$remoteCommand\"";
 
     exec($sshCommand, $output, $resultCode);
 
