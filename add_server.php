@@ -16,8 +16,8 @@ $modpacks = $stmt->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName)) {
         $error = "❌ Nome server mancante.";
-    } elseif ($postType === 'vanilla' && empty($postVersion)) {
-        $error = "❌ Seleziona una versione per Vanilla.";
+    } elseif (($postType === 'vanilla' || $postType === 'bukkit' /* || $postType === 'paper' */) && empty($postVersion)) {
+        $error = "❌ Seleziona una versione per Vanilla/Bukkit.";
     } elseif ($postType === 'modpack' && empty($postModpackId)) {
         $error = "❌ Seleziona un Modpack.";
     } else {
@@ -52,27 +52,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $remoteMethod = '';
 
             if ($postType === 'modpack') {
-    $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
-    $stmt->execute([$postModpackId]);
-    $modpack = $stmt->fetch();
+                $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
+                $stmt->execute([$postModpackId]);
+                $modpack = $stmt->fetch();
 
-    if ($modpack) {
-        $remoteUrl = escapeshellarg("https://api.modrinth.com/v2/project/{$modpack['slug']}/version/{$modpack['version_id']}");
-        $remoteMethod = escapeshellarg('modrinth-fabric');
-        $remoteVersion = escapeshellarg($modpack['minecraftVersion']);
-    }
-} else {
-    // Vanilla o Bukkit
-    $remoteVersion = escapeshellarg($postVersion);
-    $remoteUrl = escapeshellarg("https://launcher.mojang.com/v1/objects/$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r --arg ver $postVersion '.versions[] | select(.id == $ver) | .url' | xargs curl -s | jq -r '.downloads.server.url')");
-    $remoteMethod = escapeshellarg('');
-}
+                if ($modpack) {
+                    $remoteUrl = escapeshellarg("https://api.modrinth.com/v2/project/{$modpack['slug']}/version/{$modpack['version_id']}");
+                    $remoteMethod = escapeshellarg('modrinth-fabric');
+                    $remoteVersion = escapeshellarg($modpack['minecraftVersion']);
+                }
+            } else {
+                // Vanilla o Bukkit (o Paper)
+                // Ottieni URL download server Minecraft ufficiale tramite API di Mojang:
+                $manifestJson = file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json");
+                $manifestData = json_decode($manifestJson, true);
 
+                $versionUrl = '';
+                foreach ($manifestData['versions'] as $version) {
+                    if ($version['id'] === $postVersion) {
+                        $versionUrl = $version['url'];
+                        break;
+                    }
+                }
 
-
+                if ($versionUrl) {
+                    $versionInfoJson = file_get_contents($versionUrl);
+                    $versionInfo = json_decode($versionInfoJson, true);
+                    $serverDownloadUrl = $versionInfo['downloads']['server']['url'] ?? '';
+                    if ($serverDownloadUrl) {
+                        $remoteUrl = escapeshellarg($serverDownloadUrl);
+                    } else {
+                        $remoteUrl = escapeshellarg('');
+                    }
+                } else {
+                    $remoteUrl = escapeshellarg('');
+                }
+                $remoteMethod = escapeshellarg('');
+            }
 
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-                escapeshellarg("bash /home/diego/setup_server.sh '$postType' '$postVersion' '$remoteUrl' '$remoteMethod' '$remoteServerId'") .
+                escapeshellarg("bash /home/diego/setup_server.sh $postType $postVersion $remoteUrl $remoteMethod $serverId") .
                 " > /dev/null 2>&1 &";
 
             exec($sshCmd);
@@ -83,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<!-- HTML remains the same (not repeated here to keep the focus on PHP logic) -->
+
 
 <?php
 
