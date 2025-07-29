@@ -237,7 +237,7 @@ $servers = $stmt->fetchAll();
 }
 
 // Aggiorna ogni 3 secondi
-// setInterval(checkStatus, 3000);
+setInterval(checkStatus, 500);
 
 window.onload = fetchProgress;
 
