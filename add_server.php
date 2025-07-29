@@ -65,8 +65,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$stmt = $pdo->query("SELECT id, name, minecraftVersion FROM modpacks ORDER BY name");
-$modpacks = $stmt->fetchAll();
 ?>
 
 <!DOCTYPE html>
@@ -124,10 +122,8 @@ $modpacks = $stmt->fetchAll();
     </div>
 
     <div class="side-panel">
-      <h3>Info</h3>
-      <p><strong>Vanilla:</strong> installa solo Minecraft base.</p>
-      <p><strong>Modpack:</strong> usa pacchetti da Modrinth con Fabric Loader.</p>
-      <p>Versioni e modpack sono configurabili nel pannello admin.</p>
+      <a href="dashboard.php" class="btn btn-outline-secondary w-100 mb-2">← Torna alla Dashboard</a>
+      <a href="logout.php" class="btn btn-outline-danger w-100">Esci dall’Account</a>
     </div>
   </div>
 
