@@ -18,15 +18,15 @@ $postModpackId = $_POST['modpack_id'] ?? '';
 // Carica i modpack per dropdown
 $stmt = $pdo->query("SELECT * FROM modpacks ORDER BY name ASC");
 $modpacks = $stmt->fetchAll();
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName)) {
         $error = "❌ Nome server mancante.";
-    } elseif (($postType === 'vanilla' || $postType === 'bukkit' /* || $postType === 'paper' */) && empty($postVersion)) {
+    } elseif (($postType === 'vanilla' || $postType === 'bukkit') && empty($postVersion)) {
         $error = "❌ Seleziona una versione per Vanilla/Bukkit.";
     } elseif ($postType === 'modpack' && empty($postModpackId)) {
         $error = "❌ Seleziona un Modpack.";
     } else {
+        // Prendi VM libera
         $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
         $stmt->execute();
         $vm = $stmt->fetch();
@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$vm) {
             $error = "❌ Nessuna VM disponibile al momento.";
         } else {
+            // Inserisci server nel DB
             $userId = $_SESSION['user_id'];
             $vmId = $vm['id'];
             $proxmoxVmid = $vm['proxmox_vmid'];
@@ -52,24 +53,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ip = $vmData['ip'];
 
             $remoteType = escapeshellarg($postType);
-            $remoteVersion = escapeshellarg($postVersion);
-            $remoteServerId = escapeshellarg($serverId);
+            $remoteVersionOrSlug = escapeshellarg($postVersion);
             $remoteUrl = '';
             $remoteMethod = '';
 
             if ($postType === 'modpack') {
-                $stmt = $pdo->prepare("SELECT slug, version_id, minecraftVersion FROM modpacks WHERE id = ?");
+                // Prendo dati modpack dallo slug e dal campo game_version
+                $stmt = $pdo->prepare("SELECT slug, game_version FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
                 if ($modpack) {
-                    $remoteUrl = escapeshellarg("https://api.modrinth.com/v2/project/{$modpack['slug']}/version/{$modpack['version_id']}");
-                    $remoteMethod = escapeshellarg('modrinth-fabric');
-                    $remoteVersion = escapeshellarg($modpack['minecraftVersion']);
+                    $remoteVersionOrSlug = escapeshellarg($modpack['slug']);       // Passo lo slug come "version_or_slug"
+                    $remoteMethod = escapeshellarg('modrinth');                     // Metodo 'modrinth' per setup_server.sh
+                    $remoteUrl = "''";  // Non serve URL diretto per modrinth, lascio vuoto ma deve essere una stringa valida
                 }
             } else {
-                // Vanilla o Bukkit (o Paper)
-                // Ottieni URL download server Minecraft ufficiale tramite API di Mojang:
+                // Vanilla o Bukkit
                 $manifestJson = file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json");
                 $manifestData = json_decode($manifestJson, true);
 
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-                escapeshellarg("bash /home/diego/setup_server.sh $postType $postVersion $remoteUrl $remoteMethod $serverId") .
+                escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId") .
                 " > /dev/null 2>&1 &";
 
             exec($sshCmd);
@@ -107,8 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
-
-
 
 <?php
 
