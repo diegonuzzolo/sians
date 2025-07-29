@@ -170,7 +170,7 @@ $servers = $stmt->fetchAll();
                 </button>
             </form>
         <?php else: ?>
-            <div class="text-warning align-self-center">Installazione in corso...</div>
+            <div class="text-warning align-self-center">Attendere...</div>
         <?php endif; ?>
     </div>
 </div>
