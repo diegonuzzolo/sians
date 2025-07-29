@@ -82,75 +82,81 @@ $versions = [
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <title>Crea Server Minecraft</title>
-  <link href="assets/css/add_server.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <title>Crea Server Minecraft</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="assets/css/add_server.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-  <div class="main-container">
-
+<div class="main-container">
     <div class="card-create-server">
-      <h1>Crea un nuovo Server Minecraft</h1>
-
-      <form action="install_server.php" method="POST">
-        <div class="mb-3">
-          <label for="server_name">Nome Server</label>
-          <input type="text" name="server_name" id="server_name" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-          <label for="type">Tipo di Server</label>
-          <select name="type" id="type" class="form-select" required onchange="toggleFields()">
-            <option value="vanilla">Vanilla</option>
-            <option value="bukkit">Bukkit</option>
-            <option value="modpack">Modpack</option>
-          </select>
-        </div>
-
-        <div class="mb-3" id="version-group">
-          <label for="version">Versione Minecraft</label>
-          <select name="version" id="version" class="form-select" multiple size="5">
-            <?php foreach ($versions as $version): ?>
-              <option value="<?= htmlspecialchars($version) ?>"><?= htmlspecialchars($version) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-
-        <div class="mb-3" id="modpack-group" style="display: none;">
-          <label for="modpack_id">Scegli un Modpack</label>
-          <select name="modpack_id" id="modpack_id" class="form-select">
-            <?php foreach ($modpacks as $modpack): ?>
-              <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary w-100">Crea Server</button>
-      </form>
+        <h1>Crea un Nuovo Server</h1>
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-danger"><?= $error ?></div>
+        <?php endif; ?>
+        <form method="POST">
+            <div class="mb-3">
+                <label for="server_name">Nome Server</label>
+                <input type="text" class="form-control" name="server_name" required>
+            </div>
+            <div class="mb-3">
+                <label for="type">Tipo Server</label>
+                <select name="type" class="form-select" required onchange="toggleFields()">
+                    <option value="vanilla">Vanilla</option>
+                    <option value="bukkit">Bukkit</option>
+                    <option value="modpack">Modpack</option>
+                </select>
+            </div>
+            <div class="mb-3" id="version-group">
+                <label for="version">Versione Minecraft</label>
+                <select name="version" class="form-select">
+                    <option value="1.20.1">1.20.1</option>
+                    <option value="1.19.4">1.19.4</option>
+                    <option value="1.18.2">1.18.2</option>
+                </select>
+            </div>
+            <div class="mb-3" id="modpack-group" style="display:none;">
+                <label for="modpack_id">Modpack</label>
+                <select name="modpack_id" class="form-select">
+                    <?php foreach ($modpacks as $modpack): ?>
+                        <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['name']) ?> (<?= $modpack['version'] ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Crea Server</button>
+        </form>
     </div>
 
     <div class="side-panel">
-      <h3>Azioni Rapide</h3>
-      <a href="dashboard.php" class="btn btn-secondary">🏠 Torna alla Dashboard</a>
-      <a href="logout.php" class="btn btn-secondary">🔒 Logout</a>
+        <h3>Azioni Rapide</h3>
+        <a href="dashboard.php" class="btn-accent dashboard">
+            <i class="bi bi-speedometer2"></i> Torna alla Dashboard
+        </a>
+        <a href="logout.php" class="btn-accent logout">
+            <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
     </div>
-  </div>
+</div>
 
-  <script>
+<script>
     function toggleFields() {
-      const type = document.getElementById('type').value;
-      const versionGroup = document.getElementById('version-group');
-      const modpackGroup = document.getElementById('modpack-group');
+        const type = document.querySelector('select[name="type"]').value;
+        const versionGroup = document.getElementById('version-group');
+        const modpackGroup = document.getElementById('modpack-group');
 
-      if (type === 'modpack') {
-        versionGroup.style.display = 'none';
-        modpackGroup.style.display = 'block';
-      } else {
-        versionGroup.style.display = 'block';
-        modpackGroup.style.display = 'none';
-      }
+        if (type === 'modpack') {
+            versionGroup.style.display = 'none';
+            modpackGroup.style.display = 'block';
+        } else {
+            versionGroup.style.display = 'block';
+            modpackGroup.style.display = 'none';
+        }
     }
-    toggleFields(); // iniziale
-  </script>
+
+    // Init state on load
+    document.addEventListener("DOMContentLoaded", toggleFields);
+</script>
 </body>
 </html>
