@@ -148,12 +148,14 @@ $servers = $stmt->fetchAll();
 <div class="server" id="server-<?= $server['id'] ?>">
     <h5><?= htmlspecialchars($server['name']) ?></h5>
     <div class="progress">
-        <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
-            style="width: <?= $server['progress'] ?? 0 ?>%;"
-            aria-valuenow="<?= $server['progress'] ?? 0 ?>" aria-valuemin="0" aria-valuemax="100">
-            <?= $server['progress'] ?? 0 ?>%
-        </div>
-    </div>
+  <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
+       style="width: <?= $server['progress'] ?>%;" 
+       aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
+       data-server-id="<?= $server['id'] ?>">
+       <?= $server['progress'] ?>%
+  </div>
+</div>
+
     <div class="server-status" id="status-<?= $server['id'] ?>">
         <?= htmlspecialchars($server['status']) ?>
     </div>
@@ -199,49 +201,34 @@ $servers = $stmt->fetchAll();
   </div>
 </div>
 <script>
+function aggiornaProgressBar(serverId) {
+    fetch('check_lock.php?server_id=' + serverId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.progress !== undefined) {
+                const progressBar = document.getElementById('progress-bar-' + serverId);
+                progressBar.style.width = data.progress + '%';
+                progressBar.innerText = data.progress + '%';
+                progressBar.classList.remove('bg-success', 'bg-warning');
 
- async function fetchProgress() {
-    try {
-        const res = await fetch('check_progress.php');
-        const servers = await res.json();
-
-        servers.forEach(server => {
-            const bar = document.getElementById(`progress-bar-${server.id}`);
-            const statusDiv = document.getElementById(`status-${server.id}`);
-
-            if (bar) {
-                bar.style.width = server.progress + '%';
-                bar.setAttribute('aria-valuenow', server.progress);
-                bar.textContent = server.progress + '%';
-
-                // Cambia colore in base allo status
-                if(server.status === 'ready') {
-                    bar.classList.remove('bg-info');
-                    bar.classList.add('bg-success');
-                } else if(server.status === 'error') {
-                    bar.classList.remove('bg-info', 'bg-success');
-                    bar.classList.add('bg-danger');
-                } else {
-                    bar.classList.add('bg-info');
-                    bar.classList.remove('bg-success', 'bg-danger');
+                if (data.status === 'installing') {
+                    progressBar.classList.add('bg-warning');
+                } else if (data.status === 'ready') {
+                    progressBar.classList.add('bg-success');
                 }
             }
-
-            if(statusDiv) {
-                statusDiv.textContent = server.status;
-            }
         });
-    } catch (e) {
-        console.error('Errore durante fetch progress:', e);
-    }
 }
 
-// Aggiorna ogni 3 secondi
-setInterval(checkStatus, 500);
-
-window.onload = fetchProgress;
-
+// Esegui ogni 3 secondi
+setInterval(() => {
+    document.querySelectorAll('.progress-bar').forEach(bar => {
+        const serverId = bar.dataset.serverId;
+        aggiornaProgressBar(serverId);
+    });
+}, 3000);
 </script>
+
 
 
 </body>
