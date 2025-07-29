@@ -1,6 +1,4 @@
 <?php
-
-
 session_start();
 require 'config/config.php';
 require 'includes/auth.php';
@@ -32,10 +30,10 @@ if (!$server) {
 $vmId = $server['vm_id'];
 $subdomain = $server['subdomain'] ?? null;
 
-// -- Opzionale: Elimina record DNS su Cloudflare se vuoi (funzione da implementare se vuoi)
+// Funzione opzionale per eliminare record DNS Cloudflare
 // eliminaRecordDnsCloudflare($subdomain);
 
-// Disassocia VM: rimuove assegnazioni senza cancellare VM
+// Disassocia VM senza cancellare la VM fisica
 $updateVmStmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = NULL, assigned_server_id = NULL WHERE id = ?");
 $updateVmStmt->execute([$vmId]);
 
@@ -43,42 +41,40 @@ $updateVmStmt->execute([$vmId]);
 $delStmt = $pdo->prepare("DELETE FROM servers WHERE id = ? AND user_id = ?");
 $delStmt->execute([$serverId, $userId]);
 
-
+// Funzione per ottenere IP VM dal vm_id
 function getVmIpFromVmId(int $vmId): ?string {
     global $pdo;
-
     $stmt = $pdo->prepare("SELECT ip FROM minecraft_vms WHERE id = ?");
     $stmt->execute([$vmId]);
     $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($vm && !empty($vm['ip'])) {
-        return $vm['ip'];
-    }
-
-    return null;  // IP non trovato
+    return $vm['ip'] ?? null;
 }
-
-
 
 $sshUser = 'diego';
-$vmIp = getVmIpFromVmId($vmId); // funzione da implementare o recuperare IP VM
-$serverDir = "/home/diego/minecarft_servers"; // esempio percorso cartella server
+$vmIp = getVmIpFromVmId($vmId);
 
-
-
-// Comando per eliminare la cartella server sulla VM (con -rf per forzare cancellazione)
-$cmd = "ssh {$sshUser}@{$vmIp} 'rm -rf " . escapeshellarg($serverDir) . "'";
-
-// Esegui comando e cattura output/errori
-exec($cmd . " 2>&1", $output, $return_var);
-
-
-if ($return_var !== 0) {
-    // errore eliminazione cartella server
-    error_log("Errore eliminando cartella server: " . implode("\n", $output));
-    // eventualmente mostra messaggio utente o logga
+if (!$vmIp) {
+    error_log("IP VM non trovato per vm_id=$vmId");
+    // Puoi gestire errore o procedere comunque
 }
 
+// Percorso server corretto e dinamico (cartella server specifica)
+$serverDir = "/home/diego/minecraft_servers/server_$serverId";
+
+$escapedServerDir = escapeshellarg($serverDir);
+$escapedVmIp = escapeshellarg($vmIp);
+$escapedSshUser = escapeshellarg($sshUser);
+
+// Comando SSH per cancellare la cartella server
+$cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}'";
+
+// Esegui comando e cattura output e codice di ritorno
+exec($cmd . " 2>&1", $output, $return_var);
+
+if ($return_var !== 0) {
+    error_log("Errore eliminando cartella server (ID: $serverId) sulla VM $vmIp: " . implode("\n", $output));
+    // Eventuale gestione errore utente (es: messaggio sessione)
+}
 
 header('Location: dashboard.php?msg=server_deleted');
 exit;
