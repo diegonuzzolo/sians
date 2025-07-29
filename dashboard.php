@@ -226,7 +226,7 @@ setInterval(() => {
         const serverId = bar.dataset.serverId;
         aggiornaProgressBar(serverId);
     });
-}, 3000);
+}, 100);
 </script>
 
 
