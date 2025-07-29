@@ -71,63 +71,69 @@ $modpacks = $stmt->fetchAll();
 
 <?php include 'includes/header.php'; ?>
 
-<div class="container mt-5">
-    <h2>Crea nuovo server Minecraft</h2>
-    <?php if (!empty($error)): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
-    <form method="post" class="mt-4">
+ <div class="main-container">
+    <div class="card-create-server">
+      <h1>Crea un nuovo server</h1>
+      <form action="install_server.php" method="POST">
         <div class="mb-3">
-            <label for="server_name" class="form-label">Nome Server</label>
-            <input type="text" class="form-control" id="server_name" name="server_name" required>
+          <label for="server_name" class="form-label">Nome Server</label>
+          <input type="text" class="form-control" name="server_name" id="server_name" required>
         </div>
 
         <div class="mb-3">
-            <label for="type" class="form-label">Tipo di Server</label>
-            <select class="form-select" id="type" name="type" onchange="toggleFields()">
-                <option value="vanilla">Vanilla</option>
-                <option value="modpack">Modpack (Fabric - Modrinth)</option>
-            </select>
+          <label for="type" class="form-label">Tipo Server</label>
+          <select name="type" id="type" class="form-select" required onchange="toggleFields()">
+            <option value="vanilla">Vanilla</option>
+            <option value="bukkit">Bukkit/Spigot</option>
+            <option value="modpack">Modpack (CurseForge/Modrinth)</option>
+          </select>
         </div>
 
-        <div class="mb-3" id="version-field">
-            <label for="version" class="form-label">Versione Minecraft</label>
-            <input type="text" class="form-control" id="version" name="version" placeholder="es: 1.20.1">
+        <div class="mb-3" id="version-group">
+          <label for="version" class="form-label">Versione Minecraft</label>
+          <input type="text" class="form-control" name="version" id="version" placeholder="es: 1.20.1">
         </div>
 
-        <div class="mb-3 d-none" id="modpack-field">
-            <label for="modpack_id" class="form-label">Seleziona Modpack</label>
-            <select class="form-select" id="modpack_id" name="modpack_id">
-                <?php foreach ($modpacks as $modpack): ?>
-                    <option value="<?= htmlspecialchars($modpack['id']) ?>">
-                        <?= htmlspecialchars($modpack['name']) ?> (<?= htmlspecialchars($modpack['minecraftVersion']) ?>)
-                    </option>
-                <?php endforeach; ?>
-            </select>
+        <div class="mb-3" id="modpack-group" style="display: none;">
+          <label for="modpack_id" class="form-label">Modpack</label>
+          <select name="modpack_id" id="modpack_id" class="form-select">
+            <option value="">-- Seleziona un Modpack --</option>
+            <?php foreach ($modpacks as $modpack): ?>
+              <option value="<?= htmlspecialchars($modpack['id']) ?>">
+                <?= htmlspecialchars($modpack['name']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
         </div>
 
-        <button type="submit" class="btn btn-success mt-3">Crea Server</button>
-    </form>
-</div>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary">Crea Server</button>
+        </div>
+      </form>
+    </div>
 
-<script>
-function toggleFields() {
-    const type = document.getElementById('type').value;
-    const versionField = document.getElementById('version-field');
-    const modpackField = document.getElementById('modpack-field');
+    <div class="side-panel">
+      <h3>Tipi di server</h3>
+      <p><strong>Vanilla:</strong> versione base di Minecraft</p>
+      <p><strong>Bukkit:</strong> supporta plugin</p>
+      <p><strong>Modpack:</strong> installa pacchetti da CurseForge/Modrinth</p>
+    </div>
+  </div>
 
-    if (type === 'modpack') {
-        versionField.classList.add('d-none');
-        modpackField.classList.remove('d-none');
-    } else {
-        versionField.classList.remove('d-none');
-        modpackField.classList.add('d-none');
+  <script>
+    function toggleFields() {
+      const type = document.getElementById('type').value;
+      const versionGroup = document.getElementById('version-group');
+      const modpackGroup = document.getElementById('modpack-group');
+
+      if (type === 'modpack') {
+        versionGroup.style.display = 'none';
+        modpackGroup.style.display = 'block';
+      } else {
+        versionGroup.style.display = 'block';
+        modpackGroup.style.display = 'none';
+      }
     }
-}
-
-// Inizializza visibilità corretta al caricamento
-document.addEventListener('DOMContentLoaded', toggleFields);
-</script>
+  </script>
 
 <?php include 'includes/footer.php'; ?>
