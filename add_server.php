@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $remoteVersionOrSlug = escapeshellarg($postVersion);
             $remoteUrl = '';
             $remoteMethod = '';
-
+            $remoteGameVersion = '';
             if ($postType === 'modpack') {
                 // Prendo dati modpack dallo slug e dal campo game_version
                 $stmt = $pdo->prepare("SELECT slug, game_version FROM modpacks WHERE id = ?");
@@ -66,7 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($modpack) {
                     $remoteVersionOrSlug = escapeshellarg($modpack['slug']);       // Passo lo slug come "version_or_slug"
                     $remoteMethod = escapeshellarg('modrinth');                     // Metodo 'modrinth' per setup_server.sh
-                    $remoteUrl = "''";  // Non serve URL diretto per modrinth, lascio vuoto ma deve essere una stringa valida
+                   $remoteUrl = "''";  // Non serve URL diretto per modrinth, lascio vuoto ma deve essere una stringa valida
+                $remoteGameVersion = escapeshellarg($modpack['game_version']);
                 }
             } else {
                 // Vanilla o Bukkit
@@ -97,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-            escapeshellarg("bash /home/diego/setup_server.sh '$postType' '$remoteVersionOrSlug' '$remoteUrl' '$remoteMethod' '$serverId'") .
+                escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion") .
                 " > /dev/null 2>&1 &";
 
             exec($sshCmd);
