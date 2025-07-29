@@ -84,7 +84,7 @@ exec($command);
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
 
-      <form method="POST" action="add_server.php">
+      <form method="POST" action="">
         <div class="mb-3">
           <label for="server_name" class="form-label">Nome Server</label>
           <input type="text" class="form-control" name="server_name" id="server_name" required />
