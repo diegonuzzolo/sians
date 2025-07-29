@@ -126,17 +126,18 @@ $versions = [
             <button type="submit" class="btn btn-primary w-100">Crea Server</button>
         </form>
     </div>
+<div class="side-panel">
+    <h3 class="quick-actions-title">⚡</h3>
+    
+    <a href="dashboard.php" class="quick-action-btn dashboard">
+        <i class="bi bi-speedometer2"></i> Torna alla Dashboard
+    </a>
 
-    <div class="side-panel">
-        <h3>Azioni Rapide</h3>
-        <a href="dashboard.php" class="btn-accent dashboard">
-            <i class="bi bi-speedometer2"></i> Torna alla Dashboard
-        </a>
-        <a href="logout.php" class="btn-accent logout">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
-    </div>
+    <a href="logout.php" class="quick-action-btn logout">
+        <i class="bi bi-box-arrow-right"></i> Esci dall'Account
+    </a>
 </div>
+
 
 <script>
     function toggleFields() {

@@ -100,54 +100,47 @@ button.btn-primary:hover {
 #modpack-group {
   margin-bottom: 1rem;
   transition: opacity 0.3s ease;
-
-  /* Pulsanti accentuati e grandi per side-panel */
-.side-panel .btn-accent {
-  width: 100%;
-  font-weight: 800;
-  font-size: 1.15rem;
-  padding: 12px 0;
-  border-radius: 40px;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer;
-  text-decoration: none;
 }
 
-/* Dashboard button - verde a tema */
-.side-panel .btn-accent.dashboard {
-  background: linear-gradient(90deg, #4ade80, #22c55e);
-  color: #0f3d00;
-  box-shadow: 0 6px 12px rgba(34,197,94,0.5);
+.side-panel {
+    background: #1e1e2f;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(0, 255, 150, 0.15);
+    margin-top: 30px;
+    text-align: center;
 }
 
-.side-panel .btn-accent.dashboard:hover {
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-  box-shadow: 0 10px 20px rgba(34,197,94,0.7);
-  transform: scale(1.05);
+.quick-actions-title {
+    color: #00ffcc;
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 1px;
 }
 
-/* Logout button - rosso a tema */
-.side-panel .btn-accent.logout {
-  background: linear-gradient(90deg, #f87171, #ef4444);
-  color: #640000;
-  box-shadow: 0 6px 12px rgba(239,68,68,0.5);
+.quick-action-btn {
+    display: block;
+    background: linear-gradient(135deg, #00ffaa, #0077ff);
+    color: white;
+    text-decoration: none;
+    padding: 12px 20px;
+    margin: 10px 0;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 255, 150, 0.2);
 }
 
-.side-panel .btn-accent.logout:hover {
-  background: linear-gradient(90deg, #ef4444, #b91c1c);
-  box-shadow: 0 10px 20px rgba(239,68,68,0.7);
-  transform: scale(1.05);
+.quick-action-btn:hover {
+    background: linear-gradient(135deg, #00dd99, #0055cc);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 255, 150, 0.4);
 }
 
-/* Icone pulsanti */
-.side-panel .btn-accent i {
-  font-size: 1.5rem;
-  line-height: 1;
+.quick-action-btn i {
+    margin-right: 8px;
+    font-size: 18px;
 }
 
-}
