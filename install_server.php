@@ -47,7 +47,7 @@ try {
     // Seleziona comando in base al tipo
     switch ($type) {
         case 'vanilla':
-            $remoteCommand = "bash /home/diego/setup_server.sh 'vanilla' '$versionOrSlug' '' '' '$serverId'";
+            $remoteCommand = "bash /home/diego/setup_server.sh 'vanilla' '1.20.1' '' '' '12'";
             break;
         case 'modpack':
             $remoteCommand = "bash /home/diego/setup_server.sh 'modpack' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
