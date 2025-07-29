@@ -65,12 +65,15 @@ $escapedServerDir = escapeshellarg($serverDir);
 $escapedVmIp = escapeshellarg($vmIp);
 $escapedSshUser = escapeshellarg($sshUser);
 
+$log = "/home/diego/setup_log_$serverId.log";
+
+
+ 
 // Comando SSH per cancellare la cartella server
-$cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}'";
+$cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}' && rm $log";
 
 // Esegui comando e cattura output e codice di ritorno
 exec($cmd . " 2>&1", $output, $return_var);
-
 if ($return_var !== 0) {
     error_log("Errore eliminando cartella server (ID: $serverId) sulla VM $vmIp: " . implode("\n", $output));
     // Eventuale gestione errore utente (es: messaggio sessione)
