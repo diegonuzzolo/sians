@@ -48,7 +48,7 @@ try {
     switch ($type) {
         case 'vanilla':
         case 'bukkit':
-            $remoteCommand = "bash /home/diego/setup_server.sh '$type' '$versionOrSlug' '' '' '$serverId'";
+            $remoteCommand = "bash /home/diego/setup_server.sh $type $versionOrSlug '' '' $serverId";
             break;
         case 'modpack':
             $remoteCommand = "bash /home/diego/setup_server.sh 'modpack' '$versionOrSlug' '$downloadUrl' '$installMethod' '$serverId'";
