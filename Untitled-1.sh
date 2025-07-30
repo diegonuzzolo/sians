@@ -36,11 +36,14 @@ mkdir -p "$MODS_DIR"
 mkdir -p "$SERVER_DIR/logs"
 mkdir -p "$SERVER_DIR/debug"
 
-
+# Funzione log
+log() {
+    echo "[$(date)] $1" | tee -a "$LOG_FILE"
+}
 mkdir -p "$SERVER_DIR"
 touch "$LOG_FILE"
 chmod 644 "$LOG_FILE"
-echo "[$(date)] Avvio installazione server $SERVER_ID (tipo: $TYPE)" >> "$LOG_FILE"
+log "[$(date)] Avvio installazione server $SERVER_ID (tipo: $TYPE)" >> "$LOG_FILE"
 
 
 
@@ -58,10 +61,7 @@ update_status() {
          "$UPDATE_URL" > /dev/null
 }
 
-# Funzione log
-log() {
-    echo "[$(date)] $1" | tee -a "$LOG_FILE"
-}
+
 
 update_status "installing" 5
 
@@ -171,9 +171,8 @@ for i in $(seq 0 $((MOD_COUNT - 1))); do
         log "⚠️  Ignoro mod senza URL valido: $MOD_NAME (indice $i)"
         continue
     fi
-
     TMP_FILE="${MODS_DIR}/${MOD_NAME}.tmp"
-    if curl --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 10000 --fail -L -o "$TMP_FILE" "$MOD_URL"; then
+    if curl --retry 5 --retry-delay 5 --connect-timeout 10 --max-time 3600 --fail -L -o "$TMP_FILE" "$MOD_URL"; then
         if unzip -tq "$TMP_FILE" >/dev/null 2>&1; then
             mv "$TMP_FILE" "$MODS_DIR/$MOD_NAME"
             log "✔️  Scaricata e verificata: $MOD_NAME"
@@ -186,24 +185,47 @@ for i in $(seq 0 $((MOD_COUNT - 1))); do
         rm -f "$TMP_FILE"
     fi
 done
+log "✅ Installazione modpack completata."
+
+# Percorso dove si trova modrinth.index.json
+MODRINTH_DIR="/home/diego/minecraft_servers/$SERVER_ID"  # <-- Modifica questo
+if [ ! -f "$MODRINTH_DIR/modrinth.index.json" ]; then
+    log "❌ File modrinth.index.json non trovato in $MODRINTH_DIR"
+    exit 1
+fi
+
+# Leggi versioni da modrinth.index.json
+fabric_loader_version=$(jq -r '.dependencies["fabric-loader"]' "$MODRINTH_DIR/modrinth.index.json")
+minecraft_version=$(jq -r '.dependencies.minecraft' "$MODRINTH_DIR/modrinth.index.json")
+
+log "➡️ Minecraft version: $minecraft_version"
+log "➡️ Fabric loader version: $fabric_loader_version"
+
+# Recupera la lista delle versioni del loader
+json=$(curl --connect-timeout 60 --max-time 300 -s "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/server")
+
+# Recupera installer_version se disponibile
+installer_version=$(echo "$json" | jq -r '.[0].version // empty')
+
+# Se installer_version è vuoto, fallback a un valore predefinito (opzionale)
+if [ -z "$installer_version" ]; then
+    log "⚠️ Nessun installer trovato per Fabric $fabric_loader_version + MC $minecraft_version"
+    exit 1
+fi
+
+log "📥 Downloading Fabric server: loader=$fabric_loader_version, installer=$installer_version, mc=$minecraft_version"
+
+# Scarica il server jar con nome corretto
+wget --timeout=300 --tries=10 -O fabric-server-launch.jar \
+    "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/${installer_version}/server/jar"
+
+if [ $? -ne 0 ]; then
+    log "❌ Errore durante il download del fabric-server-launch.jar"
+    exit 1
+fi
 
 
-
-# Estrai versioni da modrinth.index.json
-fabric_loader_version=$(jq -r '.dependencies["fabric-loader"]' modrinth.index.json)
-minecraft_version=$(jq -r '.dependencies.minecraft' modrinth.index.json)
-json=$(curl -s "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/server")
-
-installer_version=$(echo "$json" | jq -r '.[0].version')
-
-# Se la versione non è trovata, fallback a ultima nota
-\
-
-echo "Download Fabric Loader v$fabric_loader_version per MC v$minecraft_version"
-wget -O fabric-server-launch.jar "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/${installer_version}/server/jar"
-
-
-    log "✅ Installazione modpack completata."
+    log "✅ Server Fabric scaricato correttamente."
 }
 
 # -------------------- INSTALLAZIONE ----------------------
@@ -254,10 +276,10 @@ elif [ "$TYPE" == "modpack" ]; then
 fi
 
 # Accetta EULA
-echo "eula=true" > eula.txt
+log "eula=true" > eula.txt
 
 # Accetta EULA
-echo "eula=true" > "$SERVER_DIR/eula.txt"
+log "eula=true" > "$SERVER_DIR/eula.txt"
 
 # start.sh
 cat > "$SERVER_DIR/start.sh" <<EOF
@@ -357,3 +379,9 @@ done
 # Quando termina il monitoraggio, passa a stato "running"
 curl -s -X POST -H "Authorization: Bearer $UPDATE_TOKEN" \
     -d "{\"server_id\": \"$SERVER_ID\", \"status\": \"running\"}" "$UPDATE_URL" > /dev/null
+
+
+
+
+
+
