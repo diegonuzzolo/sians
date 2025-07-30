@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "❌ Nome server mancante.";
     } elseif (($postType === 'vanilla' || $postType === 'paper') && empty($postVersion)) {
 
-        $error = "❌ Seleziona una versione per Vanilla/Bukkit.";
+        $error = "❌ Seleziona una versione per Vanilla/PaperMC.";
     } elseif ($postType === 'modpack' && empty($postModpackId)) {
         $error = "❌ Seleziona un Modpack.";
     } else {
@@ -183,7 +183,7 @@ $versions = [
                 <label for="type">Tipo Server</label>
                 <select name="type" class="form-select" required onchange="toggleFields()">
                     <option value="vanilla">Vanilla</option>
-                    <option value="bukkit">Bukkit</option>
+                    <option value="paper">Bukkit</option>
                     <option value="modpack">Modpack</option>
                 </select>
             </div>

@@ -13,7 +13,7 @@ $userId = $_SESSION['user_id'];
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.progress, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
                        FROM servers s
                        JOIN minecraft_vms vm ON s.vm_id = vm.id
                        WHERE s.user_id = ?");
@@ -149,9 +149,10 @@ $servers = $stmt->fetchAll();
               <div class="server-inner" id="server-inner-<?= $server['id'] ?>">
                 <h5><?= htmlspecialchars($server['name']) ?></h5>
 
-                <?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
+                <?php if (in_array($server['status'], ['installing', 'downloading_mods', 'installing_mods', 'downloading_server'])): ?>
+
                   <div class="progress">
-                    <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
+                    <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar"
                         style="width: <?= $server['progress'] ?>%;" 
                         aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
                         data-server-id="<?= $server['id'] ?>">
@@ -160,11 +161,14 @@ $servers = $stmt->fetchAll();
                   </div>
                 <?php endif; ?>
 
-                <div class="server-status" id="status-<?= $server['id'] ?>">
-                    <?= htmlspecialchars($server['status']) ?>
-                </div>
+               <div class="server-status mt-2" id="status-<?= $server['id'] ?>">
+    <span class="<?= in_array($server['status'], ['running']) ? 'badge badge-running' : 'badge badge-stopped' ?>">
+      <?= htmlspecialchars(strtoupper($server['status'])) ?>
+    </span>
+</div>
 
-                <?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
+<?php if (!in_array($server['status'], ['installing', 'downloading_mods', 'installing_mods', 'downloading_server'])): ?>
+
                   <div class="d-flex justify-content-start gap-2 mt-3">
                     <form method="post" action="server_action.php">
                         <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
