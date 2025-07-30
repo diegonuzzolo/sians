@@ -11,7 +11,7 @@ if (!empty($modrinthApiToken)) {
     $headers[] = 'Authorization: Bearer ' . $modrinthApiToken;
 }
 
-$baseUrl = "https://api.modrinth.com/v2/project";
+$baseUrl = "https://api.modrinth.com/v2/search";
 $forgeModpackIds = [];
 $limit = 100;
 $offset = 0;
