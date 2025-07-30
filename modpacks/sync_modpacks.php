@@ -5,7 +5,7 @@ $baseApiUrl = "https://api.modrinth.com/v2/projects";
 
 // Funzione per recuperare paginazione API Modrinth
 function fetchModrinthForgeProjects($offset = 0, $limit = 50) {
-    $url = "https://api.modrinth.com/v2/search";
+    $url = "https://api.modrinth.com/v2/search/project";
 
     $postData = [
         "facets" => [
@@ -37,6 +37,7 @@ function fetchModrinthForgeProjects($offset = 0, $limit = 50) {
 
     return json_decode($response, true);
 }
+
 
 
 
