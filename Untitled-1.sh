@@ -202,22 +202,19 @@ log "➡️ Minecraft version: $minecraft_version"
 log "➡️ Fabric loader version: $fabric_loader_version"
 
 # Recupera la lista delle versioni del loader
-json=$(curl --connect-timeout 60 --max-time 300 -s "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/server")
+json=$(curl --connect-timeout 60 --max-time 300 -s "https://meta.fabricmc.net/v2/versions/loader")
+installer_version=$(echo "$json" | jq -r --arg mc "$minecraft_version" --arg loader "$fabric_loader_version" \
+    '.[] | select(.loader.version == $loader and .game.version == $mc) | .installer.version' | head -n1)
 
-# Recupera installer_version se disponibile
-installer_version=$(echo "$json" | jq -r '.[0].version // empty')
-
-# Se installer_version è vuoto, fallback a un valore predefinito (opzionale)
 if [ -z "$installer_version" ]; then
-    log "⚠️ Nessun installer trovato per Fabric $fabric_loader_version + MC $minecraft_version"
+    echo "❌ Nessuna combinazione trovata per Fabric $fabric_loader_version con Minecraft $minecraft_version"
     exit 1
 fi
 
-log "📥 Downloading Fabric server: loader=$fabric_loader_version, installer=$installer_version, mc=$minecraft_version"
+echo "✅ Installer version trovata: $installer_version"
 
-# Scarica il server jar con nome corretto
-wget --timeout=300 --tries=10 -O fabric-server-launch.jar \
-    "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/${installer_version}/server/jar"
+# Scarica il server jar
+wget -O fabric-server-launch.jar "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/${installer_version}/server/jar"
 
 if [ $? -ne 0 ]; then
     log "❌ Errore durante il download del fabric-server-launch.jar"
