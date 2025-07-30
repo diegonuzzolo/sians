@@ -229,13 +229,15 @@ $versions = [
     <a href="dashboard.php" class="quick-action-button dashboard">
         <i class="bi bi-speedometer2"></i> Torna alla Dashboard
     </a>
-
+    
     <a href="logout.php" class="quick-action-button logout">
         <i class="bi bi-box-arrow-right"></i> Esci dall'Account
     </a>
 </div>
 
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 
 <script>
@@ -265,8 +267,6 @@ $versions = [
     });
 </script>
 <!-- jQuery + Select2 JS -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 </body>
 </html>
