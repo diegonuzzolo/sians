@@ -20,7 +20,7 @@ function modrinthApiRequest(string $url): ?array {
 }
 
 // Recupera plugin (project_type=plugin) con loader forge (o quello che serve)
-$page = 0;
+$page = 1;
 $pageSize = 50;
 $totalProcessed = 0;
 
