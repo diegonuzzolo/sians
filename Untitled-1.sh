@@ -36,26 +36,6 @@ mkdir -p "$MODS_DIR"
 mkdir -p "$SERVER_DIR/logs"
 mkdir -p "$SERVER_DIR/debug"
 
-check_for_errors() {
-    for keyword in "${KEYWORDS[@]}"; do
-        if grep -q "$keyword" "$LOG_FILE"; then
-            echo "[$(date)] ❌ Trovato errore con keyword '$keyword'" >> "$ERROR_LOG"
-            echo "Ultime righe:" >> "$ERROR_LOG"
-            tail -n 50 "$LOG_FILE" >> "$ERROR_LOG"
-            echo -e "\n---\n" >> "$ERROR_LOG"
-
-            # Qui puoi inserire logica per azioni automatiche
-            # es: disabilitare una mod problematica (rinomina .jar -> .disabled)
-        fi
-    done
-}
-
-while true; do
-    if [ -f "$LOG_FILE" ]; then
-        check_for_errors
-    fi
-    sleep 10
-done
 
 mkdir -p "$SERVER_DIR"
 touch "$LOG_FILE"
