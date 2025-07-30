@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Forge o Modrinth?
                     if (!empty($modpack['forge_version'])) {
-                        // È un modpack Forge
+                         // È un modpack Forge
                         $forgeCombined = $modpack['game_version'] . '-' . $modpack['forge_version'];
                         $remoteVersionOrSlug = escapeshellarg($forgeCombined);
                         $remoteType = escapeshellarg('forge');
