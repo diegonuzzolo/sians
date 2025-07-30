@@ -5,10 +5,19 @@ $baseApiUrl = "https://api.modrinth.com/v2/projects";
 
 // Funzione per recuperare paginazione API Modrinth
 function fetchModrinthForgeProjects($page = 0, $pageSize = 50) {
-    $url = "https://api.modrinth.com/v2/search?facets=[\"categories:modpacks\",\"loaders:forge\"]&index=downloads&offset=" . ($page * $pageSize) . "&limit=$pageSize";
+    $facets = json_encode(["categories:modpacks", "loaders:forge"]);
+    $facetsEncoded = urlencode($facets);
+    $offset = $page * $pageSize;
+    $url = "https://api.modrinth.com/v2/search?facets=$facetsEncoded&index=downloads&offset=$offset&limit=$pageSize";
+    
     $response = file_get_contents($url);
+    if ($response === false) {
+        echo "Errore nella richiesta API Modrinth\n";
+        return null;
+    }
     return json_decode($response, true);
 }
+
 
 // Funzione per recuperare info versione di un progetto Modrinth
 function fetchVersions($projectId) {
