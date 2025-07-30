@@ -1,63 +1,58 @@
 <?php
-// CONFIG
-$apiUrl = "https://api.modrinth.com/v2/search";
-$token = "mrp_RvSag6ASSA006S77GkMC97sqT0jpSqVPrTn6kSCnMtAMm6ydwxW5g6rAqLt2";
-$limit = 100; // massimo per chiamata
+
+$limit = 100;
 $offset = 0;
 $allProjects = [];
 
 do {
-    $queryData = [
-        "query" => "",
-        "facets" => json_encode([
-            ["project_type:modpack"]
+    $query = [
+        'query' => '',
+        'facets' => json_encode([
+            ['project_type:modpack']
         ]),
-        "index" => "downloads", // oppure "relevance"
-        "limit" => $limit,
-        "offset" => $offset
+        'limit' => $limit,
+        'offset' => $offset,
+        'index' => 'downloads' // o relevance, newest, etc.
     ];
 
-    $queryString = http_build_query($queryData);
+    $url = "https://api.modrinth.com/v2/search?" . http_build_query($query);
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "$apiUrl?$queryString");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "User-Agent: Modrinth Sync Script",
-        "Authorization: Bearer $token"
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 30
     ]);
 
     $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($httpCode !== 200) {
-        echo "Errore nella chiamata Modrinth: codice HTTP $httpCode\n";
+    if ($http_code !== 200) {
+        echo "Errore API Modrinth, codice: $http_code\n";
         exit;
     }
 
     $data = json_decode($response, true);
-    if (!isset($data["hits"])) {
-        echo "Risposta inattesa: " . $response . "\n";
+    if (!$data || !isset($data['hits'])) {
+        echo "Risposta non valida o senza risultati.\n";
         exit;
     }
 
-    foreach ($data["hits"] as $project) {
+    foreach ($data['hits'] as $project) {
         $allProjects[] = [
-            "id" => $project["project_id"],
-            "slug" => $project["slug"],
-            "title" => $project["title"],
-            "downloads" => $project["downloads"]
+            'id' => $project['project_id'],
+            'slug' => $project['slug'],
+            'title' => $project['title']
         ];
     }
 
-    $offset += $limit;
-} while (count($data["hits"]) === $limit);
+    $count = count($data['hits']);
+    $offset += $count;
+} while ($count === $limit);
 
-// STAMPA O SALVA
 foreach ($allProjects as $project) {
-    echo "ID: {$project['id']} | Slug: {$project['slug']} | Title: {$project['title']} | Downloads: {$project['downloads']}\n";
+    echo "ID: {$project['id']} | Slug: {$project['slug']} | Titolo: {$project['title']}\n";
 }
 
-// FACOLTATIVO: salva in JSON
-// file_put_contents('modpacks_list.json', json_encode($allProjects, JSON_PRETTY_PRINT));
+echo "Totale modpack trovati: " . count($allProjects) . "\n";
