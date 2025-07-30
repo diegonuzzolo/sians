@@ -48,6 +48,7 @@ do {
 
         foreach ($data['hits'] as $modpack) {
             if (isset($modpack['loaders']) && in_array('forge', $modpack['loaders'])) {
+                echo "Trovato modpack Forge: " . $modpack['title'] . " (ID: " . $modpack['project_id'] . ")\n";
                 $forgeModpackIds[] = $modpack['project_id'];
             }
         }
