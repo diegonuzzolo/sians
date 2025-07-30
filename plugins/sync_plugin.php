@@ -62,6 +62,11 @@ do {
             $download_url = '';
         }
 
+            if (empty($id)) {
+        echo "❌ Plugin senza ID, salto.\n";
+        continue;
+    }
+
         // Controllo esistenza record
         $stmt = $pdo->prepare("SELECT id FROM plugins WHERE id = ?");
         $stmt->execute([$id]);
