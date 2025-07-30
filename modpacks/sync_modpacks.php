@@ -28,8 +28,8 @@ function fetchModpacks($limit = 100, $offset = 0) {
 
 function insertModpack($pdo, $modpack) {
     $stmt = $pdo->prepare("
-        INSERT INTO modpacks (id, slug, title, description, downloads, project_type, categories, game_version, updated)
-        VALUES (:id, :slug, :title, :description, :downloads, :project_type, :categories, :game_version, :updated)
+        INSERT INTO modpacks (project_id, slug, title, description, downloads, project_type, categories, game_version, updated)
+        VALUES (:project_id, :slug, :title, :description, :downloads, :project_type, :categories, :game_version, :updated)
         ON DUPLICATE KEY UPDATE
             title = VALUES(title),
             description = VALUES(description),
@@ -40,7 +40,7 @@ function insertModpack($pdo, $modpack) {
     ");
 
     $stmt->execute([
-        ':id' => $modpack['project_id'],
+        ':project_id' => $modpack['project_id'],
         ':slug' => $modpack['slug'],
         ':title' => $modpack['title'],
         ':description' => $modpack['description'] ?? '',
