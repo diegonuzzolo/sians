@@ -79,8 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
                 $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-            escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $postVersion") .
-            " > /dev/null 2>&1 &";
+    escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion") .
+    " > /dev/null 2>&1 &";
+
 
 
             exec($sshCmd);
