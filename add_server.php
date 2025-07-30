@@ -129,6 +129,8 @@ $versions = [
     <link href="assets/css/add_server.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <style>
 
@@ -170,6 +172,11 @@ $versions = [
     .quick-action-button.logout:hover {
         box-shadow: 0 6px 14px rgba(255, 60, 60, 0.4);
     }
+
+    .select2-container .select2-selection--single {
+    height: 38px;
+    padding: 6px 12px;
+}
 </style>
 
 
@@ -207,7 +214,7 @@ $versions = [
             </div>
             <div class="mb-3" id="modpack-group" style="display:none;">
                 <label for="modpack_id">Modpack</label>
-                <select name="modpack_id" class="form-select">
+                <select name="modpack_id" class="form-select" id="modpack-select">
                     <?php foreach ($modpacks as $modpack): ?>
                         <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['title']) ?> (<?= $modpack['game_version'] ?>)</option>
                     <?php endforeach; ?>
@@ -248,7 +255,18 @@ $versions = [
 
     // Init state on load
     document.addEventListener("DOMContentLoaded", toggleFields);
+
+
+      $(document).ready(function() {
+        $('#modpack-select').select2({
+            placeholder: 'Cerca modpack...',
+            width: '100%'
+        });
+    });
 </script>
+<!-- jQuery + Select2 JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 </body>
 </html>
