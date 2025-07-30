@@ -1,129 +1,77 @@
 <?php
-require __DIR__.'/../config/config.php';
+require 'config/config.php'; // Connessione PDO in $pdo
 
-$baseApiUrl = "https://api.modrinth.com/v2/projects";
+function fetchModpacks($limit = 100, $offset = 0) {
+    $facets = urlencode(json_encode([
+        ["categories:forge"],
+        ["project_type:modpack"]
+    ]));
 
-// Funzione per recuperare paginazione API Modrinth
-function fetchModrinthForgeProjects($offset = 0, $limit = 50) {
-    $url = "https://api.modrinth.com/v2/search/project";
+    $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
 
-    $postData = [
-        "facets" => [
-            ["categories:modpacks"],
-            ["loaders:forge"]
-        ],
-        "index" => "downloads",
-        "offset" => $offset,
-        "limit" => $limit
-    ];
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20
+    ]);
+    $response = curl_exec($curl);
+    curl_close($curl);
 
-    $payload = json_encode($postData);
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    curl_close($ch);
-
-    if ($httpCode != 200) {
-        echo "Errore API Modrinth, HTTP status code: $httpCode\n";
-        return null;
+    if (!$response) {
+        echo "Errore nel recupero dati.\n";
+        return [];
     }
 
-    return json_decode($response, true);
+    $json = json_decode($response, true);
+    return $json['hits'] ?? [];
 }
 
+function insertModpack($pdo, $modpack) {
+    $stmt = $pdo->prepare("
+        INSERT INTO modpacks (id, slug, title, description, downloads, project_type, categories, game_version, updated)
+        VALUES (:id, :slug, :title, :description, :downloads, :project_type, :categories, :game_version, :updated)
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            description = VALUES(description),
+            downloads = VALUES(downloads),
+            categories = VALUES(categories),
+            game_version = VALUES(game_version),
+            updated = VALUES(updated)
+    ");
 
-
-
-
-// Funzione per recuperare info versione di un progetto Modrinth
-function fetchVersions($projectId) {
-    $url = "https://api.modrinth.com/v2/project/$projectId/version";
-    $response = file_get_contents($url);
-    return json_decode($response, true);
+    $stmt->execute([
+        ':id' => $modpack['project_id'],
+        ':slug' => $modpack['slug'],
+        ':title' => $modpack['title'],
+        ':description' => $modpack['description'] ?? '',
+        ':downloads' => $modpack['downloads'] ?? 0,
+        ':project_type' => $modpack['project_type'],
+        ':categories' => implode(',', $modpack['categories'] ?? []),
+        ':game_version' => $modpack['versions'][0] ?? '',
+        ':updated' => date('Y-m-d H:i:s', strtotime($modpack['date_modified'] ?? 'now')),
+    ]);
 }
 
-$page = 0;
-$pageSize = 50;
-$totalProcessed = 0;
+// Ciclo per prendere tutti i modpack paginati
+$offset = 0;
+$totalFetched = 0;
 
-do {
-    $data = fetchModrinthForgeProjects($page, $pageSize);
-    if (!isset($data['hits'])) break;
+while (true) {
+    echo "Recupero modpack da offset $offset...\n";
+    $modpacks = fetchModpacks(100, $offset);
 
-    foreach ($data['hits'] as $project) {
-        $projectId = $project['id'];
-        $slug = $project['slug'];
-        $name = $project['title'] ?? $project['slug'];
-
-        $versions = fetchVersions($projectId);
-        if (!$versions) continue;
-
-        foreach ($versions as $version) {
-            $versionId = $version['id'];
-            $versionNumber = $version['version_number'] ?? '';
-            $gameVersions = $version['game_versions'] ?? [];
-            $loaders = $version['loaders'] ?? [];
-
-            // Filtro versione forge
-            if (!in_array('forge', $loaders)) continue;
-
-            // Provo a estrarre la versione Forge da dependencies (se esiste)
-            $forgeVersion = null;
-            if (isset($version['dependencies']) && is_array($version['dependencies'])) {
-                foreach ($version['dependencies'] as $dep) {
-                    if (stripos($dep, 'forge') !== false) {
-                        $forgeVersion = $dep;
-                        break;
-                    }
-                }
-            }
-
-            // Prendo il primo file URL (download)
-            $downloadUrl = '';
-            if (isset($version['files'][0]['url'])) {
-                $downloadUrl = $version['files'][0]['url'];
-            }
-
-            $gameVersionStr = implode(',', $gameVersions);
-
-            // Controllo se già presente
-            $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE project_id = ? AND version_id = ?");
-            $stmt->execute([$projectId, $versionId]);
-
-            if ($stmt->rowCount() > 0) {
-                echo "Esiste già: $name - $versionNumber\n";
-                continue;
-            }
-
-            // Inserisco modpack
-            $stmt = $pdo->prepare("INSERT INTO modpacks 
-                (name, slug, project_id, version_id, version, download_url, game_version, loader_type, forge_version) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'forge', ?)");
-
-            $stmt->execute([
-                $name,
-                $slug,
-                $projectId,
-                $versionId,
-                $versionNumber,
-                $downloadUrl,
-                $gameVersionStr,
-                $forgeVersion
-            ]);
-
-            echo "Importato: $name - $versionNumber\n";
-            $totalProcessed++;
-        }
+    if (empty($modpacks)) {
+        echo "Nessun altro modpack trovato.\n";
+        break;
     }
 
-    $page++;
-} while ($page * $pageSize < $data['total_hits']);
+    foreach ($modpacks as $modpack) {
+        insertModpack($pdo, $modpack);
+        $totalFetched++;
+    }
 
-echo "Totale modpack Forge sincronizzati: $totalProcessed\n";
+    $offset += 100;
+    sleep(1); // evita rate limit
+}
+
+echo "Importazione completata. Modpack importati: $totalFetched\n";
