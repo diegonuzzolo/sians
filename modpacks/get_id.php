@@ -1,10 +1,10 @@
 <?php
 
-$modrinthApiToken = getenv('MODRINTH_API_TOKEN');
+$modrinthApiToken = getenv('mrp_RvSag6ASSA006S77GkMC97sqT0jpSqVPrTn6kSCnMtAMm6ydwxW5g6rAqLt2');
 
 $headers = [
     'Content-Type: application/json',
-    'User-Agent: YourAppName/1.0 (your_email@example.com)' // Sostituisci con informazioni reali
+    'User-Agent: YourAppName/1.0 (nuzzolo27@gmail.com)' // Sostituisci con informazioni reali
 ];
 
 if (!empty($modrinthApiToken)) {
