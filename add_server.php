@@ -21,7 +21,8 @@ $modpacks = $stmt->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName)) {
         $error = "❌ Nome server mancante.";
-    } elseif (($postType === 'vanilla' || $postType === 'bukkit') && empty($postVersion)) {
+    } elseif (($postType === 'vanilla' || $postType === 'paper') && empty($postVersion)) {
+
         $error = "❌ Seleziona una versione per Vanilla/Bukkit.";
     } elseif ($postType === 'modpack' && empty($postModpackId)) {
         $error = "❌ Seleziona un Modpack.";
@@ -70,36 +71,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $remoteGameVersion = escapeshellarg($modpack['game_version']);
                 }
             } else {
-                // Vanilla o Bukkit
-                $manifestJson = file_get_contents("https://launchermeta.mojang.com/mc/game/version_manifest.json");
-                $manifestData = json_decode($manifestJson, true);
-
-                $versionUrl = '';
-                foreach ($manifestData['versions'] as $version) {
-                    if ($version['id'] === $postVersion) {
-                        $versionUrl = $version['url'];
-                        break;
-                    }
-                }
-
-                if ($versionUrl) {
-                    $versionInfoJson = file_get_contents($versionUrl);
-                    $versionInfo = json_decode($versionInfoJson, true);
-                    $serverDownloadUrl = $versionInfo['downloads']['server']['url'] ?? '';
-                    if ($serverDownloadUrl) {
-                        $remoteUrl = escapeshellarg($serverDownloadUrl);
-                    } else {
-                        $remoteUrl = escapeshellarg('');
-                    }
-                } else {
-                    $remoteUrl = escapeshellarg('');
-                }
+                // Vanilla o Paper
+                $remoteUrl = escapeshellarg('');
                 $remoteMethod = escapeshellarg('');
-            }
+                $remoteGameVersion = escapeshellarg($postVersion);
+}
 
-            $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-                escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion") .
-                " > /dev/null 2>&1 &";
+
+                $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
+            escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $postVersion") .
+            " > /dev/null 2>&1 &";
+
 
             exec($sshCmd);
             header("Location: dashboard.php");
