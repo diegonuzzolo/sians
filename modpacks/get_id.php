@@ -1,69 +1,63 @@
 <?php
-function fetchAllModrinthModpacks($loader = 'forge') {
-    $allModpacks = [];
-    $offset = 0;
-    $limit = 50;
+// CONFIG
+$apiUrl = "https://api.modrinth.com/v2/search";
+$token = "mrp_RvSag6ASSA006S77GkMC97sqT0jpSqVPrTn6kSCnMtAMm6ydwxW5g6rAqLt2";
+$limit = 100; // massimo per chiamata
+$offset = 0;
+$allProjects = [];
 
-    do {
-        $result = fetchModrinthModpacks($offset, $limit, $loader);
-        if (!$result || !isset($result['hits'])) {
-            echo "Errore o nessun risultato alla pagina offset $offset.\n";
-            break;
-        }
-
-        foreach ($result['hits'] as $modpack) {
-            $allModpacks[] = [
-                'id' => $modpack['id'],
-                'slug' => $modpack['slug'],
-                'title' => $modpack['title'] ?? '',
-                'downloads' => $modpack['downloads'] ?? 0
-            ];
-        }
-
-        $offset += $limit;
-    } while (count($result['hits']) === $limit); // finché restituisce pagina piena
-
-    return $allModpacks;
-}
-
-function fetchModrinthModpacks($offset, $limit, $loader) {
-    $url = "https://api.modrinth.com/v2/search";
-
-    $postData = [
+do {
+    $queryData = [
         "query" => "",
-        "facets" => [
-            ["categories:modpacks"],
-            ["project_type:modpack"],
-            ["loaders:$loader"]
-        ],
-        "index" => "downloads",
-        "offset" => $offset,
-        "limit" => $limit
+        "facets" => json_encode([
+            ["project_type:modpack"]
+        ]),
+        "index" => "downloads", // oppure "relevance"
+        "limit" => $limit,
+        "offset" => $offset
     ];
 
-    $payload = json_encode($postData);
+    $queryString = http_build_query($queryData);
 
-    $ch = curl_init($url);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "$apiUrl?$queryString");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "User-Agent: Modrinth Sync Script",
+        "Authorization: Bearer $token"
+    ]);
 
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    return json_decode($response, true);
+    if ($httpCode !== 200) {
+        echo "Errore nella chiamata Modrinth: codice HTTP $httpCode\n";
+        exit;
+    }
+
+    $data = json_decode($response, true);
+    if (!isset($data["hits"])) {
+        echo "Risposta inattesa: " . $response . "\n";
+        exit;
+    }
+
+    foreach ($data["hits"] as $project) {
+        $allProjects[] = [
+            "id" => $project["project_id"],
+            "slug" => $project["slug"],
+            "title" => $project["title"],
+            "downloads" => $project["downloads"]
+        ];
+    }
+
+    $offset += $limit;
+} while (count($data["hits"]) === $limit);
+
+// STAMPA O SALVA
+foreach ($allProjects as $project) {
+    echo "ID: {$project['id']} | Slug: {$project['slug']} | Title: {$project['title']} | Downloads: {$project['downloads']}\n";
 }
 
-// Esecuzione
-$loader = 'fabric'; // puoi usare anche 'forge', 'neoforge', 'quilt' ecc.
-$modpacks = fetchAllModrinthModpacks($loader);
-
-// Stampa risultati
-foreach ($modpacks as $m) {
-    echo "ID: {$m['id']} | Slug: {$m['slug']} | Title: {$m['title']} | Downloads: {$m['downloads']}\n";
-}
-
-// Facoltativo: salva su file JSON
-file_put_contents("modrinth_modpacks_{$loader}.json", json_encode($modpacks, JSON_PRETTY_PRINT));
-echo "\nTotale modpack trovati: " . count($modpacks) . "\n";
+// FACOLTATIVO: salva in JSON
+// file_put_contents('modpacks_list.json', json_encode($allProjects, JSON_PRETTY_PRINT));
