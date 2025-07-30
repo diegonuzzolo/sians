@@ -4,24 +4,40 @@ require __DIR__.'/../config/config.php';
 $baseApiUrl = "https://api.modrinth.com/v2/projects";
 
 // Funzione per recuperare paginazione API Modrinth
-function fetchModrinthForgeProjects($page = 0, $pageSize = 50) {
-    $facets = json_encode([
-        ["categories:modpacks"],
-        ["loaders:forge"]
-    ]);
-    $facetsEncoded = urlencode($facets);
-    $offset = $page * $pageSize;
-    $url = "https://api.modrinth.com/v2/search?facets=$facetsEncoded&index=downloads&offset=$offset&limit=$pageSize";
+function fetchModrinthForgeProjects($offset = 0, $limit = 50) {
+    $url = "https://api.modrinth.com/v2/search";
 
-    echo "URL: $url\n";  // per debug
+    $postData = [
+        "facets" => [
+            ["categories:modpacks"],
+            ["loaders:forge"]
+        ],
+        "index" => "downloads",
+        "offset" => $offset,
+        "limit" => $limit
+    ];
 
-    $response = file_get_contents($url);
-    if ($response === false) {
-        echo "Errore nella richiesta API Modrinth\n";
+    $payload = json_encode($postData);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
+
+    if ($httpCode != 200) {
+        echo "Errore API Modrinth, HTTP status code: $httpCode\n";
         return null;
     }
+
     return json_decode($response, true);
 }
+
 
 
 
