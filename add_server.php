@@ -183,7 +183,7 @@ $versions = [
                 <label for="type">Tipo Server</label>
                 <select name="type" class="form-select" required onchange="toggleFields()">
                     <option value="vanilla">Vanilla</option>
-                    <option value="paper">Bukkit</option>
+                    <option value="paper">Paper</option>
                     <option value="modpack">Modpack</option>
                 </select>
             </div>
