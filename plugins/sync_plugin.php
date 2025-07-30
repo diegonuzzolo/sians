@@ -37,7 +37,7 @@ do {
     if (!$data || !isset($data['hits'])) break;
 
     foreach ($data['hits'] as $plugin) {
-        $id = $plugin['id'] ?? null;
+        $id = $plugin['project_id'] ?? null;
         $name = $plugin['title'] ?? $plugin['slug'];
         $description = $plugin['description'] ?? '';
         $slug = $plugin['slug'] ?? '';
