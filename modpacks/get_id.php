@@ -1,50 +1,75 @@
 <?php
-function fetchModrinthForgeModpacks($offset = 0, $limit = 50) {
-    $url = "https://api.modrinth.com/v2/search/project";
 
-    $postData = [
-        "facets" => [
-            ["categories:modpacks"],
-            ["loaders:forge"]
-        ],
-        "index" => "downloads",
-        "offset" => $offset,
-        "limit" => $limit
+$modrinthApiToken = getenv('MODRINTH_API_TOKEN');
+
+$headers = [
+    'Content-Type: application/json',
+    'User-Agent: YourAppName/1.0 (your_email@example.com)' // Sostituisci con informazioni reali
+];
+
+if (!empty($modrinthApiToken)) {
+    $headers[] = 'Authorization: Bearer ' . $modrinthApiToken;
+}
+
+$baseUrl = "https://api.modrinth.com/v2/search";
+$forgeModpackIds = [];
+$limit = 100;
+$offset = 0;
+
+echo "Ricerca di modpack Forge su Modrinth...\n";
+
+do {
+    $queryParams = [
+        'query' => '',
+        'game' => 'minecraft',
+        'project_type' => 'modpack',
+        'limit' => $limit,
+        'offset' => $offset,
+        'index' => 'relevance'
     ];
 
-    $payload = json_encode($postData);
+    $url = $baseUrl . '?' . http_build_query($queryParams);
 
-    $ch = curl_init($url);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
     curl_close($ch);
 
-    if ($httpCode != 200) {
-        echo "Errore API Modrinth, HTTP status code: $httpCode\n";
-        return null;
+    if ($httpCode === 200) {
+        $data = json_decode($response, true);
+
+        if (empty($data['hits'])) {
+            break;
+        }
+
+        foreach ($data['hits'] as $modpack) {
+            if (isset($modpack['loaders']) && in_array('forge', $modpack['loaders'])) {
+                $forgeModpackIds[] = $modpack['project_id'];
+            }
+        }
+
+        $offset += $limit;
+        
+    } else {
+        echo "Errore nella richiesta HTTP: " . $httpCode . "\n";
+        echo "Risposta: " . $response . "\n";
+        break;
     }
 
-    return json_decode($response, true);
+} while (true);
+
+echo "\n--- ID dei Modpack Forge Trovati ---\n";
+if (empty($forgeModpackIds)) {
+    echo "Nessun modpack Forge trovato.\n";
+} else {
+    foreach ($forgeModpackIds as $id) {
+        echo $id . "\n";
+    }
+    echo "\nTotale modpack Forge trovati: " . count($forgeModpackIds) . "\n";
 }
 
-$offset = 0;
-$limit = 50;
-
-$data = fetchModrinthForgeModpacks($offset, $limit);
-
-if (!$data || !isset($data['hits'])) {
-    die("Errore nel recupero dati Modrinth\n");
-}
-
-foreach ($data['hits'] as $project) {
-    $id = $project['id'] ?? 'N/A';
-    $slug = $project['slug'] ?? 'N/A';
-    $title = $project['title'] ?? $slug;
-    echo "ID: $id | Slug: $slug | Title: $title\n";
-}
+?>
