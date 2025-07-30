@@ -276,26 +276,31 @@ MODS_DIR="$SERVER_DIR/mods"
 DISABLED_DIR="$SERVER_DIR/mods_disabled"
 RESTART_LIMIT=3
 RESTART_COUNT_FILE="$SERVER_DIR/.restart_count"
+SERVER_ID=$(basename "$SERVER_DIR")
 
 mkdir -p "$DISABLED_DIR"
 
+# Inizializza contatore riavvii
 if [[ -f "$RESTART_COUNT_FILE" ]]; then
     RESTART_COUNT=$(cat "$RESTART_COUNT_FILE")
 else
     RESTART_COUNT=0
 fi
 
-echo "[$(date)] ▶ Monitoraggio server avviato." >> "$MONITOR_LOG"
+echo "[$(date)] ▶ Monitoraggio server avviato (prime 150 righe)." >> "$MONITOR_LOG"
 
-tail -n0 -F "$LOG_FILE" | while read -r line; do
-    echo "$line" | grep -Ei "Exception|ERROR|Caused by|crash|incompatible mod|mod .* failed|Mod ID:" >/dev/null
+# Leggi solo le prime 150 righe del log
+head -n 150 "$LOG_FILE" | while read -r line; do
+    echo "$line" | grep -Ei "Exception|ERROR|Caused by|crash|incompatible mod|mod .* failed|Mod ID:|\.jar" >/dev/null
     if [[ $? -eq 0 ]]; then
         echo "[$(date)] ❌ Problema rilevato: $line" >> "$MONITOR_LOG"
 
+        # Estrai nome mod sospetto da più pattern
         MOD_NAME=""
-        MOD_NAME=$(echo "$line" | grep -Po "Mod ID: '\K[a-zA-Z0-9_\-]+(?=')")
-        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "mod '\K[a-zA-Z0-9_\-]+(?=')")
-        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "[a-zA-Z0-9_\-]+(?= failed)" | head -n1)
+        MOD_NAME=$(echo "$line" | grep -Po "Mod ID: '\K[^']+")
+        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "mod '\K[^']+")
+        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "[^ ]+(?= failed)")
+        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "[^/ ]+\.jar" | sed 's/.jar$//' | head -n1)
 
         if [[ -n "$MOD_NAME" ]]; then
             MOD_FILE=$(find "$MODS_DIR" -iname "*$MOD_NAME*.jar" | head -n 1)
@@ -304,12 +309,13 @@ tail -n0 -F "$LOG_FILE" | while read -r line; do
                 mv "$MOD_FILE" "$DISABLED_DIR/"
                 echo "[$(date)] 🔕 Mod disattivata: $(basename "$MOD_FILE")" >> "$MONITOR_LOG"
             else
-                echo "[$(date)] ⚠️ Mod $MOD_NAME non trovata." >> "$MONITOR_LOG"
+                echo "[$(date)] ⚠️ Mod file '$MOD_NAME' non trovato in $MODS_DIR" >> "$MONITOR_LOG"
             fi
         else
-            echo "[$(date)] ⚠️ Nome mod non identificabile." >> "$MONITOR_LOG"
+            echo "[$(date)] ⚠️ Nome mod non identificabile dal log: $line" >> "$MONITOR_LOG"
         fi
 
+        # Riavvia il server se possibile
         if [[ $RESTART_COUNT -lt $RESTART_LIMIT ]]; then
             echo "[$(date)] 🔄 Riavvio tentativo $((RESTART_COUNT + 1))" >> "$MONITOR_LOG"
             screen -S mc_$SERVER_ID -X quit
@@ -324,6 +330,8 @@ tail -n0 -F "$LOG_FILE" | while read -r line; do
         fi
     fi
 done
+
+
 EOF
 
 chmod +x "$SERVER_DIR/start.sh" "$SERVER_DIR/stop.sh" "$SERVER_DIR/monitor.sh"
