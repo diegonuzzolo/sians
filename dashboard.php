@@ -152,7 +152,7 @@ $servers = $stmt->fetchAll();
                 <?php if (in_array($server['status'], ['installing', 'downloading_mods', 'installing_mods', 'downloading_server'])): ?>
 
                   <div class="progress">
-                    <div class="progress-bar-<?= $server['id'] ?> bg-warning progress-bar-striped progress-bar-animated" role="progressbar"
+                    <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar"
 
                         style="width: <?= $server['progress'] ?>%;" 
                         aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
