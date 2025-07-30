@@ -14,7 +14,7 @@ $postVersion = $_POST['version'] ?? '';
 $postModpackId = $_POST['modpack_id'] ?? '';
 
 // Carica i modpack per dropdown
-$stmt = $pdo->query("SELECT * FROM modpacks ORDER BY name ASC");
+$stmt = $pdo->query("SELECT * FROM modpacks ORDER BY title ASC");
 $modpacks = $stmt->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
