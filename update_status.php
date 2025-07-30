@@ -26,17 +26,22 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 $serverId = intval($data['server_id'] ?? 0);
 $status = $data['status'] ?? null;
-$progress = $data['progress'] ?? null;
+$progress = $data['progress'] ?? null; // può essere null nel caso di solo aggiornamento status
 
-if (!$serverId || $status === null || $progress === null) {
+if (!$serverId || $status === null) {
     http_response_code(400);
-    echo "Parametri mancanti";
+    echo "Parametri mancanti (server_id o status)";
     exit;
 }
 
 try {
-    $stmt = $pdo->prepare("UPDATE servers SET status = ?, progress = ? WHERE id = ?");
-    $stmt->execute([$status, $progress, $serverId]);
+    if ($progress !== null) {
+        $stmt = $pdo->prepare("UPDATE servers SET status = ?, progress = ? WHERE id = ?");
+        $stmt->execute([$status, $progress, $serverId]);
+    } else {
+        $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $serverId]);
+    }
     echo "OK";
 } catch (PDOException $e) {
     http_response_code(500);

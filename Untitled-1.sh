@@ -269,28 +269,96 @@ fi
 # Accetta EULA
 echo "eula=true" > eula.txt
 
+# Accetta EULA
+echo "eula=true" > "$SERVER_DIR/eula.txt"
+
 # start.sh
-cat > start.sh <<EOF
+cat > "$SERVER_DIR/start.sh" <<EOF
 #!/bin/bash
 cd "\$(dirname "\$0")"
 screen -dmS mc_$SERVER_ID java -Xmx10G -Xms10G -jar server.jar nogui
 EOF
 
 # stop.sh
-cat > stop.sh <<EOF
+cat > "$SERVER_DIR/stop.sh" <<EOF
 #!/bin/bash
 screen -S mc_$SERVER_ID -X stuff "stop$(printf '\r')"
 EOF
 
-chmod +x start.sh stop.sh
+# monitor.sh
+cat > "$SERVER_DIR/monitor.sh" <<'EOF'
+#!/bin/bash
 
-# Aggiorna lo stato finale progressivamente
-for i in {91..100}; do
-    update_status "installed" $i
-    sleep 0.1
+SERVER_DIR="$(dirname "$0")"
+LOG_FILE="$SERVER_DIR/logs/latest.log"
+MONITOR_LOG="$SERVER_DIR/monitor_log.txt"
+MODS_DIR="$SERVER_DIR/mods"
+DISABLED_DIR="$SERVER_DIR/mods_disabled"
+RESTART_LIMIT=3
+RESTART_COUNT_FILE="$SERVER_DIR/.restart_count"
+
+mkdir -p "$DISABLED_DIR"
+
+if [[ -f "$RESTART_COUNT_FILE" ]]; then
+    RESTART_COUNT=$(cat "$RESTART_COUNT_FILE")
+else
+    RESTART_COUNT=0
+fi
+
+echo "[$(date)] ▶ Monitoraggio server avviato." >> "$MONITOR_LOG"
+
+tail -n0 -F "$LOG_FILE" | while read -r line; do
+    echo "$line" | grep -Ei "Exception|ERROR|Caused by|crash|incompatible mod|mod .* failed|Mod ID:" >/dev/null
+    if [[ $? -eq 0 ]]; then
+        echo "[$(date)] ❌ Problema rilevato: $line" >> "$MONITOR_LOG"
+
+        MOD_NAME=""
+        MOD_NAME=$(echo "$line" | grep -Po "Mod ID: '\K[a-zA-Z0-9_\-]+(?=')")
+        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "mod '\K[a-zA-Z0-9_\-]+(?=')")
+        [[ -z "$MOD_NAME" ]] && MOD_NAME=$(echo "$line" | grep -Po "[a-zA-Z0-9_\-]+(?= failed)" | head -n1)
+
+        if [[ -n "$MOD_NAME" ]]; then
+            MOD_FILE=$(find "$MODS_DIR" -iname "*$MOD_NAME*.jar" | head -n 1)
+            if [[ -f "$MOD_FILE" ]]; then
+                echo "[$(date)] ⚠️ Mod sospetta: $MOD_NAME -> $(basename "$MOD_FILE")" >> "$MONITOR_LOG"
+                mv "$MOD_FILE" "$DISABLED_DIR/"
+                echo "[$(date)] 🔕 Mod disattivata: $(basename "$MOD_FILE")" >> "$MONITOR_LOG"
+            else
+                echo "[$(date)] ⚠️ Mod $MOD_NAME non trovata." >> "$MONITOR_LOG"
+            fi
+        else
+            echo "[$(date)] ⚠️ Nome mod non identificabile." >> "$MONITOR_LOG"
+        fi
+
+        if [[ $RESTART_COUNT -lt $RESTART_LIMIT ]]; then
+            echo "[$(date)] 🔄 Riavvio tentativo $((RESTART_COUNT + 1))" >> "$MONITOR_LOG"
+            screen -S mc_$SERVER_ID -X quit
+            sleep 3
+            screen -dmS mc_$SERVER_ID bash "$SERVER_DIR/start.sh"
+            RESTART_COUNT=$((RESTART_COUNT + 1))
+            echo "$RESTART_COUNT" > "$RESTART_COUNT_FILE"
+            echo "[$(date)] ✅ Server riavviato." >> "$MONITOR_LOG"
+        else
+            echo "[$(date)] 🚫 Limite riavvii superato." >> "$MONITOR_LOG"
+            break
+        fi
+    fi
+done
+EOF
+
+chmod +x "$SERVER_DIR/start.sh" "$SERVER_DIR/stop.sh" "$SERVER_DIR/monitor.sh"
+
+# Avvia server e monitor
+screen -dmS mc_$SERVER_ID bash "$SERVER_DIR/start.sh"
+screen -dmS monitor_$SERVER_ID bash "$SERVER_DIR/monitor.sh"
+
+# 🔄 Mantieni la progress bar attiva finché monitor.sh è in esecuzione
+while screen -list | grep -q "monitor_$SERVER_ID"; do
+    curl -s -X POST -H "Authorization: Bearer $UPDATE_TOKEN" \
+        -d "{\"server_id\": \"$SERVER_ID\", \"status\": \"monitoring\"}" "$UPDATE_URL" > /dev/null
+    sleep 5
 done
 
-log "✅ Installazione completata per server $SERVER_ID"
-rm -f "$PID_FILE"
-screen -dmS server_$SERVER_ID bash "$SERVER_DIR/start.sh"
-screen -dmS monitor_$SERVER_ID bash "$SERVER_DIR/monitor.sh" 
+# Quando termina il monitoraggio, passa a stato "running"
+curl -s -X POST -H "Authorization: Bearer $UPDATE_TOKEN" \
+    -d "{\"server_id\": \"$SERVER_ID\", \"status\": \"running\"}" "$UPDATE_URL" > /dev/null
