@@ -189,12 +189,19 @@ done
 
 
 
+# Estrai versioni da modrinth.index.json
+fabric_loader_version=$(jq -r '.dependencies["fabric-loader"]' modrinth.index.json)
+minecraft_version=$(jq -r '.dependencies.minecraft' modrinth.index.json)
+json=$(curl -s "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/server")
 
-    FABRIC_JAR_URL="https://meta.fabricmc.net/v2/versions/loader/$GAME_VERSION/0.16.14/1.0.3/server/jar"
-    FABRIC_JAR="$BASE_DIR/server.jar"
+installer_version=$(echo "$json" | jq -r '.[0].version')
 
-    log "⬇️ Scarico Fabric server jar..."
-    curl -L -o "$FABRIC_JAR" "$FABRIC_JAR_URL"
+# Se la versione non è trovata, fallback a ultima nota
+\
+
+echo "Download Fabric Loader v$fabric_loader_version per MC v$minecraft_version"
+wget -O fabric-server-launch.jar "https://meta.fabricmc.net/v2/versions/loader/${minecraft_version}/${fabric_loader_version}/${installer_version}/server/jar"
+
 
     log "✅ Installazione modpack completata."
 }
@@ -274,7 +281,7 @@ LOG_FILE="$SERVER_DIR/logs/latest.log"
 MONITOR_LOG="$SERVER_DIR/monitor_log.txt"
 MODS_DIR="$SERVER_DIR/mods"
 DISABLED_DIR="$SERVER_DIR/mods_disabled"
-RESTART_LIMIT=3
+RESTART_LIMIT=100
 RESTART_COUNT_FILE="$SERVER_DIR/.restart_count"
 SERVER_ID=$(basename "$SERVER_DIR")
 
@@ -287,10 +294,10 @@ else
     RESTART_COUNT=0
 fi
 
-echo "[$(date)] ▶ Monitoraggio server avviato (prime 150 righe)." >> "$MONITOR_LOG"
+echo "[$(date)] ▶ Monitoraggio server avviato (prime 600 righe)." >> "$MONITOR_LOG"
 
-# Leggi solo le prime 150 righe del log
-head -n 150 "$LOG_FILE" | while read -r line; do
+# Leggi solo le prime 600 righe del log
+head -n 600 "$LOG_FILE" | while read -r line; do
     echo "$line" | grep -Ei "Exception|ERROR|Caused by|crash|incompatible mod|mod .* failed|Mod ID:|\.jar" >/dev/null
     if [[ $? -eq 0 ]]; then
         echo "[$(date)] ❌ Problema rilevato: $line" >> "$MONITOR_LOG"
