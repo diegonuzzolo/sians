@@ -236,7 +236,7 @@ function checkAndUpdateServers() {
   });
 }
 
-setInterval(checkAndUpdateServers, 100);
+setInterval(checkAndUpdateServers, 500);
 </script>
 
 
