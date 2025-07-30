@@ -173,7 +173,7 @@ for i in $(seq 0 $((MOD_COUNT - 1))); do
     fi
 
     TMP_FILE="${MODS_DIR}/${MOD_NAME}.tmp"
-    if curl --retry 5 --retry-delay 3 -L -o "$TMP_FILE" "$MOD_URL"; then
+    if curl --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 10000 --fail -L -o "$TMP_FILE" "$MOD_URL"; then
         if unzip -tq "$TMP_FILE" >/dev/null 2>&1; then
             mv "$TMP_FILE" "$MODS_DIR/$MOD_NAME"
             log "✔️  Scaricata e verificata: $MOD_NAME"
