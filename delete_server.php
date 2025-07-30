@@ -67,13 +67,14 @@ $escapedSshUser = escapeshellarg($sshUser);
 
 $log = "/home/diego/setup_log_$serverId.log";
 
-
+$cmd_kill_bash = "ssh {$escapedSshUser}@{$escapedVmIp} 'sudo killall bash'";
  
 // Comando SSH per cancellare la cartella server
 $cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}' && rm $log";
 
 // Esegui comando e cattura output e codice di ritorno
 exec($cmd . " 2>&1", $output, $return_var);
+exec($cmd_kill_bash, $output, $return_var);
 if ($return_var !== 0) {
     error_log("Errore eliminando cartella server (ID: $serverId) sulla VM $vmIp: " . implode("\n", $output));
     // Eventuale gestione errore utente (es: messaggio sessione)
