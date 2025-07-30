@@ -1,76 +1,69 @@
 <?php
+function fetchAllModrinthModpacks($loader = 'forge') {
+    $allModpacks = [];
+    $offset = 0;
+    $limit = 50;
 
-$modrinthApiToken = getenv('mrp_RvSag6ASSA006S77GkMC97sqT0jpSqVPrTn6kSCnMtAMm6ydwxW5g6rAqLt2');
-
-$headers = [
-    'Content-Type: application/json',
-    'User-Agent: YourAppName/1.0 (nuzzolo27@gmail.com)' // Sostituisci con informazioni reali
-];
-
-if (!empty($modrinthApiToken)) {
-    $headers[] = 'Authorization: Bearer ' . $modrinthApiToken;
-}
-
-$baseUrl = "https://api.modrinth.com/v2/search";
-$forgeModpackIds = [];
-$limit = 100;
-$offset = 0;
-
-echo "Ricerca di modpack Forge su Modrinth...\n";
-
-do {
-    $queryParams = [
-        'query' => '',
-        'game' => 'minecraft',
-        'project_type' => 'modpack',
-        'limit' => $limit,
-        'offset' => $offset,
-        'index' => 'relevance'
-    ];
-
-    $url = $baseUrl . '?' . http_build_query($queryParams);
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode === 200) {
-        $data = json_decode($response, true);
-
-        if (empty($data['hits'])) {
+    do {
+        $result = fetchModrinthModpacks($offset, $limit, $loader);
+        if (!$result || !isset($result['hits'])) {
+            echo "Errore o nessun risultato alla pagina offset $offset.\n";
             break;
         }
 
-        foreach ($data['hits'] as $modpack) {
-            if (isset($modpack['loaders']) && in_array('forge', $modpack['loaders'])) {
-                echo "Trovato modpack Forge: " . $modpack['title'] . " (ID: " . $modpack['project_id'] . ")\n";
-                $forgeModpackIds[] = $modpack['project_id'];
-            }
+        foreach ($result['hits'] as $modpack) {
+            $allModpacks[] = [
+                'id' => $modpack['id'],
+                'slug' => $modpack['slug'],
+                'title' => $modpack['title'] ?? '',
+                'downloads' => $modpack['downloads'] ?? 0
+            ];
         }
 
         $offset += $limit;
-        
-    } else {
-        echo "Errore nella richiesta HTTP: " . $httpCode . "\n";
-        echo "Risposta: " . $response . "\n";
-        break;
-    }
+    } while (count($result['hits']) === $limit); // finché restituisce pagina piena
 
-} while (true);
-
-echo "\n--- ID dei Modpack Forge Trovati ---\n";
-if (empty($forgeModpackIds)) {
-    echo "Nessun modpack Forge trovato.\n";
-} else {
-    foreach ($forgeModpackIds as $id) {
-        echo $id . "\n";
-    }
-    echo "\nTotale modpack Forge trovati: " . count($forgeModpackIds) . "\n";
+    return $allModpacks;
 }
 
-?>
+function fetchModrinthModpacks($offset, $limit, $loader) {
+    $url = "https://api.modrinth.com/v2/search";
+
+    $postData = [
+        "query" => "",
+        "facets" => [
+            ["categories:modpacks"],
+            ["project_type:modpack"],
+            ["loaders:$loader"]
+        ],
+        "index" => "downloads",
+        "offset" => $offset,
+        "limit" => $limit
+    ];
+
+    $payload = json_encode($postData);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    return json_decode($response, true);
+}
+
+// Esecuzione
+$loader = 'fabric'; // puoi usare anche 'forge', 'neoforge', 'quilt' ecc.
+$modpacks = fetchAllModrinthModpacks($loader);
+
+// Stampa risultati
+foreach ($modpacks as $m) {
+    echo "ID: {$m['id']} | Slug: {$m['slug']} | Title: {$m['title']} | Downloads: {$m['downloads']}\n";
+}
+
+// Facoltativo: salva su file JSON
+file_put_contents("modrinth_modpacks_{$loader}.json", json_encode($modpacks, JSON_PRETTY_PRINT));
+echo "\nTotale modpack trovati: " . count($modpacks) . "\n";
