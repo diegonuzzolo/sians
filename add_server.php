@@ -3,8 +3,6 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// il resto del codice...
-
 session_start();
 require 'config/config.php';
 require 'includes/auth.php';
@@ -18,11 +16,11 @@ $postModpackId = $_POST['modpack_id'] ?? '';
 // Carica i modpack per dropdown
 $stmt = $pdo->query("SELECT * FROM modpacks ORDER BY name ASC");
 $modpacks = $stmt->fetchAll();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName)) {
         $error = "❌ Nome server mancante.";
     } elseif (($postType === 'vanilla' || $postType === 'paper') && empty($postVersion)) {
-
         $error = "❌ Seleziona una versione per Vanilla/PaperMC.";
     } elseif ($postType === 'modpack' && empty($postModpackId)) {
         $error = "❌ Seleziona un Modpack.";
@@ -53,36 +51,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vmData = $stmt->fetch();
             $ip = $vmData['ip'];
 
+            // Inizializza valori da passare
             $remoteType = escapeshellarg($postType);
             $remoteVersionOrSlug = escapeshellarg($postVersion);
-            $remoteUrl = '';
-            $remoteMethod = '';
-            $remoteGameVersion = '';
-            if ($postType === 'modpack') {
-                // Prendo dati modpack dallo slug e dal campo game_version
-                $stmt = $pdo->prepare("SELECT slug, game_version FROM modpacks WHERE id = ?");
+            $remoteUrl = escapeshellarg('');
+            $remoteMethod = escapeshellarg('');
+            $remoteGameVersion = escapeshellarg($postVersion);
+
+            if ($postType === 'modpack' && $postModpackId) {
+                $stmt = $pdo->prepare("SELECT slug, game_version, forge_version FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
                 if ($modpack) {
-                    $remoteVersionOrSlug = escapeshellarg($modpack['slug']);       // Passo lo slug come "version_or_slug"
-                    $remoteMethod = escapeshellarg('modrinth');                     // Metodo 'modrinth' per setup_server.sh
-                   $remoteUrl = "''";  // Non serve URL diretto per modrinth, lascio vuoto ma deve essere una stringa valida
-                $remoteGameVersion = escapeshellarg($modpack['game_version']);
+                    $remoteGameVersion = escapeshellarg($modpack['game_version']);
+                    $remoteVersionOrSlug = escapeshellarg($modpack['slug']);
+
+                    // Forge o Modrinth?
+                    if (!empty($modpack['forge_version'])) {
+                        // È un modpack Forge
+                        $forgeCombined = $modpack['game_version'] . '-' . $modpack['forge_version'];
+                        $remoteVersionOrSlug = escapeshellarg($forgeCombined);
+                        $remoteType = escapeshellarg('forge');
+                        $remoteMethod = escapeshellarg('url');
+                        $installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/{$forgeCombined}/forge-{$forgeCombined}-installer.jar";
+                        $remoteUrl = escapeshellarg($installerUrl);
+                    } else {
+                        // È un modpack Modrinth (Fabric presumibilmente)
+                        $remoteMethod = escapeshellarg('modrinth');
+                        $remoteUrl = escapeshellarg("''");
+                    }
                 }
-            } else {
-                // Vanilla o Paper
-                $remoteUrl = escapeshellarg('');
-                $remoteMethod = escapeshellarg('');
-                $remoteGameVersion = escapeshellarg($postVersion);
-}
+            }
 
-
-                $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-    escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion") .
-    " > /dev/null 2>&1 &";
-
-
+            // Comando SSH finale
+            $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
+                escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion") .
+                " > /dev/null 2>&1 &";
 
             exec($sshCmd);
             header("Location: dashboard.php");
@@ -91,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 
 <?php
 

@@ -1,73 +1,97 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+require 'config/config.php';
 
-require __DIR__ . '/../config/config.php';
+$baseApiUrl = "https://api.modrinth.com/v2/projects";
 
-$jsonFile = __DIR__ . '/modpacks.json';
-
-if (!file_exists($jsonFile)) {
-    die("❌ File modpacks.json non trovato in $jsonFile\n");
+// Funzione per recuperare paginazione API Modrinth
+function fetchModrinthForgeProjects($page = 0, $pageSize = 50) {
+    $url = "https://api.modrinth.com/v2/search?facets=[\"categories:modpacks\",\"loaders:forge\"]&index=downloads&offset=" . ($page * $pageSize) . "&limit=$pageSize";
+    $response = file_get_contents($url);
+    return json_decode($response, true);
 }
 
-$jsonContent = file_get_contents($jsonFile);
-$modpacksArray = json_decode($jsonContent, true);
-
-if (!is_array($modpacksArray)) {
-    die("❌ Errore: modpacks.json non contiene un array valido\n");
+// Funzione per recuperare info versione di un progetto Modrinth
+function fetchVersions($projectId) {
+    $url = "https://api.modrinth.com/v2/project/$projectId/version";
+    $response = file_get_contents($url);
+    return json_decode($response, true);
 }
 
-echo "📦 Sincronizzazione modpacks da modpacks.json...\n";
+$page = 0;
+$pageSize = 50;
+$totalProcessed = 0;
 
-function getLatestGameVersionFromModrinth($slug) {
-    $url = "https://api.modrinth.com/v2/project/$slug/version";
-    $json = @file_get_contents($url);
-    if (!$json) return null;
+do {
+    $data = fetchModrinthForgeProjects($page, $pageSize);
+    if (!isset($data['hits'])) break;
 
-    $versions = json_decode($json, true);
-    if (!is_array($versions) || count($versions) === 0) return null;
+    foreach ($data['hits'] as $project) {
+        $projectId = $project['id'];
+        $slug = $project['slug'];
+        $name = $project['title'] ?? $project['slug'];
 
-    // Cerca la prima versione stabile con almeno una versione di Minecraft
-    foreach ($versions as $v) {
-        if (!empty($v['game_versions']) && !$v['version_type'] || $v['version_type'] === 'release') {
-            return $v['game_versions'][0]; // Prima versione Minecraft disponibile
+        $versions = fetchVersions($projectId);
+        if (!$versions) continue;
+
+        foreach ($versions as $version) {
+            $versionId = $version['id'];
+            $versionNumber = $version['version_number'] ?? '';
+            $gameVersions = $version['game_versions'] ?? [];
+            $loaders = $version['loaders'] ?? [];
+
+            // Filtro versione forge
+            if (!in_array('forge', $loaders)) continue;
+
+            // Provo a estrarre la versione Forge da dependencies (se esiste)
+            $forgeVersion = null;
+            if (isset($version['dependencies']) && is_array($version['dependencies'])) {
+                foreach ($version['dependencies'] as $dep) {
+                    if (stripos($dep, 'forge') !== false) {
+                        $forgeVersion = $dep;
+                        break;
+                    }
+                }
+            }
+
+            // Prendo il primo file URL (download)
+            $downloadUrl = '';
+            if (isset($version['files'][0]['url'])) {
+                $downloadUrl = $version['files'][0]['url'];
+            }
+
+            $gameVersionStr = implode(',', $gameVersions);
+
+            // Controllo se già presente
+            $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE project_id = ? AND version_id = ?");
+            $stmt->execute([$projectId, $versionId]);
+
+            if ($stmt->rowCount() > 0) {
+                echo "Esiste già: $name - $versionNumber\n";
+                continue;
+            }
+
+            // Inserisco modpack
+            $stmt = $pdo->prepare("INSERT INTO modpacks 
+                (name, slug, project_id, version_id, version, download_url, game_version, loader_type, forge_version) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'forge', ?)");
+
+            $stmt->execute([
+                $name,
+                $slug,
+                $projectId,
+                $versionId,
+                $versionNumber,
+                $downloadUrl,
+                $gameVersionStr,
+                $forgeVersion
+            ]);
+
+            echo "Importato: $name - $versionNumber\n";
+            $totalProcessed++;
         }
     }
 
-    return null;
-}
+    $page++;
+} while ($page * $pageSize < $data['total_hits']);
 
-foreach ($modpacksArray as $modpack) {
-    $slug = $modpack['slug'] ?? '';
-    $name = $modpack['name'] ?? '';
-
-    if (empty($slug) || empty($name)) {
-        echo "⚠️  Skipping modpack con dati mancanti (slug o name).\n";
-        continue;
-    }
-
-    echo "🔍 Recupero versione Minecraft per $slug...\n";
-    $gameVersion = getLatestGameVersionFromModrinth($slug) ?? '';
-
-    if (empty($gameVersion)) {
-        echo "⚠️  Nessuna versione trovata per $slug, salto.\n";
-        continue;
-    }
-
-    // Verifica se esiste già
-    $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE slug = ?");
-    $stmt->execute([$slug]);
-    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($existing) {
-        $stmt = $pdo->prepare("UPDATE modpacks SET name = ?, game_version = ?, updated_at = NOW() WHERE slug = ?");
-        $stmt->execute([$name, $gameVersion, $slug]);
-        echo "🔄 Aggiornato: $name ($slug) - Minecraft $gameVersion\n";
-    } else {
-        $stmt = $pdo->prepare("INSERT INTO modpacks (slug, name, game_version, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())");
-        $stmt->execute([$slug, $name, $gameVersion]);
-        echo "➕ Inserito: $name ($slug) - Minecraft $gameVersion\n";
-    }
-}
-
-echo "✅ Sincronizzazione completata.\n";
+echo "Totale modpack Forge sincronizzati: $totalProcessed\n";
