@@ -72,11 +72,21 @@ do {
             ]);
             echo "🔁 Aggiornato modpack: $title ($game_version - forge: $forge_version)\n";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO modpacks (id, title, description, game_version, slug, categories, updated, downloads, project_type, forge_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $id, $title, $description, $game_version, $slug, $categories, $updated, $downloads, $project_type, $forge_version
-            ]);
+            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, forge_version, slug, description, categories, updated, downloads, project_type)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->execute([
+    $projectId,
+    $title,
+    $gameVersion,
+    $forgeVersion,
+    $slug,
+    $description,
+    json_encode($categories),
+    $updated,
+    $downloads,
+    $projectType
+]);
+
             echo "✅ Inserito modpack: $title ($game_version - forge: $forge_version)\n";
         }
 
