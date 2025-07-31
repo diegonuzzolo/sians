@@ -1,5 +1,5 @@
 <?php
-require '../config/config.php';
+require __DIR__ .'/../config/config.php';
 
 // Imposta l'header per l'output leggibile
 header('Content-Type: text/plain');
