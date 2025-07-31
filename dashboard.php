@@ -186,7 +186,6 @@ $showButtons = !$showProgressBar;
 <?php endif; ?>
 
 
-?>
 <?php if (in_array($server['status'], $progressStates)): ?>
 
 
