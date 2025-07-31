@@ -26,30 +26,67 @@ function fetchModpacks($limit = 100, $offset = 0) {
     return $json['hits'] ?? [];
 }
 
-function insertModpack($pdo, $modpack) {
-    $stmt = $pdo->prepare("
-        INSERT INTO modpacks (project_id, slug, title, description, downloads, project_type, categories, game_version, updated)
-        VALUES (:project_id, :slug, :title, :description, :downloads, :project_type, :categories, :game_version, :updated)
-        ON DUPLICATE KEY UPDATE
-            title = VALUES(title),
-            description = VALUES(description),
-            downloads = VALUES(downloads),
-            categories = VALUES(categories),
-            game_version = VALUES(game_version),
-            updated = VALUES(updated)
-    ");
+function insertOrUpdateModpack($pdo, $modpack) {
+    // Prima controllo se esiste già
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM modpacks WHERE project_id = ?");
+    $stmt->execute([$modpack['project_id']]);
+    $exists = $stmt->fetchColumn() > 0;
 
-    $stmt->execute([
-        ':project_id' => $modpack['project_id'],
-        ':slug' => $modpack['slug'],
-        ':title' => $modpack['title'],
-        ':description' => $modpack['description'] ?? '',
-        ':downloads' => $modpack['downloads'] ?? 0,
-        ':project_type' => $modpack['project_type'],
-        ':categories' => implode(',', $modpack['categories'] ?? []),
-        ':game_version' => $modpack['versions'][0] ?? '',
-        ':updated' => date('Y-m-d H:i:s', strtotime($modpack['date_modified'] ?? 'now')),
-    ]);
+    // Prepara i dati da salvare
+    $description = $modpack['description'] ?? '';
+    $downloads = $modpack['downloads'] ?? 0;
+    $project_type = $modpack['project_type'] ?? 'modpack';
+    $categories = isset($modpack['categories']) ? implode(',', $modpack['categories']) : '';
+    $game_version = '';
+    if (!empty($modpack['versions']) && is_array($modpack['versions'])) {
+        $game_version = $modpack['versions'][0] ?? '';
+    }
+    $updated_raw = $modpack['date_modified'] ?? null;
+    $updated = $updated_raw ? date('Y-m-d H:i:s', strtotime($updated_raw)) : date('Y-m-d H:i:s');
+
+    if ($exists) {
+        $stmt = $pdo->prepare("
+            UPDATE modpacks SET
+                slug = :slug,
+                title = :title,
+                description = :description,
+                downloads = :downloads,
+                project_type = :project_type,
+                categories = :categories,
+                game_version = :game_version,
+                updated = :updated
+            WHERE project_id = :project_id
+        ");
+        $stmt->execute([
+            ':slug' => $modpack['slug'],
+            ':title' => $modpack['title'],
+            ':description' => $description,
+            ':downloads' => $downloads,
+            ':project_type' => $project_type,
+            ':categories' => $categories,
+            ':game_version' => $game_version,
+            ':updated' => $updated,
+            ':project_id' => $modpack['project_id'],
+        ]);
+        echo "🔄 Aggiornato: {$modpack['title']}\n";
+    } else {
+        $stmt = $pdo->prepare("
+            INSERT INTO modpacks (project_id, slug, title, description, downloads, project_type, categories, game_version, updated)
+            VALUES (:project_id, :slug, :title, :description, :downloads, :project_type, :categories, :game_version, :updated)
+        ");
+        $stmt->execute([
+            ':project_id' => $modpack['project_id'],
+            ':slug' => $modpack['slug'],
+            ':title' => $modpack['title'],
+            ':description' => $description,
+            ':downloads' => $downloads,
+            ':project_type' => $project_type,
+            ':categories' => $categories,
+            ':game_version' => $game_version,
+            ':updated' => $updated,
+        ]);
+        echo "✅ Inserito: {$modpack['title']}\n";
+    }
 }
 
 // Ciclo per prendere tutti i modpack paginati
@@ -66,7 +103,7 @@ while (true) {
     }
 
     foreach ($modpacks as $modpack) {
-        insertModpack($pdo, $modpack);
+        insertOrUpdateModpack($pdo, $modpack);
         $totalFetched++;
     }
 
@@ -74,4 +111,4 @@ while (true) {
     sleep(1); // evita rate limit
 }
 
-echo "Importazione completata. Modpack importati: $totalFetched\n";
+echo "Importazione completata. Modpack importati/aggiornati: $totalFetched\n";
