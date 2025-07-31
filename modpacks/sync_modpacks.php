@@ -38,11 +38,25 @@ do {
 
         // Recupera versione compatibile con forge
         $versions_url = "https://api.modrinth.com/v2/project/$projectId/version";
+        $versions = modrinthApiRequest($versions_url);
+
+        $foundForge = false;
         $game_version = '';
+        $forge_version = '';
 
-  
+        if ($versions && is_array($versions)) {
+            foreach ($versions as $v) {
+                if (isset($v['loaders']) && in_array('forge', $v['loaders'])) {
+                    $game_version = $v['game_versions'][0] ?? '';
+                    $foundForge = true;
+                    break;
+                }
+            }
+        }
 
-  
+        if (!$foundForge) {
+            continue;
+        }
 
         $title = $pack['title'] ?? $pack['slug'] ?? '';
         $description = $pack['description'] ?? '';
