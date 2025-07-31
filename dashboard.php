@@ -218,6 +218,38 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 </div>
 
 <script>
+
+  const inProgressStates = [
+  'installing',
+  'downloading_mods',
+  'installing_mods',
+  'downloading_server',
+  'extracting_mods',
+  'setting_up',
+  'diagnosis'
+];
+
+function updateServerStatus(serverId) {
+  fetch(`check_lock.php?server_id=${serverId}`)
+    .then(response => response.text())
+    .then(html => {
+      const container = document.getElementById(`server-inner-${serverId}`);
+      if (container) {
+        container.innerHTML = html;
+      }
+    })
+    .catch(err => console.error(`Errore aggiornando server ${serverId}:`, err));
+}
+
+function refreshAllServers() {
+  document.querySelectorAll('.server').forEach(el => {
+    const serverId = el.dataset.serverId;
+    updateServerStatus(serverId);
+  });
+}
+
+setInterval(refreshAllServers, 500);
+
 const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosing'];
 
 function checkAndUpdateServers() {
