@@ -51,12 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vmData = $stmt->fetch();
             $ip = $vmData['ip'];
 
-            // Inizializza valori da passare
+            // Prepara parametri da passare allo script bash
             $remoteType = escapeshellarg($postType);
             $remoteVersionOrSlug = escapeshellarg($postVersion);
-            $remoteUrl = escapeshellarg('');
-            $remoteMethod = escapeshellarg('');
+            $remoteUrl = escapeshellarg(''); // Default vuoto
+            $remoteMethod = escapeshellarg(''); // Default vuoto
             $remoteGameVersion = escapeshellarg($postVersion);
+            $modpackId = "''";
+            $modSlug = "''";
 
             if ($postType === 'modpack' && $postModpackId) {
                 $stmt = $pdo->prepare("SELECT slug, game_version, forge_version FROM modpacks WHERE id = ?");
@@ -66,32 +68,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($modpack) {
                     $remoteGameVersion = escapeshellarg($modpack['game_version']);
                     $remoteVersionOrSlug = escapeshellarg($modpack['slug']);
+                    $modSlug = escapeshellarg($modpack['slug']);
+                    $modpackId = escapeshellarg($postModpackId);
 
-                    // Forge o Modrinth?
                     if (!empty($modpack['forge_version'])) {
-                         // È un modpack Forge
+                        // Modpack Forge con installer URL
                         $forgeCombined = $modpack['game_version'] . '-' . $modpack['forge_version'];
                         $remoteVersionOrSlug = escapeshellarg($forgeCombined);
                         $remoteType = escapeshellarg('forge');
                         $remoteMethod = escapeshellarg('url');
                         $installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/{$forgeCombined}/forge-{$forgeCombined}-installer.jar";
-                         $modSlug = $modpack['slug'] ?? '';
-                        $modpackId = $postModpackId ?? '';
                         $remoteUrl = escapeshellarg($installerUrl);
                     } else {
-                        // È un modpack Modrinth (Fabric presumibilmente)
+                        // Modpack Modrinth (Fabric presumibilmente)
                         $remoteMethod = escapeshellarg('modrinth');
-                        $remoteUrl = escapeshellarg("''");
+                        $remoteUrl = escapeshellarg(''); // Vuoto per modrinth
                     }
                 }
             }
 
-                
-
-                 $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-                     escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion $modpackId $modSlug") .
-                     " > /dev/null 2>&1 &";
-
+            // Comando SSH per avviare setup_server.sh sulla VM remota
+            $cmd = "bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion $modpackId $modSlug";
+            $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd) . " > /dev/null 2>&1 &";
 
             exec($sshCmd);
             header("Location: dashboard.php");
