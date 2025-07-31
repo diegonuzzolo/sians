@@ -67,8 +67,8 @@ do {
 
         // Inserisci o aggiorna il modpack nel database
         $stmt = $pdo->prepare("
-            INSERT INTO modpacks (modrinth_id, slug, name, description, icon_url, downloads, updated, download_url, game_version)
-            VALUES (:modrinth_id, :slug, :name, :description, :icon_url, :downloads, :updated, :download_url, :game_version)
+            INSERT INTO modpacks (project_id, slug, name, description, icon_url, downloads, updated, download_url, game_version)
+            VALUES (:project_id, :slug, :name, :description, :icon_url, :downloads, :updated, :download_url, :game_version)
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 description = VALUES(description),
@@ -80,7 +80,7 @@ do {
         ");
 
         $stmt->execute([
-            ':modrinth_id' => $project_id,
+            ':project_id' => $project_id,
             ':slug' => $slug,
             ':name' => $title,
             ':description' => $description,
