@@ -73,15 +73,15 @@ do {
 
         if ($stmt->rowCount() > 0) {
             $stmt = $pdo->prepare("UPDATE modpacks SET
-                title = ?, description = ?, game_version = ?, forge_version = ?, slug = ?, categories = ?, updated = ?, downloads = ?, project_type = ?
+                title = ?, description = ?, game_version = ?, slug = ?, categories = ?, updated = ?, downloads = ?, project_type = ?
                 WHERE project_id = ?");
             $stmt->execute([
                 $title, $description, $game_version, $forge_version, $slug, $categories, $updated, $downloads, $projectType, $projectId
             ]);
             echo "🔁 Aggiornato modpack: $title ($game_version - forge: $forge_version)\n";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, forge_version, slug, description, categories, updated, downloads, project_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, slug, description, categories, updated, downloads, project_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $projectId,
                 $title,
@@ -94,7 +94,7 @@ do {
                 $downloads,
                 $projectType
             ]);
-            echo "✅ Inserito modpack: $title ($game_version - forge: $forge_version)\n";
+            echo "✅ Inserito modpack: $title ($game_version) \n";
         }
 
         $totalProcessed++;
