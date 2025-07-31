@@ -29,11 +29,34 @@ do {
     if (!$data || !isset($data['hits']) || count($data['hits']) === 0) break;
 
     foreach ($data['hits'] as $pack) {
-        // Qui prendo l'id corretto: project_id esiste, slug no come id
         $projectId = $pack['project_id'] ?? null;
         if (empty($projectId)) {
             echo "❌ Modpack senza project_id, salto.\n";
             continue;
+        }
+
+        // Recupera versione compatibile con forge
+        $versions_url = "https://api.modrinth.com/v2/project/$projectId/version";
+        $versions = modrinthApiRequest($versions_url);
+
+        $foundForge = false;
+        $game_version = '';
+        $forge_version = '';
+
+        if ($versions) {
+            foreach ($versions as $v) {
+                if (in_array('forge', $v['loaders'])) {
+                    $game_version = $v['game_versions'][0] ?? '';
+                    $forge_version = $v['version_number'] ?? '';
+                    $foundForge = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$foundForge) {
+            echo "⏭️ Modpack {$pack['title'] ?? $pack['slug']} NON è compatibile con Forge, salto.\n";
+            continue; // salta questo modpack se non ha versioni forge
         }
 
         $title = $pack['title'] ?? $pack['slug'] ?? '';
@@ -43,22 +66,6 @@ do {
         $updated = isset($pack['updated']) ? date('Y-m-d H:i:s', strtotime($pack['updated'])) : null;
         $downloads = $pack['downloads'] ?? 0;
         $projectType = $pack['project_type'] ?? 'modpack';
-
-        // Recupera versione compatibile con forge
-        $versions_url = "https://api.modrinth.com/v2/project/$projectId/version";
-        $versions = modrinthApiRequest($versions_url);
-        $game_version = '';
-        $forge_version = '';
-
-        if ($versions) {
-            foreach ($versions as $v) {
-                if (in_array('forge', $v['loaders'])) {
-                    $game_version = $v['game_versions'][0] ?? '';
-                    $forge_version = $v['version_number'] ?? '';
-                    break;
-                }
-            }
-        }
 
         // Verifica se già presente
         $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE project_id = ?");
@@ -96,4 +103,4 @@ do {
     $page++;
 } while (true);
 
-echo "Totale modpack sincronizzati: $totalProcessed\n";
+echo "Totale modpack Forge sincronizzati: $totalProcessed\n";
