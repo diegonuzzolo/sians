@@ -13,7 +13,6 @@ if (!$server) {
 
 ob_start();
 ?>
-<h5><?= htmlspecialchars($server['name']) ?></h5>
 
 <?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
   <div class="progress">
