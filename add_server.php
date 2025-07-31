@@ -75,6 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $remoteType = escapeshellarg('forge');
                         $remoteMethod = escapeshellarg('url');
                         $installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/{$forgeCombined}/forge-{$forgeCombined}-installer.jar";
+                         $modSlug = $modpack['slug'] ?? '';
+                        $modpackId = $postModpackId ?? '';
                         $remoteUrl = escapeshellarg($installerUrl);
                     } else {
                         // È un modpack Modrinth (Fabric presumibilmente)
@@ -84,10 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Comando SSH finale
-            $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
-                escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion") .
-                " > /dev/null 2>&1 &";
+                
+
+                 $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " .
+                     escapeshellarg("bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion $modpackId $modSlug") .
+                     " > /dev/null 2>&1 &";
+
 
             exec($sshCmd);
             header("Location: dashboard.php");
