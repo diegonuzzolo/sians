@@ -248,7 +248,7 @@ function refreshAllServers() {
   });
 }
 
-setInterval(refreshAllServers, 500);
+setInterval(refreshAllServers, 100);
 
 const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosing'];
 
@@ -282,7 +282,7 @@ function checkAndUpdateServers() {
   });
 }
 
-setInterval(checkAndUpdateServers, 500); // Controlla ogni 5 secondi
+setInterval(checkAndUpdateServers, 100); // Controlla ogni 5 secondi
 </script>
 
 
