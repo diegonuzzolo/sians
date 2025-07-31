@@ -13,14 +13,14 @@ $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
 
 if (!preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches) || $matches[1] !== SETUP_SERVER_TOKEN) {
     http_response_code(401);
-    echo "Accesso non autorizzato";
+    echo json_encode(["success" => false, "error" => "Accesso non autorizzato"]);
     exit;
 }
 
 // Solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo "Metodo non permesso";
+    echo json_encode(["success" => false, "error" => "Metodo non permesso"]);
     exit;
 }
 
@@ -32,7 +32,7 @@ $progress = isset($data['progress']) ? intval($data['progress']) : null;
 
 if ($serverId <= 0 || $status === '') {
     http_response_code(400);
-    echo "Parametri mancanti o non validi (server_id o status)";
+    echo json_encode(["success" => false, "error" => "Parametri mancanti o non validi (server_id o status)"]);
     exit;
 }
 
@@ -45,7 +45,18 @@ try {
         $stmt->execute([$status, $serverId]);
     }
 
-    echo json_encode(["success" => true, "message" => "Stato aggiornato", "status" => $status, "progress" => $progress]);
+    // Stati che mostrano la progress bar
+    $showProgressBarStates = ['extracting_mods', 'setting_up', 'diagnosis', 'installing', 'downloading_mods'];
+
+    $showProgressBar = in_array($status, $showProgressBarStates);
+
+    echo json_encode([
+        "success" => true,
+        "message" => "Stato aggiornato",
+        "status" => $status,
+        "progress" => $progress,
+        "show_progressbar" => $showProgressBar
+    ]);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(["success" => false, "error" => "Errore database", "details" => $e->getMessage()]);
