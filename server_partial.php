@@ -14,13 +14,14 @@ if (!$server) {
 ob_start();
 ?>
 
-<?php if ($server['status'] === 'installing' || $server['status'] === 'downloading_mods'): ?>
+<?php if (in_array($server['status'], ['installing', 'downloading_mods', 'diagnosing'])): ?>
   <div class="progress">
-    <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped" role="progressbar"
-        style="width: <?= $server['progress'] ?>%;" 
-        aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
-        data-server-id="<?= $server['id'] ?>">
-        <?= $server['progress'] ?>%
+    <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
+         role="progressbar"
+         style="width: <?= (int)$server['progress'] ?>%;"
+         aria-valuenow="<?= (int)$server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
+         data-server-id="<?= $server['id'] ?>">
+        <?= (int)$server['progress'] ?>%
     </div>
   </div>
 <?php endif; ?>
@@ -29,7 +30,7 @@ ob_start();
     <?= htmlspecialchars($server['status']) ?>
 </div>
 
-<?php if ($server['status'] !== 'installing' && $server['status'] !== 'downloading_mods'): ?>
+<?php if (!in_array($server['status'], ['installing', 'downloading_mods', 'diagnosing'])): ?>
   <div class="d-flex justify-content-start gap-2 mt-3">
     <form method="post" action="server_action.php">
         <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
@@ -48,5 +49,6 @@ ob_start();
     </form>
   </div>
 <?php endif; ?>
+
 <?php
 echo ob_get_clean();
