@@ -228,6 +228,8 @@ $showButtons = !$showProgressBar;
 </div>
 
 <script>
+const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
+
 function checkAndUpdateServers() {
   document.querySelectorAll('.server').forEach(function (el) {
     const serverId = el.dataset.serverId;
@@ -235,27 +237,30 @@ function checkAndUpdateServers() {
     fetch('check_lock.php?server_id=' + serverId)
       .then(res => res.json())
       .then(data => {
-        if (data && data.status !== 'installing' && data.status !== 'downloading_mods') {
-          // Se stato è finale, aggiorna il blocco HTML
+        const progress = parseInt(data.progress) || 0;
+        const status = data.status;
+
+        if (!inProgressStates.includes(status)) {
+          // Stato finale: aggiorna blocco completo (bottoni inclusi)
           fetch('server_partial.php?server_id=' + serverId)
             .then(res => res.text())
             .then(html => {
               document.getElementById('server-inner-' + serverId).innerHTML = html;
             });
         } else {
-          // Aggiorna solo progress bar
+          // Stato in progresso: aggiorna solo progress bar e nascondi bottoni
           const bar = document.getElementById('progress-bar-' + serverId);
-          if (bar && data.progress !== undefined) {
-            bar.style.width = data.progress + '%';
-            bar.textContent = data.progress + '%';
-            bar.setAttribute('aria-valuenow', data.progress);
+          if (bar) {
+            bar.style.width = progress + '%';
+            bar.textContent = progress + '%';
+            bar.setAttribute('aria-valuenow', progress);
           }
         }
       });
   });
 }
 
-setInterval(checkAndUpdateServers, 500);
+setInterval(checkAndUpdateServers, 500); // Controlla ogni 5 secondi
 </script>
 
 
