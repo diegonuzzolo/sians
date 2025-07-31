@@ -248,41 +248,41 @@ function refreshAllServers() {
   });
 }
 
-setInterval(refreshAllServers, 100);
 
 const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosing'];
 
 function checkAndUpdateServers() {
   document.querySelectorAll('.server').forEach(function (el) {
     const serverId = el.dataset.serverId;
-
+    
     fetch('check_lock.php?server_id=' + serverId)
-      .then(res => res.json())
-      .then(data => {
-        const progress = parseInt(data.progress) || 0;
-        const status = data.status;
-
-        if (!inProgressStates.includes(status)) {
-          // Stato finale: aggiorna blocco completo (bottoni inclusi)
-          fetch('server_partial.php?server_id=' + serverId)
-            .then(res => res.text())
-            .then(html => {
-              document.getElementById('server-inner-' + serverId).innerHTML = html;
-            });
-        } else {
-          // Stato in progresso: aggiorna solo progress bar e nascondi bottoni
-          const bar = document.getElementById('progress-bar-' + serverId);
-          if (bar) {
-            bar.style.width = progress + '%';
-            bar.textContent = progress + '%';
-            bar.setAttribute('aria-valuenow', progress);
-          }
+    .then(res => res.json())
+    .then(data => {
+      const progress = parseInt(data.progress) || 0;
+      const status = data.status;
+      
+      if (!inProgressStates.includes(status)) {
+        // Stato finale: aggiorna blocco completo (bottoni inclusi)
+        fetch('server_partial.php?server_id=' + serverId)
+        .then(res => res.text())
+        .then(html => {
+          document.getElementById('server-inner-' + serverId).innerHTML = html;
+        });
+      } else {
+        // Stato in progresso: aggiorna solo progress bar e nascondi bottoni
+        const bar = document.getElementById('progress-bar-' + serverId);
+        if (bar) {
+          bar.style.width = progress + '%';
+          bar.textContent = progress + '%';
+          bar.setAttribute('aria-valuenow', progress);
         }
-      });
+      }
+    });
   });
 }
 
 setInterval(checkAndUpdateServers, 100); // Controlla ogni 5 secondi
+setInterval(refreshAllServers, 100);
 </script>
 
 
