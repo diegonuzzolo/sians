@@ -7,30 +7,32 @@ require 'config/config.php';
 
 define('SETUP_SERVER_TOKEN', 'la_luna_il_mio_cane_numero_uno');
 
+// Verifica autenticazione Bearer
 $headers = getallheaders();
-$authToken = $headers['Authorization'] ?? '';
+$authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
 
-if ($authToken !== 'Bearer ' . SETUP_SERVER_TOKEN) {
+if (!preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches) || $matches[1] !== SETUP_SERVER_TOKEN) {
     http_response_code(401);
     echo "Accesso non autorizzato";
     exit;
 }
 
+// Solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo "Metodo non permesso";
     exit;
 }
 
+// Decodifica JSON ricevuto
 $data = json_decode(file_get_contents("php://input"), true);
-
 $serverId = intval($data['server_id'] ?? 0);
-$status = $data['status'] ?? null;
-$progress = $data['progress'] ?? null; // può essere null nel caso di solo aggiornamento status
+$status = trim($data['status'] ?? '');
+$progress = isset($data['progress']) ? intval($data['progress']) : null;
 
-if (!$serverId || $status === null) {
+if ($serverId <= 0 || $status === '') {
     http_response_code(400);
-    echo "Parametri mancanti (server_id o status)";
+    echo "Parametri mancanti o non validi (server_id o status)";
     exit;
 }
 
@@ -42,9 +44,10 @@ try {
         $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
         $stmt->execute([$status, $serverId]);
     }
-    echo "OK";
+
+    echo json_encode(["success" => true, "message" => "Stato aggiornato", "status" => $status, "progress" => $progress]);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo "Errore database: " . $e->getMessage();
+    echo json_encode(["success" => false, "error" => "Errore database", "details" => $e->getMessage()]);
     exit;
 }

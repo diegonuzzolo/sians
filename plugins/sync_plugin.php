@@ -1,7 +1,7 @@
 <?php
 require __DIR__.'/../config/config.php'; // Carica connessione DB
 
-$page = 61;
+$page = 0;
 $pageSize = 100;
 $totalProcessed = 0;
 
