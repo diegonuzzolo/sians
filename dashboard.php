@@ -224,6 +224,19 @@ if (!in_array($server['status'], $showProgressBarStates)) {
 <script>
 const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
 
+
+const showProgressBarStates = ['extracting_mods', 'setting_up', 'diagnosis', 'installing', 'downloading_mods'];
+
+if (showProgressBarStates.includes(status)) {
+    // Mostra progress bar
+    progressBarContainer.style.display = 'block';
+    buttonsContainer.style.display = 'none';
+} else {
+    // Mostra i bottoni
+    progressBarContainer.style.display = 'none';
+    buttonsContainer.style.display = 'block';
+}
+
 function checkAndUpdateServers() {
   document.querySelectorAll('.server').forEach(function (el) {
     const serverId = el.dataset.serverId;
