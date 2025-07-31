@@ -153,7 +153,8 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
         <h5><?= htmlspecialchars($server['name']) ?></h5>
 
         <?php
-        $showProgressBar = in_array($server['status'], $progressStates);
+        $showProgressBar = in_array($server['status'], $progressStates) && intval($server['progress']) < 100;
+
         $progress = intval($server['progress']);
         ?>
 
