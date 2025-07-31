@@ -1,104 +1,101 @@
 <?php
-require __DIR__.'/../config/config.php'; // Connessione DB
+// sync_modpacks.php
+
+require_once '../config/config.php';
+
+$token = 'Bearer YOUR_API_TOKEN'; // se Modrinth richiede autenticazione, altrimenti rimuovi
 
 $page = 0;
-$pageSize = 100;
-$totalProcessed = 0;
-
-
-function modrinthApiRequest(string $url): ?array {
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "header" => "Accept: application/json\r\n"
-        ]
-    ];
-    $context = stream_context_create($opts);
-    $response = @file_get_contents($url, false, $context);
-    if ($response === false) return null;
-    return json_decode($response, true);
-}
+$limit = 100;
 
 do {
-    $offset = $page * $pageSize;
+    $url = "https://api.modrinth.com/v2/search?limit=$limit&offset=" . ($page * $limit) . "&facets=" . urlencode('[["project_type:modpack"],["categories:forge"]]');
 
-    // Solo modpack
-    $facets = urlencode('[["project_type:modpack"]]');
-    $url = "https://api.modrinth.com/v2/search?facets=$facets&index=downloads&limit=$pageSize&offset=$offset";
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'User-Agent: ModpackSyncScript/1.0',
+            // $token, // decommenta se usi token
+        ]
+    ]);
 
-    $data = modrinthApiRequest($url);
-    if (!$data || !isset($data['hits']) || count($data['hits']) === 0) break;
+    $response = curl_exec($ch);
+    curl_close($ch);
 
-    foreach ($data['hits'] as $pack) {
-        $projectId = $pack['project_id'] ?? null;
-        if (empty($projectId)) {
-            echo "❌ Modpack senza project_id, salto.\n";
-            continue;
-        }
+    if (!$response) {
+        die("Errore nella richiesta API\n");
+    }
 
-        // Recupera versione compatibile con forge
-        $versions_url = "https://api.modrinth.com/v2/project/$projectId/version";
-        $versions = modrinthApiRequest($versions_url);
+    $data = json_decode($response, true);
+    if (!isset($data['hits']) || empty($data['hits'])) break;
 
-        $foundForge = false;
-        $game_version = '';
-        $forge_version = '';
+    foreach ($data['hits'] as $modpack) {
+        $projectId = $modpack['project_id'] ?? null;
+        $title = $modpack['title'] ?? '';
+        $slug = $modpack['slug'] ?? '';
+        $description = $modpack['description'] ?? '';
+        $categories = $modpack['categories'] ?? [];
+        $updated = $modpack['updated'] ?? null;
+        $downloads = $modpack['downloads'] ?? 0;
+        $projectType = $modpack['project_type'] ?? 'modpack';
+        $gameVersions = $modpack['game_versions'] ?? [];
 
-        if ($versions && is_array($versions)) {
-            foreach ($versions as $v) {
-                if (isset($v['loaders']) && in_array('forge', $v['loaders'])) {
-                    $game_version = $v['game_versions'][0] ?? '';
-                    $foundForge = true;
-                    break;
-                }
+        // Filtra modpack che non hanno game_version valida
+        $gameVersion = count($gameVersions) > 0 ? $gameVersions[0] : null;
+        if (!$projectId || !$gameVersion) continue;
+
+        // Filtra solo Forge
+        $loaders = $modpack['loaders'] ?? [];
+        if (!in_array('forge', $loaders)) continue;
+
+        // Usa la versione Forge se disponibile
+        $forgeVersion = null;
+        foreach ($gameVersions as $ver) {
+            if (strpos($ver, 'forge') !== false) {
+                $forgeVersion = $ver;
+                break;
             }
         }
 
-        if (!$foundForge) {
-            continue;
-        }
-
-        $title = $pack['title'] ?? $pack['slug'] ?? '';
-        $description = $pack['description'] ?? '';
-        $slug = $pack['slug'] ?? '';
-        $categories = isset($pack['categories']) && is_array($pack['categories']) ? implode(',', $pack['categories']) : '';
-        $updated = isset($pack['updated']) ? date('Y-m-d H:i:s', strtotime($pack['updated'])) : null;
-        $downloads = $pack['downloads'] ?? 0;
-        $projectType = $pack['project_type'] ?? 'modpack';
-
-        // Controlla se già presente (usa project_id)
-        $stmt = $pdo->prepare("SELECT project_id FROM modpacks WHERE project_id = ?");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM modpacks WHERE project_id = ?");
         $stmt->execute([$projectId]);
+        $exists = $stmt->fetchColumn() > 0;
 
-        if ($stmt->rowCount() > 0) {
-            $stmt = $pdo->prepare("UPDATE modpacks SET
-                title = ?, description = ?, game_version = ?, slug = ?, categories = ?, updated = ?, downloads = ?, project_type = ?
-                WHERE project_id = ?");
+        if ($exists) {
+            $stmt = $pdo->prepare("UPDATE modpacks SET title = ?, game_version = ?, slug = ?, description = ?, categories = ?, updated = ?, downloads = ?, project_type = ?, forge_version = ? WHERE project_id = ?");
             $stmt->execute([
-                $title, $description, $game_version, $slug, $categories, $updated, $downloads, $projectType, $projectId
+                $title,
+                $gameVersion,
+                $slug,
+                $description,
+                json_encode($categories),
+                $updated,
+                $downloads,
+                $projectType,
+                $forgeVersion,
+                $projectId
             ]);
-            echo "🔁 Aggiornato modpack: $title ($game_version)\n";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, slug, description, categories, updated, downloads, project_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, slug, description, categories, updated, downloads, project_type, forge_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $projectId,
                 $title,
-                $game_version,
+                $gameVersion,
                 $slug,
                 $description,
-                $categories,
+                json_encode($categories),
                 $updated,
                 $downloads,
-                $projectType
+                $projectType,
+                $forgeVersion
             ]);
-            echo "✅ Inserito modpack: $title ($game_version) \n";
         }
-
-        $totalProcessed++;
     }
 
     $page++;
-} while (true);
+} while (count($data['hits']) === $limit);
 
-echo "Totale modpack Forge sincronizzati: $totalProcessed\n";
+echo "Sincronizzazione completata.\n";
