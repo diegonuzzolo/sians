@@ -127,7 +127,7 @@ $servers = $stmt->fetchAll();
     <div class="row">
       <?php foreach ($servers as $server): ?>
         <?php
-$progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
+$progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosing'];
 ?>
 <div class="col-md-12 col-lg-6">
   <div class="server-card" data-server-id="<?= $server['id'] ?>">
@@ -218,7 +218,7 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 </div>
 
 <script>
-const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
+const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosing'];
 
 function checkAndUpdateServers() {
   document.querySelectorAll('.server').forEach(function (el) {
