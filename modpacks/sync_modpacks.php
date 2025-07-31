@@ -42,9 +42,7 @@ do {
 
   
 
-        if (!$foundForge) {
-            continue;
-        }
+  
 
         $title = $pack['title'] ?? $pack['slug'] ?? '';
         $description = $pack['description'] ?? '';
