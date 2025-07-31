@@ -5,6 +5,7 @@ $page = 0;
 $pageSize = 100;
 $totalProcessed = 0;
 
+
 function modrinthApiRequest(string $url): ?array {
     $opts = [
         "http" => [
@@ -43,9 +44,9 @@ do {
         $game_version = '';
         $forge_version = '';
 
-        if ($versions) {
+        if ($versions && is_array($versions)) {
             foreach ($versions as $v) {
-                if (in_array('forge', $v['loaders'])) {
+                if (isset($v['loaders']) && in_array('forge', $v['loaders'])) {
                     $game_version = $v['game_versions'][0] ?? '';
                     $forge_version = $v['version_number'] ?? '';
                     $foundForge = true;
@@ -55,20 +56,19 @@ do {
         }
 
         if (!$foundForge) {
-            echo "⏭️ Modpack {$pack['title'] ?? $pack['slug']} NON è compatibile con Forge, salto.\n";
-            continue; // salta questo modpack se non ha versioni forge
+            continue;
         }
 
         $title = $pack['title'] ?? $pack['slug'] ?? '';
         $description = $pack['description'] ?? '';
         $slug = $pack['slug'] ?? '';
-        $categories = isset($pack['categories']) ? implode(',', $pack['categories']) : '';
+        $categories = isset($pack['categories']) && is_array($pack['categories']) ? implode(',', $pack['categories']) : '';
         $updated = isset($pack['updated']) ? date('Y-m-d H:i:s', strtotime($pack['updated'])) : null;
         $downloads = $pack['downloads'] ?? 0;
         $projectType = $pack['project_type'] ?? 'modpack';
 
-        // Verifica se già presente
-        $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE project_id = ?");
+        // Controlla se già presente (usa project_id)
+        $stmt = $pdo->prepare("SELECT project_id FROM modpacks WHERE project_id = ?");
         $stmt->execute([$projectId]);
 
         if ($stmt->rowCount() > 0) {
