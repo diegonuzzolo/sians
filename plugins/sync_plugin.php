@@ -1,9 +1,9 @@
 <?php
 require __DIR__.'/../config/config.php'; // Carica connessione DB
 
-$page = 0;
+$page = 61;
 $pageSize = 100;
-$totalProcessed = 6130;
+$totalProcessed = 0;
 
 function modrinthApiRequest(string $url): ?array {
     $opts = [
