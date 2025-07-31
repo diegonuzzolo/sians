@@ -167,53 +167,56 @@ $servers = $stmt->fetchAll();
       <?= htmlspecialchars(strtoupper($server['status'])) ?>
     </span>
 </div>
-
 <?php
 $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
 $showProgressBar = in_array($server['status'], $progressStates);
+$progress = intval($server['progress']);
 ?>
-<?php if ($showProgressBar): ?>
-  <div class="progress">
-    <div id="progress-bar-<?= $server['id'] ?>"
-         class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
-         role="progressbar"
-         style="width: <?= intval($server['progress']) ?>%;"
-         aria-valuenow="<?= intval($server['progress']) ?>"
-         aria-valuemin="0"
-         aria-valuemax="100"
-         data-server-id="<?= $server['id'] ?>">
-      <?= intval($server['progress']) ?>%
-    </div>
-  </div>
-<?php endif; ?>
+<div class="server-inner" id="server-inner-<?= $server['id'] ?>">
+  <h5><?= htmlspecialchars($server['name']) ?></h5>
 
-<div class="server-status mt-2" id="status-<?= $server['id'] ?>">
-  <span class="<?= $server['status'] === 'running' ? 'badge badge-running' : 'badge badge-stopped' ?>">
-    <?= htmlspecialchars(strtoupper($server['status'])) ?>
-  </span>
+  <?php if ($showProgressBar): ?>
+    <div class="progress">
+      <div id="progress-bar-<?= $server['id'] ?>"
+           class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
+           role="progressbar"
+           style="width: <?= $progress ?>%;"
+           aria-valuenow="<?= $progress ?>"
+           aria-valuemin="0"
+           aria-valuemax="100"
+           data-server-id="<?= $server['id'] ?>">
+        <?= $progress ?>%
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <div class="server-status mt-2" id="status-<?= $server['id'] ?>">
+    <span class="<?= $server['status'] === 'running' ? 'badge badge-running' : 'badge badge-stopped' ?>">
+      <?= htmlspecialchars(strtoupper($server['status'])) ?>
+    </span>
+  </div>
+
+  <?php if (!$showProgressBar): ?>
+    <div class="d-flex justify-content-start gap-2 mt-3">
+      <form method="post" action="server_action.php">
+        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+        <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+        <button name="action"
+                value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+          <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+        </button>
+      </form>
+
+      <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+        <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+        <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+        <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+      </form>
+    </div>
+  <?php endif; ?>
 </div>
 
-<?php if (!$showProgressBar): ?>
-  <div class="d-flex justify-content-start gap-2 mt-3">
-    <form method="post" action="server_action.php">
-      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-      <button name="action"
-              value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-              class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-        <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-      </button>
-    </form>
-
-    <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-      <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-      <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-      <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-    </form>
-  </div>
-<?php endif; ?>
-
-              </div>
             </div>
 
           </div>
