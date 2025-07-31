@@ -150,7 +150,6 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 
     <div class="server" id="server-<?= $server['id'] ?>" data-server-id="<?= $server['id'] ?>">
       <div class="server-inner" id="server-inner-<?= $server['id'] ?>">
-        <h5><?= htmlspecialchars($server['name']) ?></h5>
 
         <?php
         $showProgressBar = in_array($server['status'], $progressStates) && intval($server['progress']) < 100;
