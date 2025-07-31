@@ -26,7 +26,7 @@ do {
         $slug = $modpack['slug'] ?? '';
         $description = $modpack['description'] ?? '';
         $categories = $modpack['categories'] ?? [];
-        $updated = $modpack['date_modified'] ?? null;
+        $updated = date('Y-m-d H:i:s', strtotime($modpack['updated']));
         $downloads = $modpack['downloads'] ?? 0;
         $projectType = $modpack['project_type'] ?? 'modpack';
 
