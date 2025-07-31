@@ -168,7 +168,11 @@ $servers = $stmt->fetchAll();
     </span>
 </div>
 
-<?php if (!in_array($server['status'], ['installing', 'downloading_mods', 'installing_mods', 'downloading_server'])): ?>
+<?php
+$progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
+?>
+<?php if (in_array($server['status'], $progressStates)): ?>
+
 
                   <div class="d-flex justify-content-start gap-2 mt-3">
                     <form method="post" action="server_action.php">
