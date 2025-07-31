@@ -28,9 +28,11 @@ do {
         $slug = $modpack['slug'];
         $title = $modpack['title'];
         $description = $modpack['description'];
+        $projectType = $modpack['project_type'];
         $icon_url = $modpack['icon_url'] ?? '';
         $downloads = $modpack['downloads'] ?? 0;
         $updated_raw = $modpack['updated'] ?? null;
+        
         $updated = $updated_raw ? date('Y-m-d H:i:s', strtotime($updated_raw)) : date('Y-m-d H:i:s');
 
         // Ottieni le versioni disponibili
@@ -67,8 +69,8 @@ do {
 
         // Inserisci o aggiorna il modpack nel database
         $stmt = $pdo->prepare("
-            INSERT INTO modpacks (project_id, slug, title, description, icon_url, downloads, updated, download_url, game_version)
-            VALUES (:project_id, :slug, :title, :description, :icon_url, :downloads, :updated, :download_url, :game_version)
+            INSERT INTO modpacks (project_id, slug, title, description, icon_url, downloads, updated, download_url, game_version, project_type)
+            VALUES (:project_id, :slug, :title, :description, :icon_url, :downloads, :updated, :download_url, :game_version, :project_type)
             ON DUPLICATE KEY UPDATE
                 title = VALUES(title),
                 description = VALUES(description),
@@ -88,7 +90,8 @@ do {
             ':downloads' => $downloads,
             ':updated' => $updated,
             ':download_url' => $downloadUrl,
-            ':game_version' => $gameVersion
+            ':game_version' => $gameVersion,
+            'project_type' => $projectType
         ]);
 
         echo "Modpack aggiornato: $title ($slug)\n";
