@@ -170,6 +170,22 @@ $servers = $stmt->fetchAll();
 
 <?php
 $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
+// Condizione per mostrare progress bar: stato compatibile E progress > 0
+$showProgressBar = in_array($server['status'], $progressStates) && intval($server['progress']) > 0;
+
+// Condizione per mostrare bottoni: se non mostri progress bar
+$showButtons = !$showProgressBar;
+?>
+
+<?php if ($showProgressBar): ?>
+    <!-- mostra progress bar -->
+<?php endif; ?>
+
+<?php if ($showButtons): ?>
+    <!-- mostra bottoni avvia / elimina -->
+<?php endif; ?>
+
+
 ?>
 <?php if (in_array($server['status'], $progressStates)): ?>
 
