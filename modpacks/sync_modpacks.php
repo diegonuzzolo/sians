@@ -38,22 +38,9 @@ do {
 
         // Recupera versione compatibile con forge
         $versions_url = "https://api.modrinth.com/v2/project/$projectId/version";
-        $versions = modrinthApiRequest($versions_url);
-
-        $foundForge = false;
         $game_version = '';
-        $forge_version = '';
 
-        if ($versions && is_array($versions)) {
-            foreach ($versions as $v) {
-                if (isset($v['loaders']) && in_array('forge', $v['loaders'])) {
-                    $game_version = $v['game_versions'][0] ?? '';
-                    $forge_version = $v['version_number'] ?? '';
-                    $foundForge = true;
-                    break;
-                }
-            }
-        }
+  
 
         if (!$foundForge) {
             continue;
@@ -76,9 +63,9 @@ do {
                 title = ?, description = ?, game_version = ?, slug = ?, categories = ?, updated = ?, downloads = ?, project_type = ?
                 WHERE project_id = ?");
             $stmt->execute([
-                $title, $description, $game_version, $forge_version, $slug, $categories, $updated, $downloads, $projectType, $projectId
+                $title, $description, $game_version, $slug, $categories, $updated, $downloads, $projectType, $projectId
             ]);
-            echo "🔁 Aggiornato modpack: $title ($game_version - forge: $forge_version)\n";
+            echo "🔁 Aggiornato modpack: $title ($game_version)\n";
         } else {
             $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, slug, description, categories, updated, downloads, project_type)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -86,7 +73,6 @@ do {
                 $projectId,
                 $title,
                 $game_version,
-                $forge_version,
                 $slug,
                 $description,
                 $categories,
