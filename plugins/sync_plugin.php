@@ -3,7 +3,7 @@ require __DIR__.'/../config/config.php'; // Carica connessione DB
 
 $page = 0;
 $pageSize = 100;
-$totalProcessed = 0;
+$totalProcessed = 6130;
 
 function modrinthApiRequest(string $url): ?array {
     $opts = [
