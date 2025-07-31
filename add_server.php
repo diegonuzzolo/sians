@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $modSlug = "''";
 
             if ($postType === 'modpack' && $postModpackId) {
-                $stmt = $pdo->prepare("SELECT slug, game_version, forge_version FROM modpacks WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT slug, game_version FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
@@ -77,8 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $remoteVersionOrSlug = escapeshellarg($forgeCombined);
                         $remoteType = escapeshellarg('forge');
                         $remoteMethod = escapeshellarg('url');
-                        $installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/{$forgeCombined}/forge-{$forgeCombined}-installer.jar";
-                        $remoteUrl = escapeshellarg($installerUrl);
+                        $remoteUrl = "''";
                     } else {
                         // Modpack Modrinth (Fabric presumibilmente)
                         $remoteMethod = escapeshellarg('modrinth');
