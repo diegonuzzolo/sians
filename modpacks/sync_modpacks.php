@@ -29,22 +29,23 @@ do {
     if (!$data || !isset($data['hits']) || count($data['hits']) === 0) break;
 
     foreach ($data['hits'] as $pack) {
-        $id = $pack['project_id'] ?? $pack['slug'];
-        if (empty($id)) {
-            echo "❌ Modpack senza ID, salto.\n";
+        // Qui prendo l'id corretto: project_id esiste, slug no come id
+        $projectId = $pack['project_id'] ?? null;
+        if (empty($projectId)) {
+            echo "❌ Modpack senza project_id, salto.\n";
             continue;
         }
 
-        $title = $pack['title'] ?? $pack['slug'];
+        $title = $pack['title'] ?? $pack['slug'] ?? '';
         $description = $pack['description'] ?? '';
         $slug = $pack['slug'] ?? '';
         $categories = isset($pack['categories']) ? implode(',', $pack['categories']) : '';
         $updated = isset($pack['updated']) ? date('Y-m-d H:i:s', strtotime($pack['updated'])) : null;
         $downloads = $pack['downloads'] ?? 0;
-        $project_type = $pack['project_type'] ?? 'modpack';
+        $projectType = $pack['project_type'] ?? 'modpack';
 
         // Recupera versione compatibile con forge
-        $versions_url = "https://api.modrinth.com/v2/project/$id/version";
+        $versions_url = "https://api.modrinth.com/v2/project/$projectId/version";
         $versions = modrinthApiRequest($versions_url);
         $game_version = '';
         $forge_version = '';
@@ -59,34 +60,33 @@ do {
             }
         }
 
-        // Inserimento o aggiornamento
-        $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE id = ?");
-        $stmt->execute([$id]);
+        // Verifica se già presente
+        $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE project_id = ?");
+        $stmt->execute([$projectId]);
 
         if ($stmt->rowCount() > 0) {
             $stmt = $pdo->prepare("UPDATE modpacks SET
-                title = ?, description = ?, game_version = ?, slug = ?, categories = ?, updated = ?, downloads = ?, project_type = ?, forge_version = ?
-                WHERE id = ?");
+                title = ?, description = ?, game_version = ?, forge_version = ?, slug = ?, categories = ?, updated = ?, downloads = ?, project_type = ?
+                WHERE project_id = ?");
             $stmt->execute([
-                $title, $description, $game_version, $slug, $categories, $updated, $downloads, $project_type, $forge_version, $id
+                $title, $description, $game_version, $forge_version, $slug, $categories, $updated, $downloads, $projectType, $projectId
             ]);
             echo "🔁 Aggiornato modpack: $title ($game_version - forge: $forge_version)\n";
         } else {
             $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, game_version, forge_version, slug, description, categories, updated, downloads, project_type)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->execute([
-    $projectId,
-    $title,
-    $gameVersion,
-    $forgeVersion,
-    $slug,
-    $description,
-    json_encode($categories),
-    $updated,
-    $downloads,
-    $projectType
-]);
-
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $projectId,
+                $title,
+                $game_version,
+                $forge_version,
+                $slug,
+                $description,
+                $categories,
+                $updated,
+                $downloads,
+                $projectType
+            ]);
             echo "✅ Inserito modpack: $title ($game_version - forge: $forge_version)\n";
         }
 
