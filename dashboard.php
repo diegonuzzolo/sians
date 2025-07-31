@@ -148,20 +148,6 @@ $servers = $stmt->fetchAll();
             <div class="server" id="server-<?= $server['id'] ?>" data-server-id="<?= $server['id'] ?>">
               <div class="server-inner" id="server-inner-<?= $server['id'] ?>">
                 <h5><?= htmlspecialchars($server['name']) ?></h5>
-
-                <?php if (in_array($server['status'], ['installing', 'downloading_mods', 'installing_mods', 'downloading_server'])): ?>
-
-                  <div class="progress">
-                    <div id="progress-bar-<?= $server['id'] ?>" class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar"
-
-                        style="width: <?= $server['progress'] ?>%;" 
-                        aria-valuenow="<?= $server['progress'] ?>" aria-valuemin="0" aria-valuemax="100"
-                        data-server-id="<?= $server['id'] ?>">
-                        <?= $server['progress'] ?>%
-                    </div>
-                  </div>
-                <?php endif; ?>
-
                <div class="server-status mt-2" id="status-<?= $server['id'] ?>">
     <span class="<?= in_array($server['status'], ['running']) ? 'badge badge-running' : 'badge badge-stopped' ?>">
       <?= htmlspecialchars(strtoupper($server['status'])) ?>
@@ -173,7 +159,6 @@ $showProgressBar = in_array($server['status'], $progressStates);
 $progress = intval($server['progress']);
 ?>
 <div class="server-inner" id="server-inner-<?= $server['id'] ?>">
-  <h5><?= htmlspecialchars($server['name']) ?></h5>
 
   <?php if ($showProgressBar): ?>
     <div class="progress">
