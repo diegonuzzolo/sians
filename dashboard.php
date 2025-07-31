@@ -180,25 +180,21 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 
         <?php if (!$showProgressBar): ?>
           <div class="d-flex justify-content-start gap-2 mt-3">
-          <?php
-$showProgressBarStates = ['extracting_mods', 'setting_up', 'diagnosis', 'installing', 'downloading_mods'];
+            <form method="post" action="server_action.php">
+              <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+              <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+              <button name="action"
+                      value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
+                      class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
+                <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
+              </button>
+            </form>
 
-if (!in_array($server['status'], $showProgressBarStates)) {
-    // Mostra i pulsanti solo se lo stato NON è uno di quelli nella progress bar
-    echo '<form action="server_action.php" method="post" style="display:inline-block;">';
-    echo '<input type="hidden" name="action" value="start">';
-    echo '<input type="hidden" name="server_id" value="' . $server['id'] . '">';
-    echo '<button type="submit" class="btn btn-success btn-sm">Avvia</button>';
-    echo '</form>';
-
-    echo '<form action="delete_server.php" method="post" style="display:inline-block;" onsubmit="return confirm(\'Sei sicuro di voler eliminare il server?\');">';
-    echo '<input type="hidden" name="server_id" value="' . $server['id'] . '">';
-    echo '<button type="submit" class="btn btn-danger btn-sm">Elimina</button>';
-    echo '</form>';
-}
-?>
-
-
+            <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+              <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+              <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+              <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+            </form>
           </div>
         <?php endif; ?>
       </div>
@@ -223,19 +219,6 @@ if (!in_array($server['status'], $showProgressBarStates)) {
 
 <script>
 const inProgressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloading_server', 'extracting_mods', 'setting_up', 'diagnosis'];
-
-
-const showProgressBarStates = ['extracting_mods', 'setting_up', 'diagnosis', 'installing', 'downloading_mods'];
-
-if (showProgressBarStates.includes(status)) {
-    // Mostra progress bar
-    progressBarContainer.style.display = 'block';
-    buttonsContainer.style.display = 'none';
-} else {
-    // Mostra i bottoni
-    progressBarContainer.style.display = 'none';
-    buttonsContainer.style.display = 'block';
-}
 
 function checkAndUpdateServers() {
   document.querySelectorAll('.server').forEach(function (el) {
