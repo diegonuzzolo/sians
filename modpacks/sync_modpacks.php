@@ -1,90 +1,77 @@
 <?php
-require __DIR__.'/../config/config.php'; // Carica connessione DB
+require __DIR__.'/../config/config.php'; // Connessione PDO in $pdo
 
-$page = 0;
-$pageSize = 100;
-$totalProcessed = 0;
+function fetchModpacks($limit = 100, $offset = 0) {
+    $facets = urlencode(json_encode([
+        ["categories:forge"],
+        ["project_type:modpack"]
+    ]));
 
-function modrinthApiRequest(string $url): ?array {
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "header" => "Accept: application/json\r\n"
-        ]
-    ];
-    $context = stream_context_create($opts);
-    $response = @file_get_contents($url, false, $context);
-    if ($response === false) return null;
-    return json_decode($response, true);
-}
+    $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
 
-do {
-    $offset = $page * $pageSize;
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20
+    ]);
+    $response = curl_exec($curl);
+    curl_close($curl);
 
-    // Solo plugin, senza altre limitazioni
-    $facets = urlencode('[["project_type:plugin"]]');
-    $url = "https://api.modrinth.com/v2/search?facets=$facets&index=downloads&limit=$pageSize&offset=$offset";
-
-    $data = modrinthApiRequest($url);
-    if (!$data || !isset($data['hits']) || count($data['hits']) === 0) break;
-
-    foreach ($data['hits'] as $plugin) {
-        $id = $plugin['project_id'] ?? $plugin['project_id'] ?? null;
-        if (empty($id)) {
-            echo "❌ Plugin senza ID, salto.\n";
-            continue;
-        }
-
-        $name = $plugin['title'] ?? $plugin['slug'];
-        $description = $plugin['description'] ?? '';
-        $slug = $plugin['slug'] ?? '';
-        $categories = isset($plugin['categories']) ? implode(',', $plugin['categories']) : '';
-        $updated_at = isset($plugin['updated']) ? date('Y-m-d H:i:s', strtotime($plugin['updated'])) : null;
-        $created_at = isset($plugin['created']) ? date('Y-m-d H:i:s', strtotime($plugin['created'])) : null;
-        $author = $plugin['author'] ?? '';
-
-        // Versioni
-        $version = '';
-        $game_version = '';
-        $loader_type = '';
-        $download_url = '';
-
-        $versions_url = "https://api.modrinth.com/v2/project/$id/version";
-        $versions_data = modrinthApiRequest($versions_url);
-        if ($versions_data && is_array($versions_data) && count($versions_data) > 0) {
-            $latest_version = $versions_data[0];
-            $version = $latest_version['version_number'] ?? '';
-            $game_version = isset($latest_version['game_versions']) ? implode(',', $latest_version['game_versions']) : '';
-            $loader_type = isset($latest_version['loaders']) ? implode(',', $latest_version['loaders']) : '';
-            $download_url = $latest_version['files'][0]['url'] ?? '';
-        }
-
-        // Inserimento o aggiornamento
-        $stmt = $pdo->prepare("SELECT id FROM plugins WHERE id = ?");
-        $stmt->execute([$id]);
-
-        if ($stmt->rowCount() > 0) {
-            $stmt = $pdo->prepare("UPDATE plugins SET
-                name = ?, description = ?, version = ?, game_version = ?, slug = ?, categories = ?, loader_type = ?, download_url = ?, author = ?, updated_at = ?
-                WHERE id = ?");
-            $stmt->execute([
-                $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $updated_at, $id
-            ]);
-            echo "🔁 Aggiornato plugin: $name ($version)\n";
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO plugins (id, name, description, version, game_version, slug, categories, loader_type, download_url, author, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $id, $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $created_at, $updated_at
-            ]);
-            echo "✅ Inserito plugin: $name ($version)\n";
-        }
-
-        $totalProcessed++;
+    if (!$response) {
+        echo "Errore nel recupero dati.\n";
+        return [];
     }
 
-    $page++;
+    $json = json_decode($response, true);
+    return $json['hits'] ?? [];
+}
 
-} while (true);
+function insertModpack($pdo, $modpack) {
+    $stmt = $pdo->prepare("
+        INSERT INTO modpacks (project_id, slug, title, description, downloads, project_type, categories, game_version, updated)
+        VALUES (:project_id, :slug, :title, :description, :downloads, :project_type, :categories, :game_version, :updated)
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            description = VALUES(description),
+            downloads = VALUES(downloads),
+            categories = VALUES(categories),
+            game_version = VALUES(game_version),
+            updated = VALUES(updated)
+    ");
 
-echo "Totale plugin sincronizzati: $totalProcessed\n";
+    $stmt->execute([
+        ':project_id' => $modpack['project_id'],
+        ':slug' => $modpack['slug'],
+        ':title' => $modpack['title'],
+        ':description' => $modpack['description'] ?? '',
+        ':downloads' => $modpack['downloads'] ?? 0,
+        ':project_type' => $modpack['project_type'],
+        ':categories' => implode(',', $modpack['categories'] ?? []),
+        ':game_version' => $modpack['versions'][0] ?? '',
+        ':updated' => date('Y-m-d H:i:s', strtotime($modpack['date_modified'] ?? 'now')),
+    ]);
+}
+
+// Ciclo per prendere tutti i modpack paginati
+$offset = 0;
+$totalFetched = 0;
+
+while (true) {
+    echo "Recupero modpack da offset $offset...\n";
+    $modpacks = fetchModpacks(100, $offset);
+
+    if (empty($modpacks)) {
+        echo "Nessun altro modpack trovato.\n";
+        break;
+    }
+
+    foreach ($modpacks as $modpack) {
+        insertModpack($pdo, $modpack);
+        $totalFetched++;
+    }
+
+    $offset += 100;
+    sleep(1); // evita rate limit
+}
+
+echo "Importazione completata. Modpack importati: $totalFetched\n";
