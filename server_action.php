@@ -48,9 +48,8 @@ if (!$vm) {
 $ip = $vm['ip'];
 $sshUser = 'diego';
 $privateKeyPath = '/var/www/.ssh/id_rsa';
-$startArgs = "$type $version $serverId";
 
-$remoteCommand = "cd /home/diego/minecraft_servers/{$serverId} && bash " . ($action === 'start' ? "start.sh $startArgs" : 'stop.sh');
+$remoteCommand = "cd /home/diego/minecraft_servers/{$serverId} && bash " . ($action === 'start' ? "start.sh" : 'stop.sh');
 $sshCommand = sprintf(
     'ssh -i %s -o StrictHostKeyChecking=no %s@%s %s',
     escapeshellarg($privateKeyPath),
