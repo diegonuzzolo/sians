@@ -5,7 +5,8 @@ function fetchModpacks($limit = 100, $offset = 0) {
     $facets = urlencode(json_encode([
         ["project_type:modpack"],
         ["categories:multiplayer"],
-        ["loaders:forge"]
+        ["loaders:forge"],
+        ["client_side:unsupported"]
     ]));
 
     $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
