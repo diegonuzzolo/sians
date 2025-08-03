@@ -6,7 +6,6 @@ function fetchModpacks($limit = 100, $offset = 0) {
         ["project_type:modpack"],
         ["client_side:unsupported"],
         ["categories:forge"],
-        ["categories:server", "categories:multiplayer"],
         ["categories:fabric"]
     ]));
 
