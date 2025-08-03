@@ -436,81 +436,81 @@ version_in_range() {
 }
 
 
-# update_status "diagnosing" 99
-# if version_in_range "$GAME_VERSION" "1.7.10" "1.8.9"; then
-#   # Codice per versioni precedenti a 1.17
-#   MAX_ATTEMPTS=10
-#   DISABLED_MODS_DIR="$SERVER_DIR/disabled_mods"
-#   mkdir -p "$DISABLED_MODS_DIR"
+update_status "diagnosing" 99
+if version_in_range "$GAME_VERSION" "1.7.10" "1.8.9"; then
+  # Codice per versioni precedenti a 1.17
+  MAX_ATTEMPTS=10
+  DISABLED_MODS_DIR="$SERVER_DIR/disabled_mods"
+  mkdir -p "$DISABLED_MODS_DIR"
 
-#   for i in $(seq 1 $MAX_ATTEMPTS); do
-#     log "🌀 Tentativo $i di avvio del server..."
+  for i in $(seq 1 $MAX_ATTEMPTS); do
+    log "🌀 Tentativo $i di avvio del server..."
 
-#     # Avvia il server in background
-#     /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java -Xmx2G -Xms2G -jar "$SERVER_DIR/forge-server.jar" nogui > "$SERVER_DIR/test.log" 2>&1 &
-#     PID=$!
-#     sleep 20
+    # Avvia il server in background
+    /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java -Xmx2G -Xms2G -jar "$SERVER_DIR/forge-server.jar" nogui > "$SERVER_DIR/test.log" 2>&1 &
+    PID=$!
+    sleep 20
 
-#     # Controlla se il server è ancora vivo
-#     if ps -p $PID > /dev/null; then
-#       kill $PID
-#       log "✅ Server avviato correttamente al tentativo $i"
-#       break
-#     else
-#       log "💥 Server crashato al tentativo $i"
+    # Controlla se il server è ancora vivo
+    if ps -p $PID > /dev/null; then
+      kill $PID
+      log "✅ Server avviato correttamente al tentativo $i"
+      break
+    else
+      log "💥 Server crashato al tentativo $i"
 
-#       # Analizza il log
-#       CRASH_LOG="$SERVER_DIR/test.log"
-#       suspect_mods=()
+      # Analizza il log
+      CRASH_LOG="$SERVER_DIR/test.log"
+      suspect_mods=()
 
-#       # Cerca riferimenti a file .jar
-#       jar_mods=$(grep -Eo '[a-zA-Z0-9_.-]+\.jar' "$CRASH_LOG" | sort -u)
-#       for mod in $jar_mods; do
-#         mod_path=$(find "$MODS_DIR" -maxdepth 1 -iname "$mod" | head -n1)
-#         if [ -n "$mod_path" ]; then
-#           suspect_mods+=("$mod_path")
-#         fi
-#       done
+      # Cerca riferimenti a file .jar
+      jar_mods=$(grep -Eo '[a-zA-Z0-9_.-]+\.jar' "$CRASH_LOG" | sort -u)
+      for mod in $jar_mods; do
+        mod_path=$(find "$MODS_DIR" -maxdepth 1 -iname "$mod" | head -n1)
+        if [ -n "$mod_path" ]; then
+          suspect_mods+=("$mod_path")
+        fi
+      done
 
-#       # Cerca riferimenti a package/classi
-#       class_mods=$(grep -Eo 'Caused by:.*|at .*' "$CRASH_LOG" | grep -Eo '[a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+' | cut -d. -f1 | sort -u)
-#       for mod_prefix in $class_mods; do
-#         mod_path=$(find "$MODS_DIR" -maxdepth 1 -iname "*$mod_prefix*.jar" | head -n1)
-#         if [ -n "$mod_path" ]; then
-#           suspect_mods+=("$mod_path")
-#         fi
-#       done
+      # Cerca riferimenti a package/classi
+      class_mods=$(grep -Eo 'Caused by:.*|at .*' "$CRASH_LOG" | grep -Eo '[a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+' | cut -d. -f1 | sort -u)
+      for mod_prefix in $class_mods; do
+        mod_path=$(find "$MODS_DIR" -maxdepth 1 -iname "*$mod_prefix*.jar" | head -n1)
+        if [ -n "$mod_path" ]; then
+          suspect_mods+=("$mod_path")
+        fi
+      done
 
-#       # Rimuove duplicati
-#       suspect_mods=($(printf "%s\n" "${suspect_mods[@]}" | sort -u))
+      # Rimuove duplicati
+      suspect_mods=($(printf "%s\n" "${suspect_mods[@]}" | sort -u))
 
-#       # Se ha trovato qualcosa, disabilita la prima mod sospetta
-#       if [ "${#suspect_mods[@]}" -gt 0 ]; then
-#         mv "${suspect_mods[0]}" "$DISABLED_MODS_DIR/"
-#         log "🚫 Mod disabilitata: $(basename "${suspect_mods[0]}")"
-#       else
-#         # Fallback: disabilita una mod a caso
-#         any_mod=$(find "$MODS_DIR" -maxdepth 1 -iname "*.jar" | head -n1)
-#         if [ -n "$any_mod" ]; then
-#           mv "$any_mod" "$DISABLED_MODS_DIR/"
-#           log "⚠️ Nessuna mod identificata. Rimozione casuale: $(basename "$any_mod")"
-#         else
-#           log "❌ Nessuna mod rimasta da disabilitare. Interrompo il ciclo."
-#           break
-#         fi
-#       fi
-#     fi
-#   done
+      # Se ha trovato qualcosa, disabilita la prima mod sospetta
+      if [ "${#suspect_mods[@]}" -gt 0 ]; then
+        mv "${suspect_mods[0]}" "$DISABLED_MODS_DIR/"
+        log "🚫 Mod disabilitata: $(basename "${suspect_mods[0]}")"
+      else
+        # Fallback: disabilita una mod a caso
+        any_mod=$(find "$MODS_DIR" -maxdepth 1 -iname "*.jar" | head -n1)
+        if [ -n "$any_mod" ]; then
+          mv "$any_mod" "$DISABLED_MODS_DIR/"
+          log "⚠️ Nessuna mod identificata. Rimozione casuale: $(basename "$any_mod")"
+        else
+          log "❌ Nessuna mod rimasta da disabilitare. Interrompo il ciclo."
+          break
+        fi
+      fi
+    fi
+  done
 
-# fi
+fi
 
-# LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1)
+LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1)
 
-# if version_in_range "$GAME_VERSION" "1.10.2" "1.16.5"; then
-# check_and_fix_missing_mods "$SERVER_DIR" "$GAME_VERSION" "$latest_forge_version" 
-# fix_missing_libraries "$LATEST_LOG_FILE" "$SERVER_DIR"
-# monitor_and_fix_server "$SERVER_DIR"
-# fi
+if version_in_range "$GAME_VERSION" "1.10.2" "1.16.5"; then
+check_and_fix_missing_mods "$SERVER_DIR" "$GAME_VERSION" "$latest_forge_version" 
+fix_missing_libraries "$LATEST_LOG_FILE" "$SERVER_DIR"
+monitor_and_fix_server "$SERVER_DIR"
+fi
 
 
 update_status "created" 100
