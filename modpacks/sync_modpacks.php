@@ -5,7 +5,11 @@ function fetchModpacks($limit = 100, $offset = 0) {
     $facets = urlencode(json_encode([
         ["project_type:modpack"],
         ["categories:multiplayer"],
-        ["loaders:forge"],
+        ["categories:forge"],
+        ["categories:server"],
+        ["categories:modpack"],
+        ["client_side:unsupported"],
+        ["project_type:modpack"],
         ["client_side:unsupported"]
     ]));
 
