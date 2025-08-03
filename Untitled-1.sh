@@ -142,38 +142,69 @@ log "✔️ Server Forge scaricato in $SERVER_DIR/forge-installer.jar"
 
 update_status "downloading_mods" 3
 
-# Ora scarichiamo versione modpack da Modrinth
-MODPACK_VERSIONS_URL="https://api.modrinth.com/v2/project/$MODPACK_SLUG/version"
-log "ℹ️ Scarico versioni modpack da $MODPACK_VERSIONS_URL"
-versions_json=$(curl -s "$MODPACK_VERSIONS_URL")
-if [ -z "$versions_json" ]; then
-    log "❌ Errore nel recupero versioni modpack"
-    exit 1
-fi
-echo "$versions_json" > "$SERVER_DIR/modpack_versions.json"
 
-VERSION_ID=$(echo "$versions_json" | jq -r --arg mc "$GAME_VERSION" '.[] | select(.game_versions[] == $mc and (.loaders[] == "forge")) | .id' | head -n1)
+
+
+
+LOADER="forge"                        # <-- loader (forge, fabric, ecc.)
+MODRINTH_PACK="$SERVER_DIR/modpack_modrinth"
+
+mkdir -p  "$MODRINTH_PACK"
+
+# 🔍 Scarica la lista versioni del modpack
+log "🔍 Cerco versione di $MODPACK_SLUG compatibile con $GAME_VERSION e loader $LOADER..."
+VERSIONS_JSON=$(curl -s "https://api.modrinth.com/v2/project/$MODPACK_SLUG/version")
+
+VERSION_ID=$(echo "$VERSIONS_JSON" | jq -r --arg mc "$GAME_VERSION" --arg loader "$LOADER" '
+  .[] | select(.game_versions[] == $mc and (.loaders[]? == $loader)) | .id' | head -n1)
+
 if [ -z "$VERSION_ID" ]; then
-    log "❌ Nessuna versione modpack compatibile trovata per MC $GAME_VERSION e loader forge"
+  log "❌ Nessuna versione trovata compatibile con $GAME_VERSION e loader $LOADER"
+  exit 1
+fi
+
+log "✅ Trovata Version ID: $VERSION_ID"
+
+# 🔗 Scarica i file di quella versione
+FILES_JSON=$(curl -s "https://api.modrinth.com/v2/version/$VERSION_ID")
+
+# 📦 Trova URL del file .mrpack (di solito primary == true)
+MRPACK_URL=$(echo "$FILES_JSON" | jq -r '.files[] | select(.primary == true) | .url')
+MRPACK_NAME=$(basename "$MRPACK_URL")
+
+log "⬇️ Scarico pacchetto .mrpack da $MRPACK_URL"
+wget -q --show-progress -O "$MODRINTH_PACK/$MRPACK_NAME" "$MRPACK_URL"
+if [ $? -ne 0 ]; then
+    log "❌ Errore nel download del pacchetto .mrpack"
     exit 1
 fi
-log "ℹ️ Versione modpack Modrinth trovata: $VERSION_ID"
-    
-    # Scarica i file (mod) di quella versione
-    FILES_URL="https://api.modrinth.com/v2/version/$VERSION_ID"
-    FILES_JSON=$(curl -s "$FILES_URL")
-    MODRINTH_PACK="/home/diego/minecraft_servers/$SERVER_ID/modpack_modrinth/"
 
-    mkdir -p "$MODRINTH_PACK"
-    cd "$MODRINTH_PACK"
+# 📂 Estrai il file .mrpack
+log "📦 Estrazione del pacchetto .mrpack"
+unzip -o "$MODRINTH_PACK/$MRPACK_NAME" -d "$MODRINTH_PACK"
+if [ $? -ne 0 ]; then
+    log "❌ Errore nell'estrazione del pacchetto .mrpack"
+    exit 1
+fi
+rm "$MODRINTH_PACK/$MRPACK_NAME"
+
+# 📂 Sposta mod da overrides/mods (se esistono)
+if [ -d "$MODRINTH_PACK/overrides/mods" ] && [ "$(ls -A "$MODRINTH_PACK/overrides/mods")" ]; then
+    log "📦 Sposto mod da overrides/mods a $MODS_DIR"
+    mv "$MODRINTH_PACK/overrides/mods/"* "$MODS_DIR"/
+fi
+
+# 📂 Sposta mod da mods/ nel pacchetto (alcuni pack li mettono lì)
+if [ -d "$MODRINTH_PACK/mods" ] && [ "$(ls -A "$MODRINTH_PACK/mods")" ]; then
+    log "📦 Sposto mod da modpack_modrinth/mods a $MODS_DIR"
+    mv "$MODRINTH_PACK/mods/"* "$MODS_DIR"/
+fi
+
+log "✅ Modpack installato: mod spostate in $MODS_DIR"
 
 
-    echo "$FILES_JSON" | jq -r '.files[] | .url' | while read -r url; do
-        filename=$(basename "$url")
-        log "⬇️ Scarico mod $filename"
-        wget -q --show-progress -O "$MODRINTH_PACK/modpack.mrpack" "$url"
 
-    done
+
 update_status "extracting_mods" 4
     ((status_extracting_mod=4))
     cd $MODRINTH_PACK
@@ -264,7 +295,7 @@ enable-query=false
 generator-settings=
 enforce-secure-profile=true
 level-name=world
-motd=Server Forge Modrinth $VERSION_OR_SLUG
+motd=Server Forge $VERSION_OR_SLUG
 query.port=25565
 pvp=true
 difficulty=easy
