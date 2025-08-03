@@ -4,7 +4,8 @@ require __DIR__.'/../config/config.php'; // Connessione PDO in $pdo
 function fetchModpacks($limit = 100, $offset = 0) {
     $facets = urlencode(json_encode([
         ["categories:forge"],
-        ["project_type:modpack"]
+        ["project_type:modpack"],
+        ["categories:server", "categories:multiplayer"]
     ]));
 
     $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
@@ -25,6 +26,7 @@ function fetchModpacks($limit = 100, $offset = 0) {
     $json = json_decode($response, true);
     return $json['hits'] ?? [];
 }
+
 
 function insertOrUpdateModpack($pdo, $modpack) {
     // Prima controllo se esiste già
