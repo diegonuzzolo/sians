@@ -4,7 +4,7 @@ require __DIR__.'/../config/config.php'; // Connessione PDO in $pdo
 function fetchModpacks($limit = 100, $offset = 0) {
     $facets = urlencode(json_encode([
         ["project_type:modpack"],
-        [ "categories:multiplayer", "categories:server"],
+        ["categories:multiplayer", "categories:server"],
         ["loaders:forge"],
         ["client_side:unsupported"],
     ]));
