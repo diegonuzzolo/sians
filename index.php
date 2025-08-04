@@ -146,7 +146,7 @@ $vmStorageSpeed = 7500;
     .scroll-indicator i {
       font-size: 1.2rem;
     }
-  }
+  
 
 @media (max-width: 767px) {
   .hero-banner {
