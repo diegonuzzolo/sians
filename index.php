@@ -64,20 +64,6 @@ $vmStorageSpeed = 7500;
     box-shadow: 0 6px 18px rgba(250, 204, 21, 0.3);
   }
 
-  #freccetta {
-    position: absolute;
-    bottom: 14vh;
-    width: 50px;
-    height: 50px;
-    border: 2px solid #facc15;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    animation: pulse 2s infinite;
-    background: rgba(0,0,0,0.4);
-  }
 
   /* Scroll indicator */
   .scroll-indicator i {
@@ -151,10 +137,7 @@ $vmStorageSpeed = 7500;
       margin-top: 4rem;
     }
 
-    #freccetta {
-      bottom: 10vh;
-    }
-  
+
   @media (max-width: 767px) {
   #freccetta {
     display: none;
@@ -179,10 +162,7 @@ $vmStorageSpeed = 7500;
     <?php endif; ?>
   </div>
 
-  <div id="freccetta" class="scroll-indicator mt-5" onclick="scrollToContent()">
-    <i class="bi bi-arrow-down"></i>
-  </div>
-</div>
+
 
 <!-- Wrapper per i contenuti che vanno spinti sotto il banner -->
 <div class="content-wrapper">
