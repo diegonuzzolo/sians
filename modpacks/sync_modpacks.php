@@ -25,7 +25,9 @@ do {
     $facets = urlencode(json_encode([
         ["project_type:modpack"],
         ["client_side:unsupported"],
-        ["categories:forge"]
+        ["categories:forge"],
+        ["categories:fabric"]
+
     ]));
 
     $url = "https://api.modrinth.com/v2/search?facets=$facets&index=downloads&limit=$pageSize&offset=$offset";
