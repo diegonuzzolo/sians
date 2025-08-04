@@ -1,5 +1,5 @@
 <?php
-
+require __DIR__ ."/../config/config.php";
 function modrinthApiRequest($url)
 {
     $curl = curl_init($url);
