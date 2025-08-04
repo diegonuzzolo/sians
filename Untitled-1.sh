@@ -426,6 +426,8 @@ update_status "diagnosing" 99
 # fix_missing_libraries "$LATEST_LOG_FILE" "$SERVER_DIR"
 # monitor_and_fix_server "$SERVER_DIR"
 # fi
+chmod 644 /home/diego/minecraft_servers/$SERVER_ID/mods/*
+chown diego:diego /home/diego/minecraft_servers/$SERVER_ID/mods/*
 
 
 update_status "created" 100
