@@ -90,8 +90,8 @@ $vmStorageSpeed = 7500;
   #freccetta {
     position: absolute;
     bottom: 14vh;
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     border: 2px solid #facc15;
     border-radius: 50%;
     display: flex;
