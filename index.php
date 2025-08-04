@@ -241,7 +241,7 @@ $vmStorageSpeed = 7500;
     const isMobile = window.innerWidth < 768;
     const banner = document.querySelector(".hero-banner");
     if (isMobile) {
-      banner.style.backgroundImage = "url('assets/banner-mobile.png')";
+      banner.style.backgroundImage = "url('assets/banner.png')";
     }
   });
 
