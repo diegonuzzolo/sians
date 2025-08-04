@@ -130,7 +130,7 @@ $vmStorageSpeed = 7500;
   .hero-banner {
     height: 50vh;
     background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
-                      url('assets/banner.png');
+                      url('assets/banner-mobile.png');
     background-position: center top;
   }
 }
@@ -146,14 +146,6 @@ $vmStorageSpeed = 7500;
     .scroll-indicator i {
       font-size: 1.2rem;
     }
-  
-
-@media (max-width: 767px) {
-  .hero-banner {
-    padding: 2rem 1rem;
-    background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
-                      url('assets/banner-mobile.png');
-  }
 
   .hero-banner h1 {
     font-size: 2.2rem;
@@ -164,7 +156,7 @@ $vmStorageSpeed = 7500;
     padding: 12px;
     width: 90%;
   }
-}
+
 
 </style>
 
