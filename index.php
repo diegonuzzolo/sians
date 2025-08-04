@@ -89,7 +89,7 @@ $vmStorageSpeed = 7500;
 
   #freccetta {
     position: absolute;
-    bottom: 100vh;
+    bottom: 60vh;
     width: 60px;
     height: 60px;
     border: 2px solid #facc15;
@@ -144,11 +144,7 @@ $vmStorageSpeed = 7500;
     bottom: 0%;
 
 }
-    .scroll-indicator, #freccetta {
-      width: 50px;
-      height: 50px;
-      bottom: 50px;
-    }
+
 
     .scroll-indicator i {
       font-size: 1.2rem;
