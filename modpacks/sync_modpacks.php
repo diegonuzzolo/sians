@@ -65,23 +65,26 @@ do {
         }
 
         // Inserimento o aggiornamento
-        $stmt = $pdo->prepare("SELECT id FROM modpacks WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT project_id FROM modpacks WHERE project_id = ?");
         $stmt->execute([$id]);
 
         if ($stmt->rowCount() > 0) {
             $stmt = $pdo->prepare("UPDATE modpacks SET
-                title = ?, description = ?, version = ?, game_version = ?, slug = ?, categories = ?, loader_type = ?, download_url = ?, author = ?, updated_at = ?
-                WHERE id = ?");
+    title = ?, description = ?, version = ?, game_version = ?, slug = ?, categories = ?, loader_type = ?, download_url = ?, author = ?, updated_at = ?
+    WHERE project_id = ?");
+
             $stmt->execute([
-                $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $updated_at, $id
-            ]);
+    $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $updated_at, $id
+]);
             echo "🔁 Aggiornato modpack: $name ($version)\n";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO modpacks (id, title, description, version, game_version, slug, categories, loader_type, download_url, author, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, description, version, game_version, slug, categories, loader_type, download_url, author, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
             $stmt->execute([
-                $id, $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $created_at, $updated_at
-            ]);
+    $id, $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $created_at, $updated_at
+]);
+
             echo "✅ Inserito modpack: $name ($version)\n";
         }
 
