@@ -94,23 +94,22 @@ function insertOrUpdateModpack($pdo, $modpack) {
 // Ciclo per prendere tutti i modpack paginati
 $offset = 0;
 $totalFetched = 0;
+$page = 0;
+$limit = 100;
 
 while (true) {
-    echo "Recupero modpack da offset $offset...\n";
-    $modpacks = fetchModpacks(100, $offset);
+    $offset = $page * $limit;
+    echo "Recupero pagina $page (offset $offset)...\n";
 
-    if (empty($modpacks)) {
-        echo "Nessun altro modpack trovato.\n";
-        break;
-    }
+    $modpacks = fetchModpacks($limit, $offset);
+    if (empty($modpacks)) break;
 
     foreach ($modpacks as $modpack) {
         insertOrUpdateModpack($pdo, $modpack);
-        $totalFetched++;
     }
 
-    $offset += 100;
-    sleep(1); // evita rate limit
+    $page++;
+    sleep(1);
 }
 
 echo "Importazione completata. Modpack importati/aggiornati: $totalFetched\n";
