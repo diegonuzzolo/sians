@@ -153,10 +153,16 @@ $vmStorageSpeed = 7500;
       bottom: 10vh;
     }
   }
+  @media (max-width: 767px) {
+  #freccetta {
+    display: none;
+  }
+}
+
 </style>
 
 <div class="container-fluid hero-banner">
-  <h1>Benvenuto su Minecraft Server</h1>
+  <h1>Benvenuto su Sians</h1>
 
   <div class="hero-buttons text-center">
     <?php if (!isset($_SESSION['user_id'])): ?>
