@@ -20,21 +20,25 @@ $vmStorageSpeed = 7500;
   }
 
   /* Banner */
-  .hero-banner {
-    height: 60vh;
-    background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.95)),
-                url('assets/banner.png') center top / cover no-repeat;
-    border-radius: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 1rem;
-    text-align: center;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
-    position: relative;
-    overflow: hidden;
-  }
+.hero-banner {
+  background-image: linear-gradient(to bottom, rgba(15,23,42,0.9), rgba(30,41,59,0.95)),
+                    url('assets/banner.png');
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: contain;
+  width: 100%;
+  aspect-ratio: 16 / 9; /* o proporzioni reali dell’immagine */
+  border-radius: 20px;
+  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.6);
+  position: relative;
+  overflow: hidden;
+}
 
   .hero-banner h1 {
     font-size: 3.5rem;
