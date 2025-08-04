@@ -125,13 +125,14 @@ $vmStorageSpeed = 7500;
 
   .text-gold { color: #facc15; }
 
-  /* Ottimizzazioni mobile */
 @media (max-width: 767px) {
   .hero-banner {
     height: 50vh;
     background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
                       url('assets/banner.png');
-    background-position: center top;
+    background-position: left center;
+    background-size: 300% auto; /* Triplica la larghezza, mostrando solo il primo terzo */
+    background-repeat: no-repeat;
   }
 }
 
