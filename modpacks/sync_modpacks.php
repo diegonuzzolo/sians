@@ -96,34 +96,26 @@ $totalFetched = 0;
 $limit = 100;
 
 $page = 0;
-function fetchModpackPage($page = 0, $limit = 100) {
-    $offset = $page * $limit;
+$page = 0;
+$limit = 100;
+$totalFetched = 0;
 
-    $facets = urlencode(json_encode([
-        ["project_type:modpack"],
-        ["client_side:unsupported"],
-        ["categories:fabric"]
-    ]));
+while (true) {
+    echo "🔄 Scarico pagina $page (offset " . ($page * $limit) . ")...\n";
+    $modpacks = fetchModpacks($page, $limit);
 
-    $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
-
-    $curl = curl_init($url);
-    curl_setopt_array($curl, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 20
-    ]);
-    $response = curl_exec($curl);
-    curl_close($curl);
-
-    if (!$response) {
-        echo "❌ Errore nel recupero dati.\n";
-        return [];
+    if (empty($modpacks)) {
+        echo "✅ Nessun altro modpack trovato.\n";
+        break;
     }
 
-    $json = json_decode($response, true);
-    return $json['hits'] ?? [];
+    foreach ($modpacks as $modpack) {
+        insertOrUpdateModpack($pdo, $modpack);
+        $totalFetched++;
+    }
+
+    $page++;
+    sleep(1); // evita il rate limit
 }
 
-
-
-echo "Importazione completata. Modpack importati/aggiornati: $totalFetched\n";
+echo "🎉 Importazione completata. Totale modpack gestiti: $totalFetched\n";
