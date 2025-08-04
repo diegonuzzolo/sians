@@ -154,7 +154,7 @@ $vmStorageSpeed = 7500;
     #freccetta {
       bottom: 10vh;
     }
-  }
+  
   @media (max-width: 767px) {
   #freccetta {
     display: none;
