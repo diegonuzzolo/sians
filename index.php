@@ -131,7 +131,7 @@ $vmStorageSpeed = 7500;
     background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
                       url('assets/banner.png');
     background-position: left center;
-    background-size: 300% auto; /* Triplica la larghezza, mostrando solo il primo terzo */
+    background-size: 600% auto; /* Zoom orizzontale x6 => 1/6 visibile */
     background-repeat: no-repeat;
   }
 }
