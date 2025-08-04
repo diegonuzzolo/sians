@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $modSlug = "''";
 
             if ($postType === 'modpack' && $postModpackId) {
-                $stmt = $pdo->prepare("SELECT slug, game_version, download_url FROM modpacks WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT slug, game_version, download_url FROM modpacks WHERE project_id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
