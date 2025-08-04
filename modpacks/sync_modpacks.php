@@ -1,12 +1,11 @@
 <?php
 require __DIR__.'/../config/config.php'; // Connessione PDO in $pdo
 
-function fetchModpacks($page = 0, $limit = 100) {
-    $offset = $page * $limit;
+function fetchModpacks($limit = 100, $offset = 0) {
     $facets = urlencode(json_encode([
         ["project_type:modpack"],
         ["client_side:unsupported"],
-        ["categories:forge"]
+        ["categories:fabric"]
     ]));
 
     $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
@@ -16,15 +15,18 @@ function fetchModpacks($page = 0, $limit = 100) {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 20
     ]);
+    
     $response = curl_exec($curl);
     curl_close($curl);
 
-    if (!$response) return [];
+    if (!$response) {
+        echo "Errore nel recupero dati.\n";
+        return [];
+    }
 
     $json = json_decode($response, true);
     return $json['hits'] ?? [];
 }
-
 
 
 function insertOrUpdateModpack($pdo, $modpack) {
@@ -93,19 +95,13 @@ function insertOrUpdateModpack($pdo, $modpack) {
 // Ciclo per prendere tutti i modpack paginati
 $offset = 0;
 $totalFetched = 0;
-$limit = 100;
-
-$page = 0;
-$page = 0;
-$limit = 100;
-$totalFetched = 0;
 
 while (true) {
-    echo "🔄 Scarico pagina $page (offset " . ($page * $limit) . ")...\n";
-    $modpacks = fetchModpacks($page, $limit);
+    echo "Recupero modpack da offset $offset...\n";
+    $modpacks = fetchModpacks(100, $offset);
 
     if (empty($modpacks)) {
-        echo "✅ Nessun altro modpack trovato.\n";
+        echo "Nessun altro modpack trovato.\n";
         break;
     }
 
@@ -114,8 +110,8 @@ while (true) {
         $totalFetched++;
     }
 
-    $page++;
-    sleep(1); // evita il rate limit
+    $offset += 100;
+    sleep(1); // evita rate limit
 }
 
-echo "🎉 Importazione completata. Totale modpack gestiti: $totalFetched\n";
+echo "Importazione completata. Modpack importati/aggiornati: $totalFetched\n";
