@@ -61,16 +61,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $modSlug = "''";
 
             if ($postType === 'modpack' && $postModpackId) {
-                $stmt = $pdo->prepare("SELECT slug, game_version, download_url FROM modpacks WHERE project_id = ?");
+                $stmt = $pdo->prepare("SELECT slug, game_version, download_url FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
                 if ($modpack) {
-                    $remoteGameVersion = escapeshellarg($modpack['version']);
+                    $remoteGameVersion = escapeshellarg($modpack['game_version']);
                     $remoteVersionOrSlug = escapeshellarg($modpack['slug']);
                     $modSlug = escapeshellarg($modpack['slug']);
                     $modpackId = escapeshellarg($postModpackId);
-                    
+
                     if (!empty($modpack['forge_version'])) {
                         // Modpack Forge con installer URL
                         $forgeCombined = $modpack['game_version'] . '-' . $modpack['forge_version'];
@@ -82,7 +82,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $remoteMethod = escapeshellarg('modrinth');
                         $remoteUrl = escapeshellarg(''); // Vuoto per modrinth
                         $remoteUrl = $modpack['download_url'] ? escapeshellarg($modpack['download_url']) : escapeshellarg('');
-
                     }
                 }
             }
