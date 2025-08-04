@@ -141,7 +141,7 @@ $vmStorageSpeed = 7500;
 
 #mobile-buttons {
     position: absolute;
-    bottom: 5%;
+    bottom: 10%;
 
 }
     .scroll-indicator, #freccetta {
