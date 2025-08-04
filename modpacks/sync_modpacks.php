@@ -15,7 +15,7 @@ function fetchModpacks($limit = 100, $offset = 0) {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 20
     ]);
-    
+
     $response = curl_exec($curl);
     curl_close($curl);
 
@@ -97,6 +97,7 @@ $offset = 0;
 $totalFetched = 0;
 
 while (true) {
+
     echo "Recupero modpack da offset $offset...\n";
     $modpacks = fetchModpacks(100, $offset);
 
@@ -110,7 +111,7 @@ while (true) {
         $totalFetched++;
     }
 
-    $offset += 100;
+    $offset++;
     sleep(1); // evita rate limit
 }
 
