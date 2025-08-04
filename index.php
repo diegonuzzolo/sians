@@ -115,7 +115,7 @@ $vmStorageSpeed = 7500;
   /* Responsive */
 @media (max-width: 767px) {
   .hero-banner {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 10.7;
     background-size: contain;
     background-position: left top;
     padding: 2rem 1rem;
