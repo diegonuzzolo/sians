@@ -19,18 +19,6 @@ $vmStorageSpeed = 7500;
     font-family: 'Segoe UI', sans-serif;
   }
 
-  .hero-banner {
-    height: 100vh;
-    background: url('assets/banner.png') center center/cover no-repeat;
-    border-radius: 15px;
-    position: relative;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    padding: 2rem;
-  }
 
   .scroll-indicator {
     position: absolute;
@@ -58,25 +46,45 @@ $vmStorageSpeed = 7500;
     100% { transform: scale(1); opacity: 0.7; }
   }
 
-  .hero-banner h1 {
-    font-size: 3rem;
-    color: #facc15;
-    text-shadow: 2px 2px 6px #000;
-    margin-bottom: 10px;
-  }
+.hero-banner {
+  height: 100vh;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.95)),
+              url('assets/banner.png') center center / cover no-repeat;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
 
-  .hero-buttons .btn {
-    margin: 10px;
-    padding: 12px 24px;
-    font-weight: 600;
-    font-size: 1.2rem;
-    border-radius: 10px;
-    transition: all 0.2s ease-in-out;
-  }
+.hero-banner h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #facc15;
+  text-shadow: 2px 2px 12px rgba(0,0,0,0.6);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
 
-  .hero-buttons .btn:hover {
-    transform: scale(1.05);
-  }
+.hero-buttons .btn {
+  margin: 10px;
+  padding: 14px 28px;
+  font-weight: 600;
+  font-size: 1.2rem;
+  border-radius: 12px;
+  transition: all 0.25s ease-in-out;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.hero-buttons .btn:hover {
+  transform: scale(1.07);
+  box-shadow: 0 6px 18px rgba(250, 204, 21, 0.3);
+}
 
   #freccetta {
     position: absolute;
@@ -122,12 +130,6 @@ $vmStorageSpeed = 7500;
       font-size: 2rem;
     }
 
-    .hero-buttons .btn {
-      width: 100%;
-      margin: 0.5rem 0;
-      font-size: 1rem;
-      padding: 14px;
-    }
 
     .scroll-indicator, #freccetta {
       width: 50px;
@@ -139,11 +141,23 @@ $vmStorageSpeed = 7500;
       font-size: 1.2rem;
     }
   }
-  .mobile-buttons .btn {
-  font-size: 1.1rem;
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: 600;
+
+@media (max-width: 767px) {
+  .hero-banner {
+    padding: 2rem 1rem;
+    background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
+                      url('assets/banner-mobile.png');
+  }
+
+  .hero-banner h1 {
+    font-size: 2.2rem;
+  }
+
+  .hero-buttons .btn {
+    font-size: 1rem;
+    padding: 12px;
+    width: 90%;
+  }
 }
 
 </style>

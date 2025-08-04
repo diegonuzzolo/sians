@@ -3,8 +3,6 @@ source "/home/diego/functions.sh"
 
 set -x
 
-
-
 TYPE=$1
 VERSION_OR_SLUG=$2
 URL=$3
