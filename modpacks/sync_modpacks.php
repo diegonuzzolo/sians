@@ -25,7 +25,7 @@ do {
     $facets = urlencode(json_encode([
     ["project_type:modpack"],
     ["client_side:unsupported"],
-    ["categories:forge", "categories:fabric"]
+    ["categories:forge"]
 ]));
 
 
