@@ -46,6 +46,12 @@ $vmStorageSpeed = 7500;
     100% { transform: scale(1); opacity: 0.7; }
   }
 
+  
+.content-after-banner {
+  margin-top: 6rem; /* oppure 80px, come preferisci */
+}
+
+
 .hero-banner {
   height: 60vh; /* Prima era 100vh */
   background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.95)),
@@ -179,12 +185,12 @@ $vmStorageSpeed = 7500;
   </div>
 </div>
 
-<div class="container my-5 text-center" id="scroll-target">
+<div class="container my-5 content-after-banner text-center" id="scroll-target">
   <h2 class="text-gold">Slot Disponibili</h2>
   <div class="display-5 text-success fw-bold"><?= htmlspecialchars($slotDisponibili) ?></div>
 </div>
 
-<div class="container my-5">
+<div class="container my-5 content-after-banner">
   <h2 class="text-center mb-5 text-gold">Caratteristiche del tuo server</h2>
   <div class="row justify-content-center">
     <div class="col-12 col-md-4">
@@ -212,7 +218,7 @@ $vmStorageSpeed = 7500;
   <p class="text-center text-muted mt-3 fst-italic">Massime prestazioni per ogni partita.</p>
 </div>
 
-<div class="container my-5">
+<div class="container my-5 content-after-banner">
   <h2 class="text-center text-gold mb-5">Perché scegliere noi?</h2>
   <div class="row text-center">
     <div class="col-12 col-md-4">
