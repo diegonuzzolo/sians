@@ -93,22 +93,37 @@ function insertOrUpdateModpack($pdo, $modpack) {
 // Ciclo per prendere tutti i modpack paginati
 $offset = 0;
 $totalFetched = 0;
-$limit = 100;
+$limit = 500;
 
 $page = 0;
-while (true) {
-    echo "Scarico pagina $page...\n";
-    $modpacks = fetchModpacks($page);
+function fetchModpackPage($page = 0, $limit = 100) {
+    $offset = $page * $limit;
 
-    if (empty($modpacks)) break;
+    $facets = urlencode(json_encode([
+        ["project_type:modpack"],
+        ["client_side:unsupported"],
+        ["categories:fabric"]
+    ]));
 
-    foreach ($modpacks as $modpack) {
-        insertOrUpdateModpack($pdo, $modpack);
+    $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
+
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20
+    ]);
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    if (!$response) {
+        echo "❌ Errore nel recupero dati.\n";
+        return [];
     }
 
-    $page++;
-    sleep(1);
+    $json = json_decode($response, true);
+    return $json['hits'] ?? [];
 }
+
 
 
 echo "Importazione completata. Modpack importati/aggiornati: $totalFetched\n";
