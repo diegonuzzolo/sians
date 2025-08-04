@@ -124,17 +124,15 @@ $vmStorageSpeed = 7500;
   }
 
   /* Responsive */
-  @media (max-width: 767px) {
-    .hero-banner {
-      background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
-                        url('assets/banner.png');
-      background-size: contain;
-      background-position: left top;
-      background-repeat: no-repeat;
-      background-color: #0f172a;
-      height: 43.75vh;
-      padding: 2rem 1rem;
-    }
+@media (max-width: 767px) {
+  .hero-banner {
+    aspect-ratio: 16 / 9;
+    background-size: contain;
+    background-position: left top;
+    padding: 2rem 1rem;
+  }
+}
+
 
     .hero-banner h1 {
       font-size: 2.2rem;
