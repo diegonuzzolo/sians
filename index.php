@@ -47,9 +47,9 @@ $vmStorageSpeed = 7500;
   }
 
 .hero-banner {
-  height: 100vh;
+  height: 60vh; /* Prima era 100vh */
   background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.95)),
-              url('assets/banner.png') center center / cover no-repeat;
+              url('assets/banner.png') center top / cover no-repeat;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
@@ -61,6 +61,7 @@ $vmStorageSpeed = 7500;
   position: relative;
   overflow: hidden;
 }
+
 
 .hero-banner h1 {
   font-size: 3.5rem;
@@ -125,10 +126,15 @@ $vmStorageSpeed = 7500;
   .text-gold { color: #facc15; }
 
   /* Ottimizzazioni mobile */
-  @media (max-width: 767px) {
-    .hero-banner h1 {
-      font-size: 2rem;
-    }
+@media (max-width: 767px) {
+  .hero-banner {
+    height: 50vh;
+    background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
+                      url('assets/banner-mobile.png');
+    background-position: center top;
+  }
+}
+
 
 
     .scroll-indicator, #freccetta {
