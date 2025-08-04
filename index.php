@@ -164,7 +164,7 @@ $vmStorageSpeed = 7500;
   <div class="mobile-buttons text-center d-md-none mt-4">
   <?php if (!isset($_SESSION['user_id'])): ?>
     <a href="register.php" class="btn btn-warning w-75 my-2">Registrati</a>
-    <a href="login.php" class="btn btn-outline-dark w-75 my-2">Accedi</a>
+    <a href="login.php" class="btn btn-light w-75 my-2">Accedi</a>
   <?php else: ?>
     <a href="dashboard.php" class="btn btn-success w-75 my-2">Vai alla Dashboard</a>
   <?php endif; ?>
