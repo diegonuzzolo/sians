@@ -217,7 +217,7 @@ $versions = [
                 <label for="modpack_id">Modpack</label>
                 <select name="modpack_id" class="form-select" id="modpack-select">
                     <?php foreach ($modpacks as $modpack): ?>
-                        <option value="<?= $modpack['id'] ?>"><?= htmlspecialchars($modpack['title']) ?> (<?= $modpack['game_version'] ?>)</option>
+                        <option value="<?= $modpack['project_id'] ?>"><?= htmlspecialchars($modpack['title']) ?> (<?= $modpack['game_version'] ?>)</option>
                     <?php endforeach; ?>
                 </select>
             </div>
