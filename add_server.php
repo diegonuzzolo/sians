@@ -66,22 +66,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $modpack = $stmt->fetch();
 
                 if ($modpack) {
-                    $remoteGameVersion = escapeshellarg($modpack['game_version']);
+                    $remoteGameVersion = escapeshellarg($modpack['version']);
                     $remoteVersionOrSlug = escapeshellarg($modpack['slug']);
                     $modSlug = escapeshellarg($modpack['slug']);
                     $modpackId = escapeshellarg($postModpackId);
-
+                    
                     if (!empty($modpack['forge_version'])) {
                         // Modpack Forge con installer URL
                         $forgeCombined = $modpack['game_version'] . '-' . $modpack['forge_version'];
                         $remoteVersionOrSlug = escapeshellarg($forgeCombined);
                         $remoteType = escapeshellarg('forge');
                         $remoteMethod = escapeshellarg('url');
-                        $remoteUrl = $modpack['download_url'] ? escapeshellarg($modpack['download_url']) : escapeshellarg('');
                     } else {
                         // Modpack Modrinth (Fabric presumibilmente)
                         $remoteMethod = escapeshellarg('modrinth');
                         $remoteUrl = escapeshellarg(''); // Vuoto per modrinth
+                        $remoteUrl = $modpack['download_url'] ? escapeshellarg($modpack['download_url']) : escapeshellarg('');
+
                     }
                 }
             }
