@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $modSlug = "''";
 
             if ($postType === 'modpack' && $postModpackId) {
-                $stmt = $pdo->prepare("SELECT slug, game_version FROM modpacks WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT slug, game_version, download_url FROM modpacks WHERE id = ?");
                 $stmt->execute([$postModpackId]);
                 $modpack = $stmt->fetch();
 
@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $remoteVersionOrSlug = escapeshellarg($forgeCombined);
                         $remoteType = escapeshellarg('forge');
                         $remoteMethod = escapeshellarg('url');
-                        $remoteUrl = "''";
+                        $remoteUrl = $modpack['download_url'] ? escapeshellarg($modpack['download_url']) : escapeshellarg('');
                     } else {
                         // Modpack Modrinth (Fabric presumibilmente)
                         $remoteMethod = escapeshellarg('modrinth');

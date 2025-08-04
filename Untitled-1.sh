@@ -103,179 +103,66 @@ mkdir -p "$MODS_DIR"
 
 # === FORGE MODPACK INSTALLATION ===
 if [ "$METHOD" == "modrinth" ]; then
-log "ℹ️ Metodo modrinth rilevato, preparo modpack $MODPACK_SLUG per Minecraft $GAME_VERSION"
-update_status "downloading_mods" 2
+    log "🎯 Installazione Modrinth per server Forge ($GAME_VERSION)"
+    update_status "downloading_mods" 2
 
-# DEBUG: mostra URL Maven Forge e scarica
-MAVEN_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml"
-log "ℹ️ Scarico Maven metadata da $MAVEN_URL"
-versions=$(curl -sL "$MAVEN_URL")
+    # Scarica Forge compatibile con GAME_VERSION
+    MAVEN_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml"
+    versions=$(curl -sL "$MAVEN_URL")
+    latest_forge_version=$(echo "$versions" | grep -oP "(?<=<version>)${GAME_VERSION}-.*?(?=</version>)" | sort -V | tail -n1)
+    [ -z "$latest_forge_version" ] && log "❌ Nessuna versione Forge trovata" && exit 1
 
-if [ -z "$versions" ]; then
-    log "❌ Errore: impossibile scaricare Maven metadata"
-    exit 1
-fi
-echo "$versions" > "$SERVER_DIR/maven-metadata.xml" # salva per controlli manuali
+    FORGE_JAR_URL="https://maven.minecraftforge.net/net/minecraftforge/forge/$latest_forge_version/forge-$latest_forge_version-installer.jar"
+    log "⬇️ Scarico Forge $latest_forge_version"
+    curl -fsSL "$FORGE_JAR_URL" -o "$SERVER_DIR/forge-installer.jar" || { log "❌ Download Forge fallito"; exit 1; }
 
-# Estrai versioni e filtra
-filtered_versions=$(echo "$versions" | grep -oP '(?<=<version>).*?(?=</version>)' | grep "^${GAME_VERSION}-" | sort -V)
-if [ -z "$filtered_versions" ]; then
-    log "❌ Nessuna versione Forge trovata per Minecraft $GAME_VERSION"
-    exit 1
-fi
+    update_status "downloading_mods" 3
 
-latest_forge_version=$(echo "$filtered_versions" | tail -n1)
-log "⬇️ Versione Forge compatibile più recente trovata: $latest_forge_version"
+    # Scarica direttamente l'URL del Modpack (.mrpack)
+    MODRINTH_PACK="$SERVER_DIR/modpack_modrinth"
+    mkdir -p "$MODRINTH_PACK"
+    log "⬇️ Scarico pacchetto Modrinth da: $URL"
+    curl -fsSL "$URL" -o "$MODRINTH_PACK/pack.mrpack" || { log "❌ Download Modpack fallito"; exit 1; }
 
-FORGE_JAR_URL="https://maven.minecraftforge.net/net/minecraftforge/forge/$latest_forge_version/forge-$latest_forge_version-installer.jar"
-log "⬇️ Scarico server Forge $latest_forge_version da $FORGE_JAR_URL"
+    # Estrai .mrpack
+    log "📦 Estrazione .mrpack"
+    unzip -oq "$MODRINTH_PACK/pack.mrpack" -d "$MODRINTH_PACK" && rm "$MODRINTH_PACK/pack.mrpack"
+    update_status "extracting_mods" 4
 
-curl -L -o "$SERVER_DIR/forge-installer.jar" "$FORGE_JAR_URL"
-
-if [ $? -ne 0 ]; then
-    log "❌ Errore nel download del server Forge"
-    exit 1
-fi
-log "✔️ Server Forge scaricato in $SERVER_DIR/forge-installer.jar"
-
-update_status "downloading_mods" 3
-
-
-
-
-
-LOADER="forge"                        # <-- loader (forge, fabric, ecc.)
-MODRINTH_PACK="$SERVER_DIR/modpack_modrinth"
-
-mkdir -p  "$MODRINTH_PACK"
-
-# 🔍 Scarica la lista versioni del modpack
-log "🔍 Cerco versione di $MODPACK_SLUG compatibile con $GAME_VERSION e loader $LOADER..."
-VERSIONS_JSON=$(curl -s "https://api.modrinth.com/v2/project/$MODPACK_SLUG/version")
-
-VERSION_ID=$(echo "$VERSIONS_JSON" | jq -r --arg mc "$GAME_VERSION" --arg loader "$LOADER" '
-  .[] | select(.game_versions[] == $mc and (.loaders[]? == $loader)) | .id' | head -n1)
-
-if [ -z "$VERSION_ID" ]; then
-  log "❌ Nessuna versione trovata compatibile con $GAME_VERSION e loader $LOADER"
-  exit 1
-fi
-
-log "✅ Trovata Version ID: $VERSION_ID"
-
-# 🔗 Scarica i file di quella versione
-FILES_JSON=$(curl -s "https://api.modrinth.com/v2/version/$VERSION_ID")
-
-# 📦 Trova URL del file .mrpack (di solito primary == true)
-MRPACK_URL=$(echo "$FILES_JSON" | jq -r '.files[] | select(.primary == true) | .url')
-MRPACK_NAME=$(basename "$MRPACK_URL")
-
-log "⬇️ Scarico pacchetto .mrpack da $MRPACK_URL"
-wget -q --show-progress -O "$MODRINTH_PACK/$MRPACK_NAME" "$MRPACK_URL"
-if [ $? -ne 0 ]; then
-    log "❌ Errore nel download del pacchetto .mrpack"
-    exit 1
-fi
-
-# 📂 Estrai il file .mrpack
-log "📦 Estrazione del pacchetto .mrpack"
-unzip -o "$MODRINTH_PACK/$MRPACK_NAME" -d "$MODRINTH_PACK"
-if [ $? -ne 0 ]; then
-    log "❌ Errore nell'estrazione del pacchetto .mrpack"
-    exit 1
-fi
-rm "$MODRINTH_PACK/$MRPACK_NAME"
-
-# 📂 Sposta mod da overrides/mods (se esistono)
-if [ -d "$MODRINTH_PACK/overrides/mods" ] && [ "$(ls -A "$MODRINTH_PACK/overrides/mods")" ]; then
-    log "📦 Sposto mod da overrides/mods a $MODS_DIR"
-    mv "$MODRINTH_PACK/overrides/mods/"* "$MODS_DIR"/
-fi
-
-# 📂 Sposta mod da mods/ nel pacchetto (alcuni pack li mettono lì)
-if [ -d "$MODRINTH_PACK/mods" ] && [ "$(ls -A "$MODRINTH_PACK/mods")" ]; then
-    log "📦 Sposto mod da modpack_modrinth/mods a $MODS_DIR"
-    mv "$MODRINTH_PACK/mods/"* "$MODS_DIR"/
-fi
-
-log "✅ Modpack installato: mod spostate in $MODS_DIR"
-
-
-
-
-update_status "extracting_mods" 4
-    ((status_extracting_mod=4))
-    cd $MODRINTH_PACK
-    unzip modpack.mrpack -d .
-    rm modpack.mrpack
-    find /home/diego/minecraft_servers/$SERVER_ID/modpack_modrinth/ -type f -exec chmod 664 {} +
-    
-if [ -d "./mods" ]; then
-    echo "Cartella 'mods' trovata. Sposto i file in $MODS_DIR..."
-    mv ./mods/* "$MODS_DIR"/
-else
-    echo "Cartella 'mods' non trovata. Eseguo altro..."
-
-    JSON_FILE="$MODRINTH_PACK/modrinth.index.json"
-
-    # ✅ Sposta mod da overrides/mods/ se presenti
-    if [ -d "$MODRINTH_PACK/overrides/mods" ] && [ "$(ls -A "$MODRINTH_PACK/overrides/mods")" ]; then
-        echo "📦 Mod override trovate in $MODRINTH_PACK/overrides/mods, le sposto in $MODS_DIR..."
+    # Sposta mod da /mods o /overrides/mods
+    if [ -d "$MODRINTH_PACK/mods" ]; then
+        log "📁 Sposto mod da mods/"
+        mv "$MODRINTH_PACK/mods/"* "$MODS_DIR"/
+    elif [ -d "$MODRINTH_PACK/overrides/mods" ]; then
+        log "📁 Sposto mod da overrides/mods/"
         mv "$MODRINTH_PACK/overrides/mods/"* "$MODS_DIR"/
-    else
-        echo "🟡 Nessuna mod override trovata in $MODRINTH_PACK/overrides/mods"
     fi
 
-    # 📥 Scarica mod da modrinth.index.json
-    jq -c '.files[] 
-      | select(
-          (.env?.server == "required" or .env?.server == "optional")
-        )' "$JSON_FILE" | while read -r mod; do
+    # Fallback: scarica da modrinth.index.json se esiste
+    JSON_FILE="$MODRINTH_PACK/modrinth.index.json"
+    if [ -f "$JSON_FILE" ]; then
+        log "🔍 Scarico mod dichiarate in modrinth.index.json"
+        jq -c '.files[] | select(.env.server == "required" or .env.server == "optional")' "$JSON_FILE" | while read -r mod; do
+            url=$(echo "$mod" | jq -r '.downloads[0]')
+            path=$(echo "$mod" | jq -r '.path')
+            filename=$(basename "$path")
+            log "⬇️  Scarico mod $filename"
+            curl -fsSL "$url" -o "$MODS_DIR/$filename"
+        done
+    fi
 
-        ((status_extracting_mod++))
-        update_status "extracting_mods" $status_extracting_mod 
+    log "✅ Modpack installato in $MODS_DIR"
 
-        if [ "$status_extracting_mod" -eq 90 ]; then
-            status_extracting_mod=89
-        fi
-
-        url=$(echo "$mod" | jq -r '.downloads[0]')
-        path=$(echo "$mod" | jq -r '.path')
-        filename=$(basename "$path")
-
-        echo "⬇️  Scarico $filename da $url"
-        wget -q --show-progress -O "$MODS_DIR/$filename" "$url"
-    done
-fi
-
-    cd $SERVER_DIR
+    cd "$SERVER_DIR"
     select_java
+    log "⚙️  Installo Forge"
+    "$JAVA_BIN" -jar forge-installer.jar --installServer
+    rm forge-installer.jar
 
-    $JAVA_BIN -jar forge-installer.jar --installServer
-    log $JAVA_BIN
-
-        rm forge-installer.jar
-        log "✅ Mod scaricate in $MODS_DIR"
-
-    fi
-
-    FORGE_JAR=$(find . -maxdepth 1 -type f -name 'forge-*.jar' | head -n 1)
-
-if [ -n "$FORGE_JAR" ]; then
-    echo "Trovato Forge jar: $FORGE_JAR"
-
-    # Se esiste già un server.jar, lo eliminiamo
-    if [ -f "forge-installer.jar" ]; then
-        echo "Elimino forge-installer.jar esistente"
-        rm forge-installer.jar
-    fi
-
-    # Rinomina forge-xxx.jar in server.jar
-    echo "Rinomino $FORGE_JAR in forge-server.jar"
-    mv "$FORGE_JAR" forge-server.jar
-else
-    echo "Nessun forge-*.jar trovato dopo l'installazione"
+    FORGE_JAR=$(find . -maxdepth 1 -type f -name 'forge-*.jar' | head -n1)
+    [ -n "$FORGE_JAR" ] && mv "$FORGE_JAR" forge-server.jar
 fi
+
 select_java
 
 
