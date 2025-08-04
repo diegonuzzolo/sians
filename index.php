@@ -133,39 +133,19 @@ $vmStorageSpeed = 7500;
     background-position: left top;
     background-repeat: no-repeat;
     background-color: #0f172a;
-    height: 43.75vh; /* 50vh - 1/8 */
-  }
-
-  .hero-buttons {
-    margin-top: 10%;
-  }
-
-  .scroll-indicator, #freccetta {
-    width: 50px;
-    height: 50px;
-    bottom: 50px;
-  }
-
-  .scroll-indicator i {
-    font-size: 1.2rem;
-  }
-
-  .hero-banner h1 {
-    font-size: 2.2rem;
-  }
-
-  .hero-buttons .btn {
-    font-size: 1rem;
-    padding: 12px;
-    width: 90%;
+    height: 43.75vh; /* 50vh - 1/8 = 43.75vh */
   }
 }
 
 
 
-
-
-
+#mobile-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
 
     .scroll-indicator, #freccetta {
       width: 50px;
@@ -191,7 +171,7 @@ $vmStorageSpeed = 7500;
 </style>
 
 <div class="container-fluid hero-banner">
-  <div class="mobile-buttons text-center d-md-none mt-4">
+  <div id="mobile-buttons" class="mobile-buttons text-center d-md-none mt-4">
   <?php if (!isset($_SESSION['user_id'])): ?>
     <a href="register.php" class="btn btn-warning w-75 my-2">Registrati</a>
     <a href="login.php" class="btn btn-light w-75 my-2">Accedi</a>
