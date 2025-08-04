@@ -19,147 +19,35 @@ $vmStorageSpeed = 7500;
     font-family: 'Segoe UI', sans-serif;
   }
 
-  /* Banner */
-.hero-banner {
-  background-image: linear-gradient(to bottom, rgba(15,23,42,0.9), rgba(30,41,59,0.95)),
-                    url('assets/banner.png');
-  background-repeat: no-repeat;
-  background-position: center top;
-  background-size: contain;
-  width: 100%;
-  aspect-ratio: 16 / 9; /* o proporzioni reali dell’immagine */
-  border-radius: 20px;
-  padding: 3rem 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  box-shadow: 0 0 20px rgba(0,0,0,0.6);
-  position: relative;
-  overflow: hidden;
-}
-
-  .hero-banner h1 {
-    font-size: 3.5rem;
-    font-weight: 800;
-    color: #facc15;
-    text-shadow: 2px 2px 12px rgba(0,0,0,0.6);
-    margin-bottom: 1rem;
-    line-height: 1.2;
-  }
-
-  .hero-buttons .btn {
-    margin: 10px;
-    padding: 14px 28px;
-    font-weight: 600;
-    font-size: 1.2rem;
-    border-radius: 12px;
-    transition: all 0.25s ease-in-out;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  }
-
-  .hero-buttons .btn:hover {
-    transform: scale(1.07);
-    box-shadow: 0 6px 18px rgba(250, 204, 21, 0.3);
-  }
-
-  #freccetta {
-    position: absolute;
-    bottom: 14vh;
-    width: 50px;
-    height: 50px;
-    border: 2px solid #facc15;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    animation: pulse 2s infinite;
-    background: rgba(0,0,0,0.4);
-  }
-
-  /* Scroll indicator */
-  .scroll-indicator i {
-    font-size: 1.2rem;
-    color: #facc15;
-  }
-
-  /* Info boxes */
-  .info-box {
-    background-color: #1e293b;
-    border-radius: 12px;
-    padding: 25px;
-    text-align: center;
-    color: #f8fafc;
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    margin-bottom: 30px;
-    transition: 0.2s;
-  }
-
-  .info-box:hover {
-    transform: scale(1.03);
-    box-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
-  }
-
-  .info-box i {
-    font-size: 3rem;
-    margin-bottom: 15px;
-  }
-
-  .text-gold {
-    color: #facc15;
-  }
-
-  /* Animation pulse */
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 0.7; }
-    50% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.7; }
-  }
-
-  /* Wrapper contenuti sotto il banner */
-  .content-wrapper {
-    margin-top: 6rem; /* spazio per staccare dal banner */
-  }
-
-  /* Responsive */
 @media (max-width: 767px) {
   .hero-banner {
     aspect-ratio: 16 / 9;
     background-size: contain;
-    background-position: left top;
+    background-position: center top;
     padding: 2rem 1rem;
   }
-}
 
+  .hero-banner h1 {
+    font-size: 2.2rem;
+  }
 
-    .hero-banner h1 {
-      font-size: 2.2rem;
-    }
+  .hero-buttons .btn {
+    font-size: 1rem;
+    padding: 12px;
+    width: 90%;
+    margin: 10px auto;
+    display: block;
+  }
 
-    .hero-buttons .btn {
-      font-size: 1rem;
-      padding: 12px;
-      width: 90%;
-      margin: 10px auto;
-      display: block;
-    }
+  .content-wrapper {
+    margin-top: 4rem;
+  }
 
-    /* Riduci margine per mobile */
-    .content-wrapper {
-      margin-top: 4rem;
-    }
-
-    #freccetta {
-      bottom: 10vh;
-    }
-  
-  @media (max-width: 767px) {
   #freccetta {
     display: none;
   }
 }
+
 
 </style>
 
