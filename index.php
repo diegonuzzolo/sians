@@ -26,7 +26,6 @@ $vmStorageSpeed = 7500;
   background-repeat: no-repeat;
   background-position: center top;
   background-size: contain;
-  width: 100%;
   aspect-ratio: 16 / 9; /* o proporzioni reali dell’immagine */
   border-radius: 20px;
   padding: 3rem 1rem;
@@ -38,7 +37,7 @@ $vmStorageSpeed = 7500;
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
   position: relative;
   overflow: hidden;
-    max-width: 1800px;
+  max-width: 1800px;
   margin: 0 auto;
 
 }
