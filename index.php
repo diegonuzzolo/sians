@@ -177,7 +177,7 @@ $vmStorageSpeed = 7500;
 </div>
 
 <div class="container my-5 text-center" id="scroll-target">
-  <h2 class="text-gold">Slot Disponibili</h2>
+  <h2 class="text-white">Slot Disponibili</h2>
   <div class="display-5 text-success fw-bold"><?= htmlspecialchars($slotDisponibili) ?></div>
   <p class="text-muted">Slot ancora liberi per creare nuovi server personalizzati.</p>
 </div>
