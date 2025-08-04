@@ -199,7 +199,6 @@ $vmStorageSpeed = 7500;
         </div>
       </div>
     </div>
-    <p class="text-center text-muted mt-3 fst-italic">Massime prestazioni per ogni partita.</p>
   </div>
 
   <div class="container my-5">
