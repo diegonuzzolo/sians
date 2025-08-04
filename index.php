@@ -127,14 +127,17 @@ $vmStorageSpeed = 7500;
 
 @media (max-width: 767px) {
   .hero-banner {
-    height: 50vh;
     background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
                       url('assets/banner.png');
-    background-size: 100% auto;         /* Riduce l’immagine al 50% della sua dimensione originale */
-    background-position: left center;  /* Mostra la parte sinistra */
+    background-size: contain;           /* L’immagine si adatta interamente al contenitore */
+    background-position: left top;
     background-repeat: no-repeat;
+    background-color: #0f172a;          /* Fallback per evitare trasparenze */
+    height: auto;                       /* Altezza automatica */
+    aspect-ratio: 16 / 9;               /* Mantieni proporzioni immagine (opzionale) */
   }
 }
+
 
 
 
