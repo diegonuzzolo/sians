@@ -37,7 +37,7 @@ $vmStorageSpeed = 7500;
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
   position: relative;
   overflow: hidden;
-  max-width: 1800px;
+  width: 1800px;
   margin: 0 auto;
 
 }
