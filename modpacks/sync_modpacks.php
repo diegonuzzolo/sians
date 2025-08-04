@@ -71,7 +71,7 @@ do {
         // Salvataggio nel DB (solo se vuoi):
         
         $stmt = $pdo->prepare("REPLACE INTO modpacks 
-            (project_id, game_version, slug, title, downloads, description, categories, updated, project_type, version_id, download_url)
+            (project_id, game_version, slug, title, downloads, description, categories, updated, project_type, version, download_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([$project_id, $game_version, $slug, $title, $downloads, $description, $categories, $updated, $project_type, $version_id, $download_url]);
         
