@@ -154,8 +154,8 @@ if [ "$METHOD" == "modrinth" ]; then
     log "✅ Modpack installato in $MODS_DIR"
 
     cd "$SERVER_DIR"
-    select_java
     log "⚙️  Installo Forge"
+    select_java
     "$JAVA_BIN" -jar forge-installer.jar --installServer
     rm forge-installer.jar
 
@@ -163,7 +163,6 @@ if [ "$METHOD" == "modrinth" ]; then
     [ -n "$FORGE_JAR" ] && mv "$FORGE_JAR" forge-server.jar
 fi
 
-select_java
 
 
 # === FILE DI CONFIGURAZIONE ===
