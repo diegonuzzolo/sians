@@ -1,11 +1,12 @@
 <?php
 require __DIR__.'/../config/config.php'; // Connessione PDO in $pdo
 
-function fetchModpacks($limit = 100, $offset = 0) {
+function fetchModpacks($page = 0, $limit = 100) {
+    $offset = $page * $limit;
     $facets = urlencode(json_encode([
         ["project_type:modpack"],
         ["client_side:unsupported"],
-        ["categories:fabric"]
+        ["categories:forge"]
     ]));
 
     $url = "https://api.modrinth.com/v2/search?game=minecraft&limit=$limit&offset=$offset&facets=$facets";
@@ -18,14 +19,12 @@ function fetchModpacks($limit = 100, $offset = 0) {
     $response = curl_exec($curl);
     curl_close($curl);
 
-    if (!$response) {
-        echo "Errore nel recupero dati.\n";
-        return [];
-    }
+    if (!$response) return [];
 
     $json = json_decode($response, true);
     return $json['hits'] ?? [];
 }
+
 
 
 function insertOrUpdateModpack($pdo, $modpack) {
