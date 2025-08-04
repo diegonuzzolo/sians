@@ -133,9 +133,34 @@ $vmStorageSpeed = 7500;
     background-position: left top;
     background-repeat: no-repeat;
     background-color: #0f172a;
-    height: 43.75vh; /* 50vh - 1/8 = 43.75vh */
+    height: 43.75vh; /* 50vh - 1/8 */
+  }
+
+  .hero-buttons {
+    margin-top: 10%;
+  }
+
+  .scroll-indicator, #freccetta {
+    width: 50px;
+    height: 50px;
+    bottom: 50px;
+  }
+
+  .scroll-indicator i {
+    font-size: 1.2rem;
+  }
+
+  .hero-banner h1 {
+    font-size: 2.2rem;
+  }
+
+  .hero-buttons .btn {
+    font-size: 1rem;
+    padding: 12px;
+    width: 90%;
   }
 }
+
 
 
 
