@@ -93,7 +93,7 @@ function insertOrUpdateModpack($pdo, $modpack) {
 // Ciclo per prendere tutti i modpack paginati
 $offset = 0;
 $totalFetched = 0;
-$limit = 500;
+$limit = 100;
 
 $page = 0;
 function fetchModpackPage($page = 0, $limit = 100) {
