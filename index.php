@@ -130,7 +130,7 @@ $vmStorageSpeed = 7500;
   .hero-banner {
     height: 50vh;
     background-image: linear-gradient(to bottom, rgba(15,23,42,0.85), rgba(30,41,59,0.9)),
-                      url('assets/banner-mobile.png');
+                      url('assets/banner.png');
     background-position: center top;
   }
 }
