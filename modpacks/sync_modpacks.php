@@ -1,100 +1,82 @@
 <?php
-require __DIR__.'/../config/config.php'; // Carica connessione DB
+
+function modrinthApiRequest($url)
+{
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'YourAppName/1.0 (by you)',
+    ]);
+    $response = curl_exec($curl);
+    curl_close($curl);
+    return json_decode($response, true);
+}
 
 $page = 0;
 $pageSize = 100;
-$totalProcessed = 0;
-
-function modrinthApiRequest(string $url): ?array {
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "header" => "Accept: application/json\r\n"
-        ]
-    ];
-    $context = stream_context_create($opts);
-    $response = @file_get_contents($url, false, $context);
-    if ($response === false) return null;
-    return json_decode($response, true);
-}
 
 do {
     $offset = $page * $pageSize;
 
-    // Solo modpack Fabric
     $facets = urlencode(json_encode([
-    ["project_type:modpack"],
-    ["client_side:unsupported"],
-    ["categories:forge", "categories:fabric"]
-]));
+        ["project_type:modpack"],
+        ["client_side:unsupported"],
+        ["categories:forge", "categories:fabric"]
+    ]));
 
-
-    $url = "https://api.modrinth.com/v2/search?facets=$facets&index=downloads&limit=$pageSize&offset=$offset";
-
+    $url = "https://api.modrinth.com/v2/search?facets=$facets&limit=$pageSize&offset=$offset";
     $data = modrinthApiRequest($url);
-    if (!$data || !isset($data['hits']) || count($data['hits']) === 0) break;
+
+    if (!$data || !isset($data['hits']) || count($data['hits']) === 0) {
+        echo "✅ Fine dei risultati.\n";
+        break;
+    }
 
     foreach ($data['hits'] as $modpack) {
-        $id = $modpack['project_id'] ?? null;
-        if (empty($id)) {
-            echo "❌ Modpack senza ID, salto.\n";
-            continue;
-        }
-
-        $name = $modpack['title'] ?? $modpack['slug'];
-        $description = $modpack['description'] ?? '';
+        $project_id = $modpack['project_id'] ?? '';
+        $game_version = implode(',', $modpack['game_versions'] ?? []);
         $slug = $modpack['slug'] ?? '';
-        $categories = isset($modpack['categories']) ? implode(',', $modpack['categories']) : '';
-        $updated_at = isset($modpack['updated']) ? date('Y-m-d H:i:s', strtotime($modpack['updated'])) : null;
-        $created_at = isset($modpack['created']) ? date('Y-m-d H:i:s', strtotime($modpack['created'])) : null;
-        $author = $modpack['author'] ?? '';
+        $title = $modpack['title'] ?? '';
+        $downloads = $modpack['downloads'] ?? 0;
+        $description = $modpack['description'] ?? '';
+        $categories = implode(',', $modpack['categories'] ?? []);
+        $updated = $modpack['updated'] ?? '';
+        $project_type = $modpack['project_type'] ?? '';
 
-        // Versioni
-        $version = '';
-        $game_version = '';
-        $loader_type = '';
-        $download_url = '';
+        // 🔄 Recupera l'ultima versione
+        $versions_url = "https://api.modrinth.com/v2/project/$project_id/version";
+        $versions = modrinthApiRequest($versions_url);
 
-        $versions_url = "https://api.modrinth.com/v2/project/$id/version";
-        $versions_data = modrinthApiRequest($versions_url);
-        if ($versions_data && is_array($versions_data) && count($versions_data) > 0) {
-            $latest_version = $versions_data[0];
-            $version = $latest_version['version_number'] ?? '';
-            $game_version = isset($latest_version['game_versions']) ? implode(',', $latest_version['game_versions']) : '';
-            $loader_type = isset($latest_version['loaders']) ? implode(',', $latest_version['loaders']) : '';
-            $download_url = $latest_version['files'][0]['url'] ?? '';
+        $version_id = null;
+        $download_url = null;
+
+        if (is_array($versions) && count($versions) > 0) {
+            $latest_version = $versions[0];
+            $version_id = $latest_version['id'] ?? null;
+
+            // Trova il file .mrpack
+            foreach ($latest_version['files'] ?? [] as $file) {
+                if (($file['url'] ?? '') && preg_match('/\.mrpack$/', $file['filename'])) {
+                    $download_url = $file['url'];
+                    break;
+                }
+            }
         }
 
-        // Inserimento o aggiornamento
-        $stmt = $pdo->prepare("SELECT project_id FROM modpacks WHERE project_id = ?");
-        $stmt->execute([$id]);
+        echo "• [$title] ($slug)\n";
+        echo "  - Version ID: $version_id\n";
+        echo "  - Download URL: $download_url\n\n";
 
-        if ($stmt->rowCount() > 0) {
-            $stmt = $pdo->prepare("UPDATE modpacks SET
-    title = ?, description = ?, version = ?, game_version = ?, slug = ?, categories = ?, loader_type = ?, download_url = ?, author = ?, updated_at = ?
-    WHERE project_id = ?");
-
-            $stmt->execute([
-    $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $updated_at, $id
-]);
-            echo "🔁 Aggiornato modpack: $name ($version)\n";
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO modpacks (project_id, title, description, version, game_version, slug, categories, loader_type, download_url, author, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-            $stmt->execute([
-    $id, $name, $description, $version, $game_version, $slug, $categories, $loader_type, $download_url, $author, $created_at, $updated_at
-]);
-
-            echo "✅ Inserito modpack: $name ($version)\n";
-        }
-
-        $totalProcessed++;
+        // Salvataggio nel DB (solo se vuoi):
+        
+        $stmt = $pdo->prepare("REPLACE INTO modpacks 
+            (project_id, game_version, slug, title, downloads, description, categories, updated, project_type, version_id, download_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$project_id, $game_version, $slug, $title, $downloads, $description, $categories, $updated, $project_type, $version_id, $download_url]);
+        
     }
 
     $page++;
-    sleep(1); // anti-rate-limit
-
+    sleep(1);
 } while (true);
-
-echo "🎉 Totale modpack sincronizzati: $totalProcessed\n";
