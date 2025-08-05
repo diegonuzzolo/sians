@@ -107,6 +107,19 @@ $vmStorageSpeed = 7500;
     100% { transform: scale(1); opacity: 0.7; }
   }
 
+
+  @media (min-width: 1600px) and (max-width: 1920px) {
+  .hero-banner {
+    max-width: 1400px; /* riduci la larghezza massima */
+    aspect-ratio: 16 / 9; /* rendi più "bassino" il banner, rispetto a 16/10.7 */
+    padding: 2rem 1rem; /* riduci un po' il padding verticale */
+  }
+
+  .hero-banner h1 {
+    font-size: 2.8rem; /* testo un po' più piccolo */
+  }
+}
+
   /* Wrapper contenuti sotto il banner */
   .content-wrapper {
     margin-top: 6rem; /* spazio per staccare dal banner */
