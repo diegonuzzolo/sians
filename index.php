@@ -136,6 +136,7 @@ $vmStorageSpeed = 7500;
     aspect-ratio: 16 / 10.7;
     background-size: contain;
     background-position: left top;
+    max-width: 100%;
     padding: 2rem 1rem;
   }
 }
