@@ -60,7 +60,8 @@ if (!$vmIp) {
 
 // Percorso server corretto e dinamico (cartella server specifica)
 $serverDir = "/home/diego/minecraft_servers/$serverId";
-
+$moveScript = "mv /home/diego/minecraft_servers/$serverId/fix_missing.py /home/diego/";
+$escapedMoveScript = escapeshellarg($moveScript);
 $escapedServerDir = escapeshellarg($serverDir);
 $escapedVmIp = escapeshellarg($vmIp);
 $escapedSshUser = escapeshellarg($sshUser);
@@ -68,13 +69,14 @@ $escapedSshUser = escapeshellarg($sshUser);
 $log = "/home/diego/setup_log_$serverId.log";
 
 $cmd_kill_bash = "ssh {$escapedSshUser}@{$escapedVmIp} 'sudo killall bash'";
- 
+$cmd_move_script = "ssh {$escapedSshUser}@{$escapedVmIp} {$escapedMoveScript} > /dev/null 2>&1 &";
 // Comando SSH per cancellare la cartella server
 $cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}' && rm $log";
 
 // Esegui comando e cattura output e codice di ritorno
 exec($cmd . " 2>&1", $output, $return_var);
 exec($cmd_kill_bash, $output, $return_var);
+exec($cmd_move_script, $output, $return_var);
 if ($return_var !== 0) {
     error_log("Errore eliminando cartella server (ID: $serverId) sulla VM $vmIp: " . implode("\n", $output));
     // Eventuale gestione errore utente (es: messaggio sessione)
