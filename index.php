@@ -170,17 +170,16 @@ $vmStorageSpeed = 7500;
       <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
     <?php endif; ?>
   </div>
-</div>
+  
+  
 
-
-
-<!-- Wrapper per i contenuti che vanno spinti sotto il banner -->
-<div class="content-wrapper">
+  <!-- Wrapper per i contenuti che vanno spinti sotto il banner -->
+  <div class="content-wrapper">
   <div class="container my-5 text-center" id="scroll-target">
     <h2 class="text-gold">Slot Disponibili</h2>
     <div class="display-5 text-success fw-bold"><?= htmlspecialchars($slotDisponibili) ?></div>
   </div>
-
+  
   <div class="container my-5">
     <h2 class="text-center mb-5 text-gold">Caratteristiche del tuo server</h2>
     <div class="row justify-content-center">
@@ -236,6 +235,7 @@ $vmStorageSpeed = 7500;
   </div>
 </div>
 
+</div>
 <script>
   function scrollToContent() {
     document.getElementById('scroll-target').scrollIntoView({ behavior: 'smooth' });
