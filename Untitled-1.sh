@@ -435,7 +435,7 @@ SERVER_PID=$!                 # Salva il PID del processo
 sleep 10                      # Aspetta 10 secondi (o di più se vuoi)
 
 # Controllo se il server è ancora in esecuzione
-
+attempt_fix_missing_mods_loop
 
 update_status "created" 100
 
