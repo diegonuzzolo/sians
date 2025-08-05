@@ -16,7 +16,7 @@ $vmStorageSpeed = 7500;
   
 @media (max-width: 1920px) {
   .hero-banner {
-    max-width: 1400px !important;
+    width: 700px !important;
     max-height: 500px !important;
     padding: 2rem 1rem !important;
   aspect-ratio: 16 / 9; /* o proporzioni reali dell’immagine */
