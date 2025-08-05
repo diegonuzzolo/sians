@@ -435,15 +435,7 @@ SERVER_PID=$!                 # Salva il PID del processo
 sleep 10                      # Aspetta 10 secondi (o di più se vuoi)
 
 # Controllo se il server è ancora in esecuzione
-if ps -p $SERVER_PID > /dev/null; then
-    echo "✅ Server avviato correttamente. Termino processo..."
-    kill $SERVER_PID
-    wait $SERVER_PID 2>/dev/null
-else
-    echo "❌ Server crashato. Analizzo ultimo crash report..."
-    LAST_CRASH=$(ls -t "$SERVER_DIR/crash-reports/"*.txt | head -n 1)
-    fix_missing_mods "$LAST_CRASH" "$MODS_DIR" "$GAME_VERSION"
-fi
+
 
 update_status "created" 100
 
