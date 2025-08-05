@@ -13,6 +13,18 @@ $vmStorageSpeed = 7500;
 <?php include 'includes/header.php'; ?>
 
 <style>
+  
+  @media (min-width: 1600px) and (max-width: 1920px) {
+  .hero-banner {
+    max-width: 1400px; /* riduci la larghezza massima */
+    aspect-ratio: 16 / 9; /* rendi più "bassino" il banner, rispetto a 16/10.7 */
+    padding: 2rem 1rem; /* riduci un po' il padding verticale */
+  }
+
+  .hero-banner h1 {
+    font-size: 2.8rem; /* testo un po' più piccolo */
+  }
+}
   body {
     background: linear-gradient(to right, #0f172a, #1e293b);
     color: #f1f5f9;
@@ -108,17 +120,6 @@ $vmStorageSpeed = 7500;
   }
 
 
-  @media (min-width: 1600px) and (max-width: 1920px) {
-  .hero-banner {
-    width: 700px; /* riduci la larghezza massima */
-    aspect-ratio: 16 / 9; /* rendi più "bassino" il banner, rispetto a 16/10.7 */
-    padding: 2rem 1rem; /* riduci un po' il padding verticale */
-  }
-
-  .hero-banner h1 {
-    font-size: 2.8rem; /* testo un po' più piccolo */
-  }
-}
 
   /* Wrapper contenuti sotto il banner */
   .content-wrapper {
