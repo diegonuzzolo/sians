@@ -34,20 +34,13 @@ fix_missing_mods() {
         echo "✅ Trovata: project_id = $project_id"
 
         echo "⬇️  Recupero versione compatibile con $mc_version + $loader..."
-        local version_data=$(curl -s "https://api.modrinth.com/v2/project/$project_id/version" |
+        local file_url=$(curl -s "https://api.modrinth.com/v2/project/$project_id/version" |
             jq -r --arg mc "$mc_version" --arg l "$loader" '
-                .[] | select(.game_versions[]? == $mc and .loaders[]? == $l)' | head -n 1)
-
-        if [ -z "$version_data" ]; then
-            echo "⚠️  Nessuna versione compatibile trovata per '$mod'"
-            continue
-        fi
-
-        # Ottieni file URL da JSON completo
-        local file_url=$(echo "$version_data" | jq -r '.files[0].url')
+                .[] | select(.game_versions[]? == $mc and .loaders[]? == $l) | .files[0].url' |
+            head -n 1)
 
         if [ -z "$file_url" ] || [ "$file_url" == "null" ]; then
-            echo "⚠️  Nessun file URL valido trovato per '$mod'"
+            echo "⚠️  Nessuna versione compatibile trovata per '$mod'"
             continue
         fi
 
