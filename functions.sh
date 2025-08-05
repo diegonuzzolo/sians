@@ -12,10 +12,10 @@ fix_missing_mods() {
     [ ! -f "$crash_log" ] && echo "❌ File crash log non trovato: $crash_log" && return 1
     mkdir -p "$mods_folder"
 
-    echo "📄 Leggo crash log per estrarre i nomi delle mod mancanti..."
+    echo "📄 Leggo crash log per estrarre i nomi delle mod mancanti (dipendenze)..."
 
-    # Estrae i nomi delle mod mancanti dal crash log (adatta la regex se serve)
-    local missing_mods=$(grep -oP 'Mod \K[^ ]+(?= requires)' "$crash_log" | sort -u)
+    # Estrai la mod mancante dopo 'requires' (es. 'silentlib', 'create', ecc.)
+    local missing_mods=$(grep -Po 'Mod \S+ requires \K\S+' "$crash_log" | sort -u)
 
     if [ -z "$missing_mods" ]; then
         echo "✅ Nessuna mod mancante trovata."
@@ -55,6 +55,7 @@ fix_missing_mods() {
         fi
     done
 }
+
 
 
 attempt_fix_missing_mods_loop() {
