@@ -25,7 +25,7 @@ CRASH_LOG="$SERVER_DIR/test.log"
 
 mkdir -p "$SERVER_DIR" "$MODS_DIR" "$SERVER_DIR/logs" "$SERVER_DIR/debug"
 
-
+  
 
 
 log() {
@@ -400,7 +400,7 @@ LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1
 # Avvio temporaneo del server
 
 # Controllo se il server è ancora in esecuzione
-attempt_fix_missing_mods_loop
+attempt_fix_missing_mods_loop $latest_forge_version
 
 pkill -f 'net.minecraft.server' 2>/dev/null
 

@@ -96,7 +96,8 @@ attempt_fix_missing_mods_loop() {
     local max_attempts=10
     JAVA_BIN=""
     select_java
-    local java_command="$JAVA_BIN -Xmx8G -Xms8G -jar forge-*.jar nogui"
+    forge_version=$1
+    local java_command="$JAVA_BIN -Xmx8G -Xms8G @libraries/net/minecraftforge/forge/$forge_version/unix_args.txt"
 
     cd "$SERVER_DIR" || {
         echo "❌ Impossibile accedere alla directory $SERVER_DIR"
