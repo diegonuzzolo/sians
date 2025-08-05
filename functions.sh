@@ -1,3 +1,36 @@
+select_java() {
+    echo "🎮 Selezione Java per GAME_VERSION: '$GAME_VERSION'"
+
+    case "$GAME_VERSION" in
+        1.7*|1.8*|1.9*|1.10*|1.11*|1.12*)
+            # Minecraft 1.12 e precedenti: Java 8
+            JAVA_BIN="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
+            ;;
+        1.13*|1.14*|1.15*)
+            # Da Minecraft 1.13 a 1.15: Java 8 consigliato, Java 11 supportato
+            JAVA_BIN="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
+            ;;
+        1.16*)
+            # Minecraft 1.16: Java 8 consigliato, Java 11 supportato
+            JAVA_BIN="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
+            ;;
+        1.17*)
+            # Minecraft 1.17 richiede Java 16 (ma Java 17 funziona)
+            JAVA_BIN="/usr/lib/jvm/java-17-openjdk-amd64/bin/java"
+            ;;
+        1.18*|1.19*|1.20*|1.21*)
+            # Minecraft 1.18+ richiede Java 17
+            JAVA_BIN="/usr/lib/jvm/java-17-openjdk-amd64/bin/java"
+            ;;
+        *)
+            echo "❌ Versione Minecraft non riconosciuta o troppo nuova: '$GAME_VERSION'"
+            exit 1
+            ;;
+    esac
+
+    echo "✅ Java selezionato: \$JAVA_BIN"
+}
+
 fix_missing_mods() {
     local crash_log="$1"
     local mods_folder="$2"
@@ -61,16 +94,26 @@ fix_missing_mods() {
 attempt_fix_missing_mods_loop() {
     local attempt=1
     local max_attempts=10
+    JAVA_BIN=""
+    select_java
+    local java_command="$JAVA_BIN -Xmx8G -Xms8G -jar forge-*.jar nogui"
+
+    cd "$SERVER_DIR" || {
+        echo "❌ Impossibile accedere alla directory $SERVER_DIR"
+        return 1
+    }
 
     while [ $attempt -le $max_attempts ]; do
-        echo "🔁 Tentativo #$attempt di avvio server..."
+        echo "🔁 Tentativo #$attempt di avvio server con Java..."
 
-        cd "$SERVER_DIR"
-        bash start.sh &
-        SERVER_PID=$!
-        wait $SERVER_PID
+        # Pulisce output precedenti (opzionale)
+        rm -f "$SERVER_DIR"/logs/latest.log
 
-        # Controlla se c'è un crash report
+        # Esegui java, salva stdout/stderr e attendi terminazione
+        $java_command > "$SERVER_DIR/logs/latest.log" 2>&1
+        exit_code=$?
+
+        # Controlla se è stato generato un crash report
         LAST_CRASH=$(ls -t "$SERVER_DIR/crash-reports/"*.txt 2>/dev/null | head -n 1)
 
         if [ -z "$LAST_CRASH" ]; then
@@ -80,12 +123,15 @@ attempt_fix_missing_mods_loop() {
 
         echo "❌ Crash rilevato. Analizzo: $LAST_CRASH"
         fix_missing_mods "$LAST_CRASH" "$MODS_DIR" "$GAME_VERSION"
+
         ((attempt++))
     done
 
     if [ $attempt -gt $max_attempts ]; then
         echo "❌ Superato il numero massimo di tentativi ($max_attempts). Interrotto."
+        return 1
     else
         echo "✅ Server pronto. Nessuna mod mancante rilevata."
+        return 0
     fi
 }

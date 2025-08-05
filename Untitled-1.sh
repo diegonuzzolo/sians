@@ -27,39 +27,6 @@ mkdir -p "$SERVER_DIR" "$MODS_DIR" "$SERVER_DIR/logs" "$SERVER_DIR/debug"
 
 
 
-select_java() {
-    echo "🎮 Selezione Java per GAME_VERSION: '$GAME_VERSION'"
-
-    case "$GAME_VERSION" in
-        1.7*|1.8*|1.9*|1.10*|1.11*|1.12*)
-            # Minecraft 1.12 e precedenti: Java 8
-            JAVA_BIN="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
-            ;;
-        1.13*|1.14*|1.15*)
-            # Da Minecraft 1.13 a 1.15: Java 8 consigliato, Java 11 supportato
-            JAVA_BIN="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
-            ;;
-        1.16*)
-            # Minecraft 1.16: Java 8 consigliato, Java 11 supportato
-            JAVA_BIN="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
-            ;;
-        1.17*)
-            # Minecraft 1.17 richiede Java 16 (ma Java 17 funziona)
-            JAVA_BIN="/usr/lib/jvm/java-17-openjdk-amd64/bin/java"
-            ;;
-        1.18*|1.19*|1.20*|1.21*)
-            # Minecraft 1.18+ richiede Java 17
-            JAVA_BIN="/usr/lib/jvm/java-17-openjdk-amd64/bin/java"
-            ;;
-        *)
-            echo "❌ Versione Minecraft non riconosciuta o troppo nuova: '$GAME_VERSION'"
-            exit 1
-            ;;
-    esac
-
-    echo "✅ Java selezionato: \$JAVA_BIN"
-}
-
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
