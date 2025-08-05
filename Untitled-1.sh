@@ -419,7 +419,6 @@ update_status "diagnosing" 99
 
 # fi
 
-# LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1)
 
 # if version_in_range "$GAME_VERSION" "1.10.2" "1.16.5"; then
 # check_and_fix_missing_mods "$SERVER_DIR" "$GAME_VERSION" "$latest_forge_version" 
@@ -428,7 +427,9 @@ update_status "diagnosing" 99
 # fi
 chmod 644 /home/diego/minecraft_servers/$SERVER_ID/mods/*
 chown diego:diego /home/diego/minecraft_servers/$SERVER_ID/mods/*
-
+LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1)
+CRASH_LOG=
+fix_missing_mods $ $MODS_DIR
 
 update_status "created" 100
 
