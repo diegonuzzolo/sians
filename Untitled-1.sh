@@ -129,7 +129,7 @@ if [ "$METHOD" == "modrinth" ]; then
     unzip -oq "$MODRINTH_PACK/pack.mrpack" -d "$MODRINTH_PACK" && rm "$MODRINTH_PACK/pack.mrpack"
     update_status "extracting_mods" 4
     cd 
-    chmod -R u+rwX modpack_modrinth
+    chmod -R u+rwX $MODRINTH_PACK
 
     # Sposta mod da /mods o /overrides/mods
     if [ -d "$MODRINTH_PACK/mods" ]; then
