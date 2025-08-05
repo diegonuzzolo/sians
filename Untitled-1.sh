@@ -128,7 +128,8 @@ if [ "$METHOD" == "modrinth" ]; then
     log "📦 Estrazione .mrpack"
     unzip -oq "$MODRINTH_PACK/pack.mrpack" -d "$MODRINTH_PACK" && rm "$MODRINTH_PACK/pack.mrpack"
     update_status "extracting_mods" 4
-    chown -R diego:diego modpack_modrinth
+    cd 
+    chown -R diego:diego $MODRINTH_PACK
 
     # Sposta mod da /mods o /overrides/mods
     if [ -d "$MODRINTH_PACK/mods" ]; then
