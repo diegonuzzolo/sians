@@ -1,7 +1,7 @@
 fix_missing_mods() {
-     local crash_log="$1"
-    local mods_folder="mods"
-    local mc_version="1.20.1"
+    local crash_log="$1"
+    local mods_folder="$2"
+    local mc_version="$3"
     local loader="forge"
 
     if ! command -v jq &> /dev/null; then
@@ -34,19 +34,21 @@ fix_missing_mods() {
         echo "✅ Trovata: project_id = $project_id"
 
         echo "⬇️  Recupero versione compatibile con $mc_version + $loader..."
-        local version=$(curl -s "https://api.modrinth.com/v2/project/$project_id/version" |
-            jq -r --arg mc "$mc_version" --arg l "$loader" \
-            '[.[] | select(.game_versions[]? == $mc and .loaders[]? == $l)][0]')
+        local file_url=$(curl -s "https://api.modrinth.com/v2/project/$project_id/version" |
+            jq -r --arg mc "$mc_version" --arg l "$loader" '
+                .[] | select(.game_versions[]? == $mc and .loaders[]? == $l) | .files[0].url' |
+            head -n 1)
 
-        if [ "$version" == "null" ] || [ -z "$version" ]; then
+        if [ -z "$file_url" ] || [ "$file_url" == "null" ]; then
             echo "⚠️  Nessuna versione compatibile trovata per '$mod'"
             continue
         fi
 
-        local file_url=$(echo "$version" | jq -r '.files[0].url')
         local filename=$(basename "$file_url")
 
         echo "📦 Scarico $filename..."
-        curl -s -L -o "$mods_folder/$filename" "$file_url" && echo "✅ Salvata in $mods_folder/"
+        curl -s -L -o "$mods_folder/$filename" "$file_url" \
+            && echo "✅ Salvata in $mods_folder/" \
+            || echo "❌ Errore durante il download di $filename"
     done
 }

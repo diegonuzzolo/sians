@@ -350,8 +350,8 @@ version_in_range() {
   fi
 }
 
-
 update_status "diagnosing" 99
+
 # if version_in_range "$GAME_VERSION" "1.7.10" "1.8.9"; then
 #   # Codice per versioni precedenti a 1.17
 #   MAX_ATTEMPTS=10
@@ -428,8 +428,22 @@ update_status "diagnosing" 99
 chmod 644 /home/diego/minecraft_servers/$SERVER_ID/mods/*
 chown diego:diego /home/diego/minecraft_servers/$SERVER_ID/mods/*
 LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1)
-CRASH_LOG=
-fix_missing_mods $ $MODS_DIR
+# Avvio temporaneo del server
+cd "$SERVER_DIR"
+./start.sh &                   # Avvia in background
+SERVER_PID=$!                 # Salva il PID del processo
+sleep 10                      # Aspetta 10 secondi (o di più se vuoi)
+
+# Controllo se il server è ancora in esecuzione
+if ps -p $SERVER_PID > /dev/null; then
+    echo "✅ Server avviato correttamente. Termino processo..."
+    kill $SERVER_PID
+    wait $SERVER_PID 2>/dev/null
+else
+    echo "❌ Server crashato. Analizzo ultimo crash report..."
+    LAST_CRASH=$(ls -t "$SERVER_DIR/crash-reports/"*.txt | head -n 1)
+    fix_missing_mods "$LAST_CRASH" "$MODS_DIR" "$GAME_VERSION"
+fi
 
 update_status "created" 100
 
