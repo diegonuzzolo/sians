@@ -41,7 +41,7 @@ $vmStorageSpeed = 7500;
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
   position: relative;
   overflow: hidden;
-  max-width: 1800px;
+  max-width: 1400px;
   margin: 0 auto;
 
 }
@@ -155,13 +155,12 @@ $vmStorageSpeed = 7500;
 </style>
 
 <!-- Banner visivo -->
-<div class="container-fluid hero-banner">
+<div class="container-fluid hero-banner"></div>
 
-  
-  <!-- Contenuto principale sotto il banner -->
+<!-- Contenuto principale sotto il banner -->
 <div class="text-center py-5">
   <h1 class="fw-bold text-warning">Benvenuto su Sians</h1>
-  
+
   <div class="hero-buttons mt-4">
     <?php if (!isset($_SESSION['user_id'])): ?>
       <a href="register.php" class="btn btn-warning">Registrati</a>
@@ -170,16 +169,16 @@ $vmStorageSpeed = 7500;
       <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
     <?php endif; ?>
   </div>
-  
-  
 
-  <!-- Wrapper per i contenuti che vanno spinti sotto il banner -->
-  <div class="content-wrapper">
+
+
+<!-- Wrapper per i contenuti che vanno spinti sotto il banner -->
+<div class="content-wrapper">
   <div class="container my-5 text-center" id="scroll-target">
     <h2 class="text-gold">Slot Disponibili</h2>
     <div class="display-5 text-success fw-bold"><?= htmlspecialchars($slotDisponibili) ?></div>
   </div>
-  
+
   <div class="container my-5">
     <h2 class="text-center mb-5 text-gold">Caratteristiche del tuo server</h2>
     <div class="row justify-content-center">
@@ -235,7 +234,6 @@ $vmStorageSpeed = 7500;
   </div>
 </div>
 
-</div>
 <script>
   function scrollToContent() {
     document.getElementById('scroll-target').scrollIntoView({ behavior: 'smooth' });
