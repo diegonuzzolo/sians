@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cmd = "bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion $modpackId $modSlug";
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd) . " > /dev/null 2>&1 &";
 
-            exec($move_script);
+            exec($sshCmd);
             header("Location: dashboard.php");
             exit;
         }
