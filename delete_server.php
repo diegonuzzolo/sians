@@ -74,9 +74,9 @@ $cmd_move_script = "ssh {$escapedSshUser}@{$escapedVmIp} {$escapedMoveScript} > 
 $cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}' && rm $log";
 
 // Esegui comando e cattura output e codice di ritorno
+exec($cmd_move_script, $output, $return_var);
 exec($cmd . " 2>&1", $output, $return_var);
 exec($cmd_kill_bash, $output, $return_var);
-exec($cmd_move_script, $output, $return_var);
 if ($return_var !== 0) {
     error_log("Errore eliminando cartella server (ID: $serverId) sulla VM $vmIp: " . implode("\n", $output));
     // Eventuale gestione errore utente (es: messaggio sessione)
