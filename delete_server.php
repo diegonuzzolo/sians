@@ -60,7 +60,7 @@ if (!$vmIp) {
 
 // Percorso server corretto e dinamico (cartella server specifica)
 $serverDir = "/home/diego/minecraft_servers/$serverId";
-$moveScript = "mv /home/diego/minecraft_servers/$serverId/fix_missing.py /home/diego/";
+$moveScript = "mv /home/diego/minecraft_servers/$serverId/fix_server.py /home/diego/";
 $escapedMoveScript = escapeshellarg($moveScript);
 $escapedServerDir = escapeshellarg($serverDir);
 $escapedVmIp = escapeshellarg($vmIp);
