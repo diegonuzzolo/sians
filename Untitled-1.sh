@@ -431,13 +431,11 @@ chmod 644 /home/diego/minecraft_servers/$SERVER_ID/mods/*
 chown diego:diego /home/diego/minecraft_servers/$SERVER_ID/mods/*
 LATEST_LOG_FILE=$(find "$SERVER_DIR/logs" -type f -name "latest.log" | head -n 1)
 # Avvio temporaneo del server
-cd "$SERVER_DIR"
-./start.sh &                   # Avvia in background
-SERVER_PID=$!                 # Salva il PID del processo
-sleep 10                      # Aspetta 10 secondi (o di più se vuoi)
 
 # Controllo se il server è ancora in esecuzione
 attempt_fix_missing_mods_loop
+
+pkill -f 'net.minecraft.server' 2>/dev/null
 
 update_status "created" 100
 
