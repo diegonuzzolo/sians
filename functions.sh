@@ -97,7 +97,8 @@ attempt_fix_missing_mods_loop() {
     JAVA_BIN=""
     select_java
     forge_version=$1
-    local java_command="$JAVA_BIN -Xmx8G -Xms8G @libraries/net/minecraftforge/forge/$forge_version/unix_args.txt"
+    
+    local java_command="$JAVA_BIN -Xmx8G -Xms8G @$SERVER_DIR/libraries/net/minecraftforge/forge/$forge_version/unix_args.txt"
 
     cd "$SERVER_DIR" || {
         echo "❌ Impossibile accedere alla directory $SERVER_DIR"
