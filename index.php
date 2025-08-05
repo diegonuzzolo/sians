@@ -14,17 +14,6 @@ $vmStorageSpeed = 7500;
 
 <style>
   
-@media (min-width: 1600px) and (max-width: 1920px) {
-  .hero-banner {
-    max-width: 1400px !important;
-    max-height: 500px !important;
-    padding: 2rem 1rem !important;
-  }
-
-  .hero-banner h1 {
-    font-size: 2.8rem !important;
-  }
-}
 
 
   body {
@@ -166,12 +155,13 @@ $vmStorageSpeed = 7500;
 </style>
 
 <!-- Banner visivo -->
-<div class="container-fluid hero-banner"></div>
+<div class="container-fluid hero-banner">
 
-<!-- Contenuto principale sotto il banner -->
+  
+  <!-- Contenuto principale sotto il banner -->
 <div class="text-center py-5">
   <h1 class="fw-bold text-warning">Benvenuto su Sians</h1>
-
+  
   <div class="hero-buttons mt-4">
     <?php if (!isset($_SESSION['user_id'])): ?>
       <a href="register.php" class="btn btn-warning">Registrati</a>
@@ -180,6 +170,7 @@ $vmStorageSpeed = 7500;
       <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
     <?php endif; ?>
   </div>
+</div>
 
 
 
