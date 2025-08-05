@@ -19,7 +19,7 @@ $vmStorageSpeed = 7500;
     width: 700px !important;
     max-height: 500px !important;
     padding: 2rem 1rem !important;
-  aspect-ratio: 16 / 9; /* o proporzioni reali dell’immagine */
+    aspect-ratio: 16 / 9; /* o proporzioni reali dell’immagine */
 
   }
 
