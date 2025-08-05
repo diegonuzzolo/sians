@@ -16,15 +16,16 @@ $vmStorageSpeed = 7500;
   
 @media (min-width: 1600px) and (max-width: 1920px) {
   .hero-banner {
-    max-width: 1400px;
-    max-height: 500px; /* imposta altezza massima fissa */
-    padding: 2rem 1rem;
+    max-width: 1400px !important;
+    max-height: 500px !important;
+    padding: 2rem 1rem !important;
   }
 
   .hero-banner h1 {
-    font-size: 2.8rem;
+    font-size: 2.8rem !important;
   }
 }
+
 
   body {
     background: linear-gradient(to right, #0f172a, #1e293b);
