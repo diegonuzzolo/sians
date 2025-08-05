@@ -89,10 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Comando SSH per avviare setup_server.sh sulla VM remota
             $cmd = "bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion $modpackId $modSlug";
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd) . " > /dev/null 2>&1 &";
-            $cmd1 = "mv /home/diego/fix_server.py /home/diego/minecraft_servers/$serverId/";
-            $move_script = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd1) . " > /dev/null 2>&1 &";
 
-            exec($sshCmd);
             exec($move_script);
             header("Location: dashboard.php");
             exit;
