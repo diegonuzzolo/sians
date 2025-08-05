@@ -14,6 +14,17 @@ $vmStorageSpeed = 7500;
 
 <style>
   
+@media (min-width: 1600px) and (max-width: 1920px) {
+  .hero-banner {
+    width: 50% !important;
+    max-height: 30% !important;
+    padding: 2rem 1rem !important;
+  }
+
+  .hero-banner h1 {
+    font-size: 2.8rem !important;
+  }
+}
 
 
   body {
@@ -41,7 +52,7 @@ $vmStorageSpeed = 7500;
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
   position: relative;
   overflow: hidden;
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
 
 }
