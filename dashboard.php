@@ -142,7 +142,7 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
       ?>
         <span class="ip-box"><?= htmlspecialchars($host . ':' . $port) ?></span>
       <?php else: ?>
-        <span class="text-muted">Non disponibile</span>
+        <span class="text-red">Non disponibile</span>
       <?php endif; ?>
     </p>
 
