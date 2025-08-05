@@ -69,7 +69,7 @@ $escapedSshUser = escapeshellarg($sshUser);
 $log = "/home/diego/setup_log_$serverId.log";
 
 $cmd_kill_bash = "ssh {$escapedSshUser}@{$escapedVmIp} 'sudo killall bash'";
-$cmd_move_script = "ssh {$escapedSshUser}@{$escapedVmIp} {$escapedMoveScript} > /dev/null 2>&1 &";
+$cmd_move_script = "ssh {$escapedSshUser}@{$escapedVmIp} {$escapedMoveScript}";
 // Comando SSH per cancellare la cartella server
 $cmd = "ssh {$escapedSshUser}@{$escapedVmIp} 'rm -rf {$escapedServerDir}' && rm $log";
 
