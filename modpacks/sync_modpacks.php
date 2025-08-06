@@ -21,12 +21,11 @@ function modrinthApiRequest(string $url): ?array {
 do {
     $offset = $page * $pageSize;
 
-    // Solo modpack Fabric
-    $facets = urlencode(json_encode([
+$facets = urlencode(json_encode([
     ["project_type:modpack"],
-    ["client_side:unsupported"],
     ["categories:forge"]
 ]));
+
 
 
     $url = "https://api.modrinth.com/v2/search?facets=$facets&index=downloads&limit=$pageSize&offset=$offset";
