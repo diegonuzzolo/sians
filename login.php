@@ -1,6 +1,8 @@
 <?php
 session_start();
+$username = $_SESSION['username'] ?? 'Utente';
 require 'config/config.php';
+include 'includes/header.php';
 
 // Abilita error reporting (rimuovi in produzione)
 ini_set('display_errors', 1);
@@ -21,23 +23,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-    $error = "Utente non trovato";
-} elseif (!password_verify($password, $user['password_hash'])) {
-    $error = "Password errata";
-} else {
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['username'] = $username;  // <-- Salvo username in sessione
-    $_SESSION['role'] = $user['role'];
-    header("Location: dashboard.php");
-    exit;
-}
-
+            $error = "Utente non trovato";
+        } elseif (!password_verify($password, $user['password_hash'])) {
+            $error = "Password errata";
+        } else {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            header("Location: dashboard.php");
+            exit;
+        }
     }
 }
 
 ?>
 
-<?php include 'includes/header.php'; ?>
 
 <div class="container mt-5">
     <div class="row justify-content-center">
