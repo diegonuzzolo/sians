@@ -14,11 +14,7 @@ $vmStorageSpeed = 7500;
 <?php include 'includes/header.php'; ?>
 
 <style>
-  body {
-    background: linear-gradient(to right, #0f172a, #1e293b);
-    color: #f1f5f9;
-    font-family: 'Segoe UI', sans-serif;
-  }
+ 
 
   .hero-banner {
     background-image:
