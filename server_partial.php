@@ -1,16 +1,21 @@
 <?php
 
-$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
-include("auth_check.php");
+session_start();
+require 'config/config.php';
+include 'auth_check.php';
+
+$userId = $_SESSION['user_id'] ?? null;
 $serverId = intval($_GET['server_id'] ?? 0);
-$stmt = $pdo->prepare("SELECT * FROM servers WHERE id = ?");
-$stmt->execute([$serverId]);
+
+$stmt = $pdo->prepare("SELECT * FROM servers WHERE id = ? AND user_id = ?");
+$stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$server) {
-    http_response_code(404);
-    exit('Not found');
+    http_response_code(403); // oppure 404 per non rivelare l'esistenza
+    exit('Accesso negato o server non trovato');
 }
+
 
 ob_start();
 ?>
