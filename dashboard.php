@@ -90,6 +90,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </style>
 </head>
 <body>
+  <?php include("includes/header.php"); ?>
   <div class="container">
     <h1 class="mb-4">La Mia Dashboard Minecraft Bedrock</h1>
     <?php if (empty($servers)): ?>
