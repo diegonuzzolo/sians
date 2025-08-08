@@ -11,19 +11,12 @@ $error = '';
 $postServerName = $_POST['server_name'] ?? '';
 $postType = $_POST['type'] ?? 'vanilla';
 $postVersion = $_POST['version'] ?? '';
-$postModpackId = $_POST['modpack_id'] ?? '';
-
-// Carica i modpack per dropdown
-$stmt = $pdo->query("SELECT * FROM modpacks ORDER BY title ASC");
-$modpacks = $stmt->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($postServerName)) {
         $error = "❌ Nome server mancante.";
     } elseif (($postType === 'vanilla' || $postType === 'paper') && empty($postVersion)) {
         $error = "❌ Seleziona una versione per Vanilla/PaperMC.";
-    } elseif ($postType === 'modpack' && empty($postModpackId)) {
-        $error = "❌ Seleziona un Modpack.";
     } else {
         // Prendi VM libera
         $stmt = $pdo->prepare("SELECT * FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL LIMIT 1");
@@ -39,8 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $proxmoxVmid = $vm['proxmox_vmid'];
             $createdAt = date('Y-m-d H:i:s');
 
-            $stmt = $pdo->prepare("INSERT INTO servers (name, type, version, modpack_id, user_id, vm_id, proxmox_vmid, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'installing', ?)");
-            $stmt->execute([$postServerName, $postType, $postVersion, $postModpackId, $userId, $vmId, $proxmoxVmid, $createdAt]);
+            $stmt = $pdo->prepare("
+                INSERT INTO servers (name, type, version, user_id, vm_id, proxmox_vmid, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'installing', ?)
+            ");
+            $stmt->execute([$postServerName, $postType, $postVersion, $userId, $vmId, $proxmoxVmid, $createdAt]);
 
             $serverId = $pdo->lastInsertId();
             $stmt = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
@@ -51,43 +47,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vmData = $stmt->fetch();
             $ip = $vmData['ip'];
 
-            // Prepara parametri da passare allo script bash
+            // Parametri da passare allo script bash
             $remoteType = escapeshellarg($postType);
-            $remoteVersionOrSlug = escapeshellarg($postVersion);
-            $remoteUrl = escapeshellarg(''); // Default vuoto
-            $remoteMethod = escapeshellarg(''); // Default vuoto
+            $remoteVersion = escapeshellarg($postVersion);
+            $remoteUrl = escapeshellarg('');
+            $remoteMethod = escapeshellarg('');
             $remoteGameVersion = escapeshellarg($postVersion);
-            $modpackId = "''";
-            $modSlug = "''";
-
-            if ($postType === 'modpack' && $postModpackId) {
-                $stmt = $pdo->prepare("SELECT slug, game_version, download_url FROM modpacks WHERE project_id = ?");
-                $stmt->execute([$postModpackId]);
-                $modpack = $stmt->fetch();
-
-                if ($modpack) {
-                    $remoteGameVersion = escapeshellarg($modpack['game_version']);
-                    $remoteVersionOrSlug = escapeshellarg($modpack['slug']);
-                    $modSlug = escapeshellarg($modpack['slug']);
-                    $modpackId = escapeshellarg($postModpackId);
-
-                    if (!empty($modpack['forge_version'])) {
-                        // Modpack Forge con installer URL
-                        $forgeCombined = $modpack['game_version'] . '-' . $modpack['forge_version'];
-                        $remoteVersionOrSlug = escapeshellarg($forgeCombined);
-                        $remoteType = escapeshellarg('forge');
-                        $remoteMethod = escapeshellarg('url');
-                    } else {
-                        // Modpack Modrinth (Fabric presumibilmente)
-                        $remoteMethod = escapeshellarg('modrinth');
-                        $remoteUrl = escapeshellarg(''); // Vuoto per modrinth
-                        $remoteUrl = $modpack['download_url'] ? escapeshellarg($modpack['download_url']) : escapeshellarg('');
-                    }
-                }
-            }
 
             // Comando SSH per avviare setup_server.sh sulla VM remota
-            $cmd = "bash /home/diego/setup_server.sh $postType $remoteVersionOrSlug $remoteUrl $remoteMethod $serverId $remoteGameVersion $modpackId $modSlug";
+            $cmd = "bash /home/diego/setup_server.sh $postType $remoteVersion $remoteUrl $remoteMethod $serverId $remoteGameVersion '' ''";
             $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd) . " > /dev/null 2>&1 &";
 
             exec($sshCmd);
@@ -97,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 
 
 <?php
@@ -214,13 +183,15 @@ $versions = [
                 </select>
             </div>
             <div class="mb-3" id="modpack-group" style="display:none;">
-                <label for="modpack_id">Modpack</label>
-                <select name="modpack_id" class="form-select" id="modpack-select">
-                    <?php foreach ($modpacks as $modpack): ?>
-                        <option value="<?= $modpack['project_id'] ?>"><?= htmlspecialchars($modpack['title']) ?> (<?= $modpack['game_version'] ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+    <label for="modpack_id">Modpack Personalizzato</label>
+    <select name="modpack_id" class="form-select" id="modpack-select" disabled>
+        <option value="">— Funzionalità in arrivo: carica il tuo modpack —</option>
+    </select>
+    <small class="text-muted">
+        Presto potrai caricare e installare modpack personalizzati direttamente dal pannello.
+    </small>
+</div>
+
             <button type="submit" class="btn btn-primary w-100">Crea Server</button>
         </form>
     </div>
@@ -243,18 +214,19 @@ $versions = [
 
 <script>
     function toggleFields() {
-        const type = document.querySelector('select[name="type"]').value;
-        const versionGroup = document.getElementById('version-group');
-        const modpackGroup = document.getElementById('modpack-group');
+    const type = document.querySelector('select[name="type"]').value;
+    const versionGroup = document.getElementById('version-group');
+    const modpackGroup = document.getElementById('modpack-group');
 
-        if (type === 'modpack') {
-            versionGroup.style.display = 'none';
-            modpackGroup.style.display = 'block';
-        } else {
-            versionGroup.style.display = 'block';
-            modpackGroup.style.display = 'none';
-        }
+    if (type === 'modpack') {
+        versionGroup.style.display = 'none';
+        modpackGroup.style.display = 'block';
+    } else {
+        versionGroup.style.display = 'block';
+        modpackGroup.style.display = 'none';
     }
+}
+
 
     // Init state on load
     document.addEventListener("DOMContentLoaded", toggleFields);
