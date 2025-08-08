@@ -235,7 +235,7 @@ const inProgressStates = [
   'downloading_server',
   'extracting_mods',
   'setting_up',
-  'diagnosis'
+  'diagnosing'
 ];
 
 function checkAndUpdateServers() {
@@ -272,6 +272,7 @@ function checkAndUpdateServers() {
 
 // Esegui ogni mezzo secondo
 setInterval(checkAndUpdateServers, 500);
+
 </script>
 
 
