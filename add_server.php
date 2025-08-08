@@ -2,7 +2,6 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-session_start();
 $_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
 include("auth_check.php");
 
