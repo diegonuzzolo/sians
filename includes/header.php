@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <?php
+// Assicurati che la sessione sia avviata
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Usa username dalla variabile $username se esiste, altrimenti dalla sessione, altrimenti fallback "Utente"
+$username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
+?>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dashboard Minecraft Bedrock</title>

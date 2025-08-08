@@ -21,16 +21,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            $error = "Utente non trovato";
-        } elseif (!password_verify($password, $user['password_hash'])) {
-            $error = "Password errata";
-        } else {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-            header("Location: dashboard.php");
-            exit;
-        }
+    $error = "Utente non trovato";
+} elseif (!password_verify($password, $user['password_hash'])) {
+    $error = "Password errata";
+} else {
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $username;  // <-- Salvo username in sessione
+    $_SESSION['role'] = $user['role'];
+    header("Location: dashboard.php");
+    exit;
+}
+
     }
 }
 
