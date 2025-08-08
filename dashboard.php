@@ -188,7 +188,7 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 
         <?php if (!$showProgressBar): ?>
           <div class="d-flex justify-content-start gap-2 mt-3">
-            <form method="post" action="server_action.php">
+            <form method="post" action="server_action.php?id=<?= htmlspecialchars($server['id']) ?>">
               <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
               <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
               <button name="action"
