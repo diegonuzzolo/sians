@@ -125,3 +125,11 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </script>
 
 <?php include ("includes/footer.php"); ?>
+
+    <style>
+        footer {
+            position: absolute;
+            bottom: 0%;
+            width: 100%;
+        }
+    </style>
