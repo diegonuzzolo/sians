@@ -1,7 +1,10 @@
 <?php
 session_start();
 require 'config/config.php';
-require 'includes/auth.php';
+
+$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
+include("auth_check.php");
+// se arrivi qui, l'utente è loggato e il server è suo
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');

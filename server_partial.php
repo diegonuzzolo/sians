@@ -1,6 +1,8 @@
 <?php
-require 'config/config.php';
 
+include("config/config.php");
+$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
+include("auth_check.php");
 $serverId = intval($_GET['server_id'] ?? 0);
 $stmt = $pdo->prepare("SELECT * FROM servers WHERE id = ?");
 $stmt->execute([$serverId]);

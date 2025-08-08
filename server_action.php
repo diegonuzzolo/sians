@@ -4,8 +4,15 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+include("config/config.php");
+$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
+include("auth_check.php");
 session_start();
-require 'config/config.php';
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
 require 'includes/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['server_id'], $_POST['action'], $_POST['proxmox_vmid'])) {

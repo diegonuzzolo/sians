@@ -1,5 +1,13 @@
 <?php
-include("config/config.php");
+session_start();
+$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
+include("auth_check.php");
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
 
 $serverId = $_GET['id']; // o come recuperi l'ID
 $stmt = $pdo->prepare("SELECT type FROM servers WHERE id = ?");

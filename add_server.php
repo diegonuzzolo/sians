@@ -2,9 +2,14 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-
+$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
+include("auth_check.php");
 session_start();
-require 'config/config.php';
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
 require 'includes/auth.php';
 
 $error = '';
