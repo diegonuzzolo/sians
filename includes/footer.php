@@ -1,7 +1,7 @@
 </div> <!-- chiude container -->
 
-<footer>
-  <div class="container mt-5 mb-4 text-center text-light bg-dark p-4 rounded">
+<footer class="bg-dark text-light py-4 mt-5">
+  <div class="container text-center">
     <h5 class="mb-3 text-warning">Contatti</h5>
     <p>Sians - Server Minecraft Bedrock Hosting</p>
     <p>Telefono: <a href="tel:+393713936694" class="text-warning">371 393 6694</a></p>
