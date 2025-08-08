@@ -10,14 +10,14 @@ error_reporting(E_ALL);
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
+    $login = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (!$username || !$password) {
+    if (!$login || !$password) {
         $error = "Compila tutti i campi";
     } else {
-        $stmt = $pdo->prepare("SELECT id, password_hash, role FROM users WHERE username = ?");
-        $stmt->execute([$username]);
+        $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ? OR email = ?");
+        $stmt->execute([$login, $login]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
@@ -26,12 +26,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Password errata";
         } else {
             $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
             header("Location: dashboard.php");
             exit;
         }
     }
 }
+
 ?>
 
 <?php include 'includes/header.php'; ?>
