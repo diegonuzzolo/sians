@@ -37,13 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 ?>
-<style>
-    footer {
-        position: absolute;
-        bottom: 0%;
-        width: 100%;
-    }
-</style>
 
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -80,3 +73,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <?php include 'includes/footer.php'; ?>
+
+    <style>
+        footer {
+            position: absolute;
+            bottom: 0%;
+            width: 100%;
+        }
+    </style>
