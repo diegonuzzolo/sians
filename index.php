@@ -11,7 +11,7 @@ $vmRam = 40;
 $vmStorageSpeed = 7500;
 ?>
 
-<?php include 'includes/header.php'; ?>
+
 
 <style>
  
@@ -113,7 +113,7 @@ $vmStorageSpeed = 7500;
     }
   }
 </style>
-
+<?php include 'includes/header.php'; ?>
 <!-- Banner visivo -->
 <div class="hero-banner">
   <h1>Hosting Minecraft Bedrock Edition</h1>
