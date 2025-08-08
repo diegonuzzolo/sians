@@ -10,11 +10,16 @@ $vmCores = 24;
 $vmRam = 40;
 $vmStorageSpeed = 7500;
 ?>
-
-
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<?php include 'includes/header.php'; ?>
 
 <style>
- 
+  body {
+    background: linear-gradient(to right, #0f172a, #1e293b);
+    color: #f1f5f9;
+    font-family: 'Segoe UI', sans-serif;
+  }
 
   .hero-banner {
     background-image:
@@ -113,7 +118,7 @@ $vmStorageSpeed = 7500;
     }
   }
 </style>
-<?php include 'includes/header.php'; ?>
+
 <!-- Banner visivo -->
 <div class="hero-banner">
   <h1>Hosting Minecraft Bedrock Edition</h1>
