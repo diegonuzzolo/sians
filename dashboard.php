@@ -5,6 +5,12 @@ include("auth_check.php");
 // se arrivi qui, l'utente è loggato e il server è suo
 
 
+
+$userId = $_SESSION['user_id'];
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL");
+$slotDisponibili = $stmt->fetchColumn();
+
 $userId = $_SESSION['user_id'];
 
 $stmt = $pdo->prepare("SELECT s.id, s.name, s.status, s.progress, s.subdomain, vm.proxmox_vmid, vm.ip AS ip_address, vm.hostname, s.tunnel_url
