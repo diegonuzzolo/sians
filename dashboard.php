@@ -1,8 +1,9 @@
 <?php
-include("auth_check.php"); // Controlla login e proprietà server se serve
+include("auth_check.php");
 require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
+$username = $_SESSION['username'] ?? 'Utente';
 
 // Prendiamo i server dell’utente con IP VM
 $sql = "SELECT s.id, s.name, s.status, s.type, s.version, s.subdomain, s.tunnel_url, s.progress, 
@@ -29,7 +30,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
       background: linear-gradient(135deg, #1e293b, #0f172a);
       color: #f1f5f9;
       min-height: 100vh;
-      padding-top: 3rem;
+      padding-top: 70px; /* navbar height */
     }
     .container {
       max-width: 1100px;
@@ -90,6 +91,39 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </style>
 </head>
 <body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-warning" href="dashboard.php">
+        <i class="fa-brands fa-minecraft fa-lg"></i> Minecraft Bedrock Hosting
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav align-items-center">
+          <li class="nav-item">
+            <a class="nav-link active" href="dashboard.php"><i class="fa-solid fa-tachometer-alt"></i> Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="create_server.php"><i class="fa-solid fa-plus"></i> Crea Server</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" 
+               aria-expanded="false">
+              <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username) ?>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="profile.php"><i class="fa-solid fa-user-gear"></i> Profilo</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="logout.php"><i class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
   <div class="container">
     <h1 class="mb-4">La Mia Dashboard Minecraft Bedrock</h1>
     <?php if (empty($servers)): ?>
@@ -163,6 +197,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     async function serverAction(serverId, action, btn) {
       btn.disabled = true;
