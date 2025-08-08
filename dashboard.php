@@ -186,21 +186,25 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 
         <?php if (!$showProgressBar): ?>
           <div class="d-flex justify-content-start gap-2 mt-3">
-            <form method="post" action="server_action.php">
-              <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-              <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-              <button name="action"
-                      value="<?= $server['status'] === 'running' ? 'stop' : 'start' ?>"
-                      class="btn <?= $server['status'] === 'running' ? 'btn-warning' : 'btn-success' ?> action-btn">
-                <?= $server['status'] === 'running' ? 'Ferma' : 'Avvia' ?>
-              </button>
-            </form>
+            <p>DEBUG: Stato server = <?= htmlspecialchars($server['status']) ?></p>
+<p>DEBUG: Progress = <?= intval($server['progress']) ?></p>
 
-            <form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
-              <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
-              <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
-              <button type="submit" class="btn btn-danger action-btn">Elimina</button>
-            </form>
+<form method="post" action="server_action.php">
+  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+  <button name="action" value="start" class="btn btn-success action-btn">Avvia</button>
+</form>
+<form method="post" action="server_action.php">
+  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+  <button name="action" value="stop" class="btn btn-warning action-btn">Ferma</button>
+</form>
+<form method="POST" action="delete_server.php" onsubmit="return confirm('Eliminare il server?')">
+  <input type="hidden" name="server_id" value="<?= htmlspecialchars($server['id']) ?>">
+  <input type="hidden" name="proxmox_vmid" value="<?= htmlspecialchars($server['proxmox_vmid']) ?>">
+  <button type="submit" class="btn btn-danger action-btn">Elimina</button>
+</form>
+
           </div>
         <?php endif; ?>
       </div>
