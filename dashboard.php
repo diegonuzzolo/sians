@@ -131,7 +131,12 @@ $progressStates = ['installing', 'downloading_mods', 'installing_mods', 'downloa
 ?>
 <div class="col-md-12 col-lg-6">
   <div class="server-card" data-server-id="<?= $server['id'] ?>">
-    <h5><i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?></h5>
+    <h5>
+  <a href="server_panel.php?id=<?= $server['id'] ?>" class="text-warning text-decoration-none">
+    <i class="fa-solid fa-server me-1"></i><?= htmlspecialchars($server['name']) ?>
+  </a>
+</h5>
+
     <p class="mb-1"><strong>ID VM:</strong> <?= htmlspecialchars($server['proxmox_vmid']) ?></p>
     <p class="mb-1"><strong>IP:</strong>
       <?php if (!empty($server['tunnel_url'])):
