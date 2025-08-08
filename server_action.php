@@ -27,7 +27,7 @@ $stmt = $pdo->prepare("SELECT ip FROM minecraft_vms WHERE proxmox_vmid = ?");
 $stmt->execute([$proxmoxVmid]);
 $vm = $stmt->fetch();
 
-$stmt = $pdo->prepare("SELECT type, version, modpack_id FROM servers WHERE id = ?");
+$stmt = $pdo->prepare("SELECT type, version FROM servers WHERE id = ?");
 $stmt->execute([$serverId]);
 $server = $stmt->fetch();
 
@@ -38,7 +38,6 @@ if (!$server) {
 
 $type = $server['type'];
 $version = $server['version'];
-$modpackId = $server['modpack_id'];
 
 if (!$vm) {
     http_response_code(404);
