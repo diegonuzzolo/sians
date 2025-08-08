@@ -121,7 +121,7 @@ $vmStorageSpeed = 7500;
 <!-- Banner visivo -->
 <div class="hero-banner">
   <h1>Hosting Minecraft Bedrock Edition</h1>
-  <p>Server dedicati con <strong>20 core</strong> e <strong>40 GB RAM</strong> per performance eccezionali e zero lag. La scelta perfetta per grandi community Bedrock.</p>
+  <p>Server dedicati con <strong>24 core</strong> e <strong>40 GB RAM</strong> per performance eccezionali e zero lag. La scelta perfetta per grandi community Bedrock.</p>
 
   <div class="hero-buttons">
     <?php if (!isset($_SESSION['user_id'])): ?>
