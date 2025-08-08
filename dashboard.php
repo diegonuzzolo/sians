@@ -6,7 +6,6 @@ include("auth_check.php");
 
 
 
-$userId = $_SESSION['user_id'];
 
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL AND assigned_server_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
