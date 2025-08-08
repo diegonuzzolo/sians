@@ -17,8 +17,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<!DOCTYPE html>
-<html lang="it">
+
 
 <?php include("includes/header.php"); ?>
 
