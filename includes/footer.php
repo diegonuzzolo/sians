@@ -12,6 +12,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/js/script.js"></script>
-<style>footer {position: relative; bottom: 0vh; width: 100vh; height: 100vh;}</style>
+<style>footer {position: relative; bottom: 0vh; width: 100vh; margin-bottom: 100vh;}</style>
 </body>
 </html>
