@@ -85,27 +85,35 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
   </style>
   </head>
 <body>
- <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
-    <div class="container">
-      <a class="navbar-brand fw-bold text-warning" href="dashboard.php">
-        <i class="fa-brands fa-minecraft fa-lg"></i> Minecraft Bedrock Hosting
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-        <ul class="navbar-nav align-items-center">
-          <li class="nav-item">
-            <a class="nav-link active" href="dashboard.php"><i class="fa-solid fa-tachometer-alt"></i> Dashboard</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="create_server.php"><i class="fa-solid fa-plus"></i> Crea Server</a>
-          </li>
+<?php
+session_start();
+$username_display = $_SESSION['username'] ?? null;
+$user_logged_in = isset($_SESSION['user_id']);
+?>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
+  <div class="container">
+    <a class="navbar-brand fw-bold text-warning" href="dashboard.php">
+      <i class="fa-brands fa-minecraft fa-lg"></i> Minecraft Bedrock Hosting
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+      <ul class="navbar-nav align-items-center">
+        <li class="nav-item">
+          <a class="nav-link active" href="dashboard.php"><i class="fa-solid fa-tachometer-alt"></i> Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="create_server.php"><i class="fa-solid fa-plus"></i> Crea Server</a>
+        </li>
+
+        <?php if ($user_logged_in): ?>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" 
                aria-expanded="false">
-              <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username) ?>
+              <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username_display) ?>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
               <li><a class="dropdown-item" href="profile.php"><i class="fa-solid fa-user-gear"></i> Profilo</a></li>
@@ -113,7 +121,17 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
               <li><a class="dropdown-item text-danger" href="logout.php"><i class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
             </ul>
           </li>
-        </ul>
-      </div>
+        <?php else: ?>
+          <li class="nav-item">
+            <a class="nav-link" href="login.php"><i class="fa-solid fa-right-to-bracket"></i> Accedi</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="register.php"><i class="fa-solid fa-user-plus"></i> Registrati</a>
+          </li>
+        <?php endif; ?>
+
+      </ul>
     </div>
-  </nav>
+  </div>
+</nav>
+
