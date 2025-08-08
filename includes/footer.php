@@ -1,9 +1,8 @@
 </div> <!-- chiude container -->
-</body>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/script.js"></script>
 <footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/script.js"></script>
+    
     <!-- Sezione Contatti -->
     <div class="container mt-5 mb-4 text-center text-light bg-dark p-4 rounded">
         <h5 class="mb-3 text-warning">Contatti</h5>
@@ -13,5 +12,6 @@
         <p>Pagamento sicuro con <strong>Stripe</strong></p>
     </div>
 </footer>
+</body>
 
 </html>
