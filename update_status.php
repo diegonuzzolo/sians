@@ -3,8 +3,6 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-$_GET['server_id'] = $_GET['id'] ?? null; // Se usi un parametro diverso da server_id
-include("auth_check.php");
 define('SETUP_SERVER_TOKEN', 'la_luna_il_mio_cane_numero_uno');
 
 // Verifica autenticazione Bearer
