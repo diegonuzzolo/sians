@@ -53,7 +53,7 @@ if (!$vm) {
 
 $ip = $vm['ip'];
 $sshUser = 'diego';
-$privateKeyPath = '/var/www/.ssh/id_rsa';
+$privateKeyPath = '/var/www/.ssh/id_ed25519_mc';
 
 $remoteCommand = "cd /home/diego/minecraft_servers/{$serverId} && bash " . ($action === 'start' ? "start.sh" : 'stop.sh');
 $sshCommand = sprintf(

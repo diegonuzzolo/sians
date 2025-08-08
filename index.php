@@ -6,7 +6,7 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id I
 $slotDisponibili = $stmt->fetchColumn();
 
 // Risorse server Bedrock potenziate
-$vmCores = 20;
+$vmCores = 24;
 $vmRam = 40;
 $vmStorageSpeed = 7500;
 ?>

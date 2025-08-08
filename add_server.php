@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Comando SSH per avviare setup_server.sh sulla VM remota
             $cmd = "bash /home/diego/setup_server.sh $postType $remoteVersion $remoteUrl $remoteMethod $serverId $remoteGameVersion '' ''";
-            $sshCmd = "ssh -i /var/www/.ssh/id_rsa -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd) . " > /dev/null 2>&1 &";
+            $sshCmd = "ssh -i /var/www/.ssh/id_ed25519_mc -o StrictHostKeyChecking=no diego@$ip " . escapeshellarg($cmd) . " > /dev/null 2>&1 &";
 
             exec($sshCmd);
             header("Location: dashboard.php");
