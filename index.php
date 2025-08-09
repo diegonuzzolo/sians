@@ -1,6 +1,6 @@
-<?php include 'includes/header.php'; ?>
 <?php
 require 'config/config.php';
+include 'includes/header.php';
 
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
 $slotDisponibili = $stmt->fetchColumn();
