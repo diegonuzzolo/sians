@@ -17,10 +17,9 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
   
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-
-        <style>
+  
+  
+  <style>
     body {
       background: linear-gradient(135deg, #1e293b, #0f172a);
       color: #f1f5f9;
@@ -83,10 +82,10 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
     .progress-bar {
       background: linear-gradient(90deg, #fbbf24, #f59e0b);
     }
-  </style>
+    </style>
   </head>
-<body>
-<?php
+  <body>
+    <?php
 session_start();
 $username_display = $_SESSION['username'] ?? null;
 $user_logged_in = isset($_SESSION['user_id']);
@@ -98,39 +97,39 @@ $user_logged_in = isset($_SESSION['user_id']);
       <i class="fa-brands fa-minecraft fa-lg"></i> Minecraft Bedrock Hosting
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-      <ul class="navbar-nav align-items-center">
+    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+    <ul class="navbar-nav align-items-center">
+      <li class="nav-item">
+        <a class="nav-link active" href="dashboard.php"><i class="fa-solid fa-tachometer-alt"></i> Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="create_server.php"><i class="fa-solid fa-plus"></i> Crea Server</a>
+      </li>
+      
+      <?php if ($user_logged_in): ?>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" 
+          aria-expanded="false">
+          <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username_display) ?>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+          <li><a class="dropdown-item" href="profile.php"><i class="fa-solid fa-user-gear"></i> Profilo</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="logout.php"><i class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+      </li>
+      <?php else: ?>
         <li class="nav-item">
-          <a class="nav-link active" href="dashboard.php"><i class="fa-solid fa-tachometer-alt"></i> Dashboard</a>
+          <a class="nav-link" href="login.php"><i class="fa-solid fa-right-to-bracket"></i> Accedi</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="create_server.php"><i class="fa-solid fa-plus"></i> Crea Server</a>
+          <a class="nav-link" href="register.php"><i class="fa-solid fa-user-plus"></i> Registrati</a>
         </li>
-
-        <?php if ($user_logged_in): ?>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" 
-               aria-expanded="false">
-              <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username_display) ?>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li><a class="dropdown-item" href="profile.php"><i class="fa-solid fa-user-gear"></i> Profilo</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="logout.php"><i class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
-            </ul>
-          </li>
-        <?php else: ?>
-          <li class="nav-item">
-            <a class="nav-link" href="login.php"><i class="fa-solid fa-right-to-bracket"></i> Accedi</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="register.php"><i class="fa-solid fa-user-plus"></i> Registrati</a>
-          </li>
         <?php endif; ?>
-
+        
       </ul>
     </div>
   </div>
