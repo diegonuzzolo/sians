@@ -23,7 +23,7 @@ body {
   margin: 0;
 }
 
-/* Hero banner */
+/* HERO BANNER */
 .hero-banner {
   position: relative;
   width: 95%;
@@ -47,7 +47,8 @@ body {
   transform: translate(-50%, -50%);
   text-align: center;
   color: #f1f5f9;
-  padding: 0 2rem;
+  padding: 0 1rem;
+  width: 100%;
 }
 
 .hero-banner h1 {
@@ -65,7 +66,7 @@ body {
   text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
 }
 
-/* Pulsanti Hero */
+/* BOTTONI HERO */
 .hero-buttons .btn {
   margin: 0.5rem;
   padding: 14px 30px;
@@ -81,7 +82,7 @@ body {
   box-shadow: 0 8px 30px rgba(250, 204, 21, 0.9);
 }
 
-/* Contenuto principale */
+/* INFO BOX */
 .content-wrapper {
   max-width: 1200px;
   margin: 0 auto 4rem;
@@ -111,41 +112,45 @@ body {
   color: #facc15;
 }
 
-/* Responsive Design */
+/* TABLET */
 @media (max-width: 992px) {
   .hero-banner h1 {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
   }
   .hero-banner p {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
 }
 
+/* MOBILE */
 @media (max-width: 576px) {
   .hero-banner {
     width: 100%;
     border-radius: 0;
   }
   .hero-banner .banner-img {
-    height: 40vh;
+    height: 35vh; /* più basso per lasciare spazio al testo */
+  }
+  .hero-banner .banner-content {
+    top: 55%; /* sposta un po' più in basso */
+    transform: translate(-50%, -50%);
   }
   .hero-banner h1 {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
+    margin-bottom: 0.8rem;
   }
   .hero-banner p {
-    font-size: 1rem;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
   }
   .hero-buttons .btn {
     font-size: 1rem;
-    padding: 12px 20px;
-    width: 90%;
-    display: block;
-    margin: 0.5rem auto;
-  }
-  .info-box {
-    padding: 20px 15px;
+    padding: 10px 18px;
+    width: auto;
+    display: inline-block;
   }
 }
+
 </style>
 
 <!-- Banner visivo -->
