@@ -1,5 +1,4 @@
 <?php
-session_start();
 require 'config/config.php';
 
 $stmt = $pdo->query("SELECT COUNT(*) FROM minecraft_vms WHERE assigned_user_id IS NULL");
