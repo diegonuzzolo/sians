@@ -60,3 +60,13 @@ footer {
     color: #ccc;
     margin-top: auto;
 }
+
+footer a:hover {
+    color: #ffcc00 !important;
+    text-decoration: underline;
+    transition: color 0.3s ease;
+}
+footer hr {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
