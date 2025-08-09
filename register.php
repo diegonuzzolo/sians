@@ -11,6 +11,8 @@
 
 </head>
 <body>
+<?php include 'includes/header.php'; ?>
+
 <div class="main-container">
   <div class="card-custom">
     <h2>Registrati</h2>
