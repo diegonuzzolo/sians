@@ -125,24 +125,8 @@ main {
 
 /* Footer moderno e minimale */
 footer {
-  background: #1b1b1b;
-  color: #777;
-  padding: 15px 0;
-
+  background: #111;
+  color: #fff;
   text-align: center;
-  font-size: 0.9rem;
-  border-top: 1px solid #333;
-  margin-top: auto;
-}
-
-footer a {
-  color: #ffcc00;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.3s ease;
-}
-
-footer a:hover {
-  color: #ffd633;
-  text-decoration: underline;
+  padding: 15px 0;
 }
