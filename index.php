@@ -22,9 +22,9 @@ $vmStorageSpeed = 7500;
     font-family: 'Segoe UI', sans-serif;
   }
 
-  .hero-banner {
+.hero-banner {
   position: relative;
-  max-width: 80vh;
+  width: 95%; /* occupa il 95% della larghezza disponibile */
   margin: 3rem auto 2rem;
   border-radius: 20px;
   overflow: hidden;
@@ -32,8 +32,8 @@ $vmStorageSpeed = 7500;
 }
 
 .hero-banner .banner-img {
-  width: 100%;
-  height: 450px;
+  width: 100%;  /* riempie tutto lo spazio del contenitore */
+  height: 45vh; /* altezza proporzionata allo schermo */
   object-fit: cover;
   filter: brightness(70%);
 }
@@ -55,14 +55,14 @@ $vmStorageSpeed = 7500;
   text-shadow: 3px 3px 15px rgba(0,0,0,0.7);
 }
 
-
 .hero-banner p {
   font-size: 1.6rem;
   color: #f3e8a9;
-  max-width: 900px;
+  max-width: 90%; /* testo non oltre il 90% della larghezza banner */
   margin: 0 auto 2rem;
   text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
 }
+
 
   .hero-buttons .btn {
     margin: 0 1rem;
