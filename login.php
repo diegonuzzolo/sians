@@ -1,5 +1,4 @@
 <?php
-session_start();
 $username = $_SESSION['username'] ?? 'Utente';
 require 'config/config.php';
 include 'includes/header.php';
@@ -38,21 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 ?>
 
-    <!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>Accedi a Sians</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-  rel="stylesheet"
-/>
 
-
-</head>
-<body>
-    <?php include 'includes/header.php'; ?>
 <div class="main-container">
   <div class="card-custom">
     <h2>Accedi</h2>

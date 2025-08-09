@@ -1,3 +1,4 @@
+
 <?php
 require 'config/config.php';
 require 'includes/header.php';
@@ -28,21 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <meta charset="UTF-8">
-    <title>Registrazione - Sians</title>
-    <link
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-  rel="stylesheet"
-/>
-
-</head>
-<body>
-<?php include 'includes/header.php'; ?>
-
+  
 <div class="main-container">
   <div class="card-custom">
     <h2>Registrati</h2>
@@ -73,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
   </div>
 </div>
+
 <?php include 'includes/footer.php'; ?>
 </body>
 </html>
