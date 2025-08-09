@@ -10,7 +10,8 @@ $vmCores = 24;
 $vmRam = 40;
 $vmStorageSpeed = 7500;
 ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
 <?php include 'includes/header.php'; ?>
 
@@ -23,7 +24,7 @@ $vmStorageSpeed = 7500;
 
   .hero-banner {
     background-image:
-      linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.9)),
+      linear-gradient(to bottom, rgba(15,23,42,0.8), rgba(30,41,59,0.9)),
       url('assets/banner.png');
     background-repeat: no-repeat;
     background-position: center center;
@@ -45,7 +46,7 @@ $vmStorageSpeed = 7500;
     font-size: 3.8rem;
     font-weight: 900;
     color: #facc15;
-    text-shadow: 3px 3px 15px rgba(0, 0, 0, 0.7);
+    text-shadow: 3px 3px 15px rgba(0,0,0,0.7);
     margin-bottom: 0.5rem;
   }
 
@@ -54,7 +55,7 @@ $vmStorageSpeed = 7500;
     color: #f3e8a9;
     max-width: 900px;
     margin: 0 auto 2rem;
-    text-shadow: 1px 1px 6px rgba(0, 0, 0, 0.6);
+    text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
   }
 
   .hero-buttons .btn {
@@ -105,12 +106,10 @@ $vmStorageSpeed = 7500;
     .hero-banner h1 {
       font-size: 2.5rem;
     }
-
     .hero-banner p {
       font-size: 1.1rem;
       padding: 0 1rem;
     }
-
     .hero-buttons .btn {
       font-size: 1.1rem;
       padding: 14px 28px;
@@ -124,8 +123,7 @@ $vmStorageSpeed = 7500;
 <!-- Banner visivo -->
 <div class="hero-banner">
   <h1>Hosting Minecraft Bedrock Edition</h1>
-  <p>Server dedicati con <strong>24 core</strong> e <strong>40 GB RAM</strong> per performance eccezionali e zero lag.
-    La scelta perfetta per grandi community Bedrock.</p>
+  <p>Server dedicati con <strong>24 core</strong> e <strong>40 GB RAM</strong> per performance eccezionali e zero lag. La scelta perfetta per grandi community Bedrock.</p>
 
   <div class="hero-buttons">
     <?php if (!isset($_SESSION['user_id'])): ?>
@@ -160,13 +158,12 @@ $vmStorageSpeed = 7500;
     </div>
     <div class="col-12 col-md-4">
       <div class="info-box">
-        <i class="bi bi-device-hdd-fill text-success"></i>
-        <h5>Storage NVMe</h5>
-        <p><?= number_format($vmStorageSpeed, 0, ',', '.') ?> MB/s</p>
+        <i class="bi bi-hdd-fill text-success"></i>
+        <h5>Storage</h5>
+        <p>NVMe <?= number_format($vmStorageSpeed, 0, ',', '.') ?> MB/s</p>
       </div>
     </div>
   </div>
-
 
   <h2 class="text-gold mt-5 mb-4">Perché scegliere noi?</h2>
   <div class="row text-center g-4">
