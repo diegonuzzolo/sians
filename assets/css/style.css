@@ -9,8 +9,11 @@ body {
 }
 
 main {
-  flex: 1; /* Si espande per spingere il footer in basso */
+  flex: 1; /* spinge il footer in basso */
+  display: flex;
+  flex-direction: column;
 }
+
 
 /* Container centrale */
 
