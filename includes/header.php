@@ -134,4 +134,3 @@ $user_logged_in = isset($_SESSION['user_id']);
     </div>
   </div>
 </nav>
-

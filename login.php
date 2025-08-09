@@ -1,4 +1,44 @@
-<!DOCTYPE html>
+<?php
+session_start();
+$username = $_SESSION['username'] ?? 'Utente';
+require 'config/config.php';
+include 'includes/header.php';
+
+// Abilita error reporting (rimuovi in produzione)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $login = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    if (!$login || !$password) {
+        $error = "Compila tutti i campi";
+    } else {
+        $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ? OR email = ?");
+        $stmt->execute([$login, $login]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            $error = "Utente non trovato";
+        } elseif (!password_verify($password, $user['password_hash'])) {
+            $error = "Password errata";
+        } else {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            header("Location: dashboard.php");
+            exit;
+        }
+    }
+}
+
+?>
+
+    <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">

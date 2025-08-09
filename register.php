@@ -1,3 +1,33 @@
+<?php
+require 'config/config.php';
+require 'includes/header.php';
+
+$error = null;
+$success = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    if (!$username || !$email || !$password) {
+        $error = "Compila tutti i campi";
+    } else {
+        // Verifica se username o email esistono già
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+        $stmt->execute([$username, $email]);
+        if ($stmt->fetchColumn() > 0) {
+            $error = "Username o email già registrati";
+        } else {
+            // Hash password e inserimento
+            $password_hash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
+            $stmt->execute([$username, $email, $password_hash]);
+            $success = "Registrazione completata! Ora puoi <a href='login.php'>accedere</a>.";
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
