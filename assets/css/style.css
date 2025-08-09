@@ -1,15 +1,62 @@
 html, body {
     height: 100%;
+    background: linear-gradient(135deg, #0d1b2a, #1b263b, #415a77);
+    color: #fff;
 }
 
 .main-container {
-    min-height: calc(100vh - 150px); /* spazio per il footer */
+    min-height: calc(100vh - 150px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
 }
 
+.card-custom {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-custom:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.4);
+}
+
+.card-custom h2 {
+    color: #ffcc00;
+}
+
+.form-control {
+    background-color: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+}
+
+.form-control:focus {
+    background-color: rgba(255,255,255,0.15);
+    border-color: #ffcc00;
+    box-shadow: 0 0 0 0.25rem rgba(255,204,0,0.3);
+}
+
+.btn-custom {
+    background-color: #ffcc00;
+    border: none;
+    color: #000;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-custom:hover {
+    background-color: #ffdb4d;
+}
+
 footer {
+    background-color: #0d1b2a;
+    padding: 20px 0;
+    color: #ccc;
     margin-top: auto;
 }
