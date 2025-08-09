@@ -90,47 +90,73 @@ session_start();
 $username_display = $_SESSION['username'] ?? null;
 $user_logged_in = isset($_SESSION['user_id']);
 ?>
-
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark bg-gradient shadow-sm fixed-top" style="background: linear-gradient(90deg, #1f2937, #111827);">
   <div class="container">
-    <a class="navbar-brand fw-bold text-warning" href="dashboard.php">
+    <a class="navbar-brand fw-bold text-warning d-flex align-items-center gap-2" href="dashboard.php">
       <i class="fa-brands fa-minecraft fa-lg"></i> Minecraft Bedrock Hosting
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-  <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-    <ul class="navbar-nav align-items-center">
-      <li class="nav-item">
-        <a class="nav-link active" href="dashboard.php"><i class="fa-solid fa-tachometer-alt"></i> Dashboard</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="create_server.php"><i class="fa-solid fa-plus"></i> Crea Server</a>
-      </li>
-      
-      <?php if ($user_logged_in): ?>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" 
-          aria-expanded="false">
-          <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username_display) ?>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-          <li><a class="dropdown-item" href="profile.php"><i class="fa-solid fa-user-gear"></i> Profilo</a></li>
-          <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item text-danger" href="logout.php"><i class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
-        </ul>
-      </li>
-      <?php else: ?>
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    
+    <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+      <ul class="navbar-nav align-items-center gap-3">
         <li class="nav-item">
-          <a class="nav-link" href="login.php"><i class="fa-solid fa-right-to-bracket"></i> Accedi</a>
+          <a class="nav-link active d-flex align-items-center gap-2" href="dashboard.php">
+            <i class="fa-solid fa-tachometer-alt"></i> Dashboard
+          </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="register.php"><i class="fa-solid fa-user-plus"></i> Registrati</a>
+          <a class="nav-link d-flex align-items-center gap-2" href="create_server.php">
+            <i class="fa-solid fa-plus"></i> Crea Server
+          </a>
         </li>
-        <?php endif; ?>
         
+        <?php if ($user_logged_in): ?>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fa-solid fa-user"></i> <?= htmlspecialchars($username_display) ?>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2" href="profile.php">
+                  <i class="fa-solid fa-user-gear"></i> Profilo
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-danger d-flex align-items-center gap-2" href="logout.php">
+                  <i class="fa-solid fa-sign-out-alt"></i> Logout
+                </a>
+              </li>
+            </ul>
+          </li>
+        <?php else: ?>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center gap-2" href="login.php">
+              <i class="fa-solid fa-right-to-bracket"></i> Accedi
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center gap-2" href="register.php">
+              <i class="fa-solid fa-user-plus"></i> Registrati
+            </a>
+          </li>
+        <?php endif; ?>
       </ul>
     </div>
   </div>
 </nav>
+
+<style>
+  /* Aggiunge un piccolo effetto hover sui link nav */
+  .navbar-nav .nav-link:hover {
+    color: #facc15 !important;
+  }
+
+  /* Migliora il padding dei link della dropdown per touch */
+  .dropdown-menu .dropdown-item {
+    padding: 10px 1.5rem;
+  }
+</style>
