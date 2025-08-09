@@ -24,7 +24,7 @@ $vmStorageSpeed = 7500;
 
   .hero-banner {
   position: relative;
-  max-width: 1800px;
+  max-width: 80vh;
   margin: 3rem auto 2rem;
   border-radius: 20px;
   overflow: hidden;
