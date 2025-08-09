@@ -9,11 +9,8 @@ body {
 }
 
 main {
-  flex: 1; /* spinge il footer in basso */
-  display: flex;
-  flex-direction: column;
+  flex: 1; /* Si espande per spingere il footer in basso */
 }
-
 
 /* Container centrale */
 
@@ -128,8 +125,24 @@ main {
 
 /* Footer moderno e minimale */
 footer {
-  background: #111;
-  color: #fff;
-  text-align: center;
+  background: #1b1b1b;
+  color: #777;
   padding: 15px 0;
+
+  text-align: center;
+  font-size: 0.9rem;
+  border-top: 1px solid #333;
+  margin-top: auto;
+}
+
+footer a {
+  color: #ffcc00;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+footer a:hover {
+  color: #ffd633;
+  text-decoration: underline;
 }

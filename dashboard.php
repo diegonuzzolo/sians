@@ -19,6 +19,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <?php include("includes/header.php"); ?>
+<link rel="stylesheet" href="assets/css/style.css">
 <main>
 
   <div class="container my-4">
