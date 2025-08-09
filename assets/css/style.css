@@ -1,23 +1,18 @@
-/* Reset base */
 html, body {
   height: 100%;
   margin: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #121212;
-  color: #e0e0e0;
+}
+
+body {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+}
+
+main {
+  flex: 1; /* Si espande per spingere il footer in basso */
 }
 
 /* Container centrale */
-.main-container {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-}
 
 /* Card login/register */
 .card-custom {
@@ -132,7 +127,8 @@ html, body {
 footer {
   background: #1b1b1b;
   color: #777;
-  padding: 1rem 0;
+  padding: 15px 0;
+
   text-align: center;
   font-size: 0.9rem;
   border-top: 1px solid #333;
