@@ -1,8 +1,5 @@
 <?php
-include("auth_check.php");
-
 require 'config/config.php';
-session_start();
 include 'includes/header.php';
 
 
