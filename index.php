@@ -33,7 +33,7 @@ $vmStorageSpeed = 7500;
 
 .hero-banner .banner-img {
   width: 100%;  /* riempie tutto lo spazio del contenitore */
-  height: 45vh; /* altezza proporzionata allo schermo */
+  height: 55vh; /* altezza proporzionata allo schermo */
   object-fit: cover;
   filter: brightness(70%);
 }
