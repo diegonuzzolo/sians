@@ -11,46 +11,35 @@
 
 </head>
 <body>
-<div class="container main-container">
-    <div class="col-12 col-sm-10 col-md-8 col-lg-5">
-        <div class="card-custom">
-            <h2 class="text-center mb-4">Crea il tuo account ✨</h2>
-            <p class="text-center mb-4">Registrati per iniziare a creare il tuo server</p>
+<div class="main-container">
+  <div class="card-custom">
+    <h2>Registrati</h2>
 
-            <?php if ($error): ?>
-                <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
+    <?php if ($error): ?>
+      <div class="alert-danger"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
 
-            <?php if ($success): ?>
-                <div class="alert alert-success"><?= $success ?></div>
-            <?php endif; ?>
+    <?php if ($success): ?>
+      <div class="alert-success"><?= $success ?></div>
+    <?php endif; ?>
 
-            <form method="post">
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    <input name="username" id="username" class="form-control" required>
-                </div>
+    <form method="post">
+      <label for="username" class="form-label">Username</label>
+      <input name="username" id="username" class="form-control" required>
 
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
-                    <input type="email" name="email" id="email" class="form-control" required>
-                </div>
+      <label for="email" class="form-label" style="margin-top:1rem;">Email</label>
+      <input type="email" name="email" id="email" class="form-control" required>
 
-                <div class="mb-4">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" name="password" id="password" class="form-control" required>
-                </div>
+      <label for="password" class="form-label" style="margin-top:1rem;">Password</label>
+      <input type="password" name="password" id="password" class="form-control" required>
 
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-custom btn-lg">Registrati</button>
-                </div>
+      <button type="submit" class="btn-custom" style="margin-top:1.5rem;">Registrati</button>
+    </form>
 
-                <div class="mt-3 text-center">
-                    <small>Hai già un account? <a href="login.php" class="text-warning">Accedi</a></small>
-                </div>
-            </form>
-        </div>
+    <div class="form-link">
+      <p>Hai già un account? <a href="login.php">Accedi</a></p>
     </div>
+  </div>
 </div>
 <?php include 'includes/footer.php'; ?>
 </body>

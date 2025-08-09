@@ -12,39 +12,30 @@
 
 </head>
 <body>
+<div class="main-container">
+  <div class="card-custom">
+    <h2>Accedi</h2>
 
-<div class="container main-container">
-    <div class="col-12 col-sm-10 col-md-8 col-lg-5">
-        <div class="card-custom">
-            <h2 class="text-center mb-4">Benvenuto 👋</h2>
-            <p class="text-center mb-4">Accedi per gestire i tuoi server Minecraft</p>
+    <?php if (!empty($error)): ?>
+      <div class="alert-danger"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
 
-            <?php if (!empty($error)): ?>
-                <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
+    <form method="post" novalidate>
+      <label for="username" class="form-label">Username o Email</label>
+      <input name="username" id="username" class="form-control" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
 
-            <form method="post" novalidate>
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username o Email</label>
-                    <input name="username" id="username" class="form-control" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
-                </div>
+      <label for="password" class="form-label" style="margin-top:1rem;">Password</label>
+      <input type="password" name="password" id="password" class="form-control" required>
 
-                <div class="mb-4">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" name="password" id="password" class="form-control" required>
-                </div>
+      <button type="submit" class="btn-custom" style="margin-top:1.5rem;">Accedi</button>
+    </form>
 
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-custom btn-lg">Accedi</button>
-                </div>
-
-                <div class="mt-3 text-center">
-                    <small>Non hai un account? <a href="register.php" class="text-warning">Registrati</a></small>
-                </div>
-            </form>
-        </div>
+    <div class="form-link">
+      <p>Non hai un account? <a href="register.php">Registrati</a></p>
     </div>
+  </div>
 </div>
+
 <?php include 'includes/footer.php'; ?>
 
 </body>
