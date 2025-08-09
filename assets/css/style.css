@@ -1,8 +1,15 @@
+html, body {
+    height: 100%;
+}
 
+.main-container {
+    min-height: calc(100vh - 150px); /* spazio per il footer */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
 
-
-/* Navbar */
-.navbar-brand {
-    font-weight: bold;
-    letter-spacing: 1px;
+footer {
+    margin-top: auto;
 }

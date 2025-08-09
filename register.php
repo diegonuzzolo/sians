@@ -1,77 +1,36 @@
-<?php
-require 'config/config.php';
-require 'includes/header.php';
+<div class="container main-container">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+        <h2 class="mb-4 text-center">Registrati</h2>
 
-$error = null;
-$success = null;
+        <?php if ($error): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
+        <?php if ($success): ?>
+            <div class="alert alert-success"><?= $success ?></div>
+        <?php endif; ?>
 
-    if (!$username || !$email || !$password) {
-        $error = "Compila tutti i campi";
-    } else {
-        // Verifica se username o email esistono già
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
-        $stmt->execute([$username, $email]);
-        if ($stmt->fetchColumn() > 0) {
-            $error = "Username o email già registrati";
-        } else {
-            // Hash password e inserimento
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
-            $stmt->execute([$username, $email, $password_hash]);
-            $success = "Registrazione completata! Ora puoi <a href='login.php'>accedere</a>.";
-        }
-    }
-}
-?>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <form method="post" class="bg-light p-4 rounded shadow-sm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input name="username" id="username" class="form-control" required>
+            </div>
 
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" name="email" id="email" class="form-control" required>
+            </div>
 
-<div class="container mt-5" style="max-width: 500px;">
-    <h2 class="mb-4 text-center">Registrati</h2>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" name="password" id="password" class="form-control" required>
+            </div>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
+            <button type="submit" class="btn btn-primary w-100">Registrati</button>
 
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?= $success ?></div>
-    <?php endif; ?>
-
-    <form method="post" class="bg-light p-4 rounded shadow-sm">
-        <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
-            <input name="username" id="username" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" name="email" id="email" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
-            <input type="password" name="password" id="password" class="form-control" required>
-        </div>
-
-        <button type="submit" class="btn btn-primary w-100">Registrati</button>
-
-        <div class="text-center mt-3">
-            <a href="login.php">Hai già un account? Accedi</a>
-        </div>
-    </form>
+            <div class="text-center mt-3">
+                <a href="login.php">Hai già un account? Accedi</a>
+            </div>
+        </form>
+    </div>
 </div>
-
-<?php require 'includes/footer.php'; ?>
-
-    <style>
-        footer {
-            position: absolute;
-            bottom: 0%;
-            width: 100%;
-        }
-    </style>
