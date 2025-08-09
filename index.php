@@ -16,24 +16,26 @@ $vmStorageSpeed = 7500;
 <?php include 'includes/header.php'; ?>
 
 <style>
-  body {
-    background: linear-gradient(to right, #0f172a, #1e293b);
-    color: #f1f5f9;
-    font-family: 'Segoe UI', sans-serif;
-  }
+body {
+  background: linear-gradient(to right, #0f172a, #1e293b);
+  color: #f1f5f9;
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+}
 
+/* Hero banner */
 .hero-banner {
   position: relative;
-  width: 95%; /* occupa il 95% della larghezza disponibile */
-  margin: 3rem auto 2rem;
+  width: 95%;
+  margin: 2rem auto;
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 0 30px rgba(250, 204, 21, 0.7);
 }
 
 .hero-banner .banner-img {
-  width: 100%;  /* riempie tutto lo spazio del contenitore */
-  height: 55vh; /* altezza proporzionata allo schermo */
+  width: 100%;
+  height: 55vh;
   object-fit: cover;
   filter: brightness(70%);
 }
@@ -49,81 +51,101 @@ $vmStorageSpeed = 7500;
 }
 
 .hero-banner h1 {
-  font-size: 3.8rem;
+  font-size: 3rem;
   font-weight: 900;
   color: #facc15;
   text-shadow: 3px 3px 15px rgba(0,0,0,0.7);
 }
 
 .hero-banner p {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   color: #f3e8a9;
-  max-width: 90%; /* testo non oltre il 90% della larghezza banner */
+  max-width: 90%;
   margin: 0 auto 2rem;
   text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
 }
 
+/* Pulsanti Hero */
+.hero-buttons .btn {
+  margin: 0.5rem;
+  padding: 14px 30px;
+  font-weight: 700;
+  font-size: 1.2rem;
+  border-radius: 14px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 5px 20px rgba(250, 204, 21, 0.6);
+}
 
+.hero-buttons .btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 30px rgba(250, 204, 21, 0.9);
+}
+
+/* Contenuto principale */
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto 4rem;
+}
+
+.info-box {
+  background-color: #1e293b;
+  border-radius: 14px;
+  padding: 30px 20px;
+  text-align: center;
+  color: #f8fafc;
+  box-shadow: 0 0 15px rgba(250, 204, 21, 0.4);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.info-box:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(250, 204, 21, 0.7);
+}
+
+.info-box i {
+  font-size: 3rem;
+  margin-bottom: 15px;
+}
+
+.text-gold {
+  color: #facc15;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .hero-banner h1 {
+    font-size: 2.5rem;
+  }
+  .hero-banner p {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero-banner {
+    width: 100%;
+    border-radius: 0;
+  }
+  .hero-banner .banner-img {
+    height: 40vh;
+  }
+  .hero-banner h1 {
+    font-size: 1.8rem;
+  }
+  .hero-banner p {
+    font-size: 1rem;
+  }
   .hero-buttons .btn {
-    margin: 0 1rem;
-    padding: 16px 36px;
-    font-weight: 700;
-    font-size: 1.3rem;
-    border-radius: 14px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 5px 20px rgba(250, 204, 21, 0.6);
+    font-size: 1rem;
+    padding: 12px 20px;
+    width: 90%;
+    display: block;
+    margin: 0.5rem auto;
   }
-
-  .hero-buttons .btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 8px 30px rgba(250, 204, 21, 0.9);
-  }
-
-  .content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto 4rem;
-  }
-
   .info-box {
-    background-color: #1e293b;
-    border-radius: 14px;
-    padding: 30px 20px;
-    text-align: center;
-    color: #f8fafc;
-    box-shadow: 0 0 15px rgba(250, 204, 21, 0.4);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    padding: 20px 15px;
   }
-
-  .info-box:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 30px rgba(250, 204, 21, 0.7);
-  }
-
-  .info-box i {
-    font-size: 3.5rem;
-    margin-bottom: 20px;
-  }
-
-  .text-gold {
-    color: #facc15;
-  }
-
-  @media (max-width: 767px) {
-    .hero-banner h1 {
-      font-size: 2.5rem;
-    }
-    .hero-banner p {
-      font-size: 1.1rem;
-      padding: 0 1rem;
-    }
-    .hero-buttons .btn {
-      font-size: 1.1rem;
-      padding: 14px 28px;
-      margin: 0.5rem;
-      width: 90%;
-      display: block;
-    }
-  }
+}
 </style>
 
 <!-- Banner visivo -->
