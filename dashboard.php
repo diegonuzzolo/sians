@@ -17,7 +17,10 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
+<header>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+</header>
 
 <?php include("includes/header.php"); ?>
 
@@ -94,7 +97,6 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     async function serverAction(serverId, action, btn) {
       btn.disabled = true;
