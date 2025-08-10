@@ -86,7 +86,6 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
   </head>
   <body>
     <?php
-session_start();
 $username_display = $_SESSION['username'] ?? null;
 $user_logged_in = isset($_SESSION['user_id']);
 ?>
