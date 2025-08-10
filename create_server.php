@@ -1,5 +1,6 @@
 <?php
 include(__DIR__ . "/auth_check.php"); // 🔒 Protezione login
+require 'config/config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sanifico e recupero dati
