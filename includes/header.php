@@ -82,6 +82,16 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
     .progress-bar {
       background: linear-gradient(90deg, #fbbf24, #f59e0b);
     }
+
+      /* Aggiunge un piccolo effetto hover sui link nav */
+  .navbar-nav .nav-link:hover {
+    color: #facc15 !important;
+  }
+
+  /* Migliora il padding dei link della dropdown per touch */
+  .dropdown-menu .dropdown-item {
+    padding: 10px 1.5rem;
+  }
     </style>
   </head>
   <body>
@@ -148,14 +158,4 @@ $user_logged_in = isset($_SESSION['user_id']);
   </div>
 </nav>
 
-<style>
-  /* Aggiunge un piccolo effetto hover sui link nav */
-  .navbar-nav .nav-link:hover {
-    color: #facc15 !important;
-  }
 
-  /* Migliora il padding dei link della dropdown per touch */
-  .dropdown-menu .dropdown-item {
-    padding: 10px 1.5rem;
-  }
-</style>
