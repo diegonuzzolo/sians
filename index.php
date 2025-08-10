@@ -153,35 +153,36 @@ $vmStorageSpeed = 7500;
       display: inline-block;
     }
   }
-</style>
+  </style>
 
 <main>
   <!-- Banner visivo -->
   <div class="hero-banner">
     <img src="assets/banner.png" alt="Minecraft Bedrock Hosting" class="banner-img" />
-
+    
     <div class="banner-content">
       <h1>Hosting Minecraft Bedrock Edition</h1>
       <p>
         Server dedicati con <strong>24 core</strong> e <strong>40 GB RAM</strong> per performance
         eccezionali e zero lag. La scelta perfetta per grandi community Bedrock.
       </p>
-
+      
       <div class="hero-buttons">
         <?php if (!isset($_SESSION['user_id'])): ?>
           <a href="register.php" class="btn btn-warning">Registrati Ora</a>
           <a href="login.php" class="btn btn-light">Accedi</a>
-        <?php else: ?>
-          <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
-        <?php endif; ?>
+          <?php else: ?>
+            <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
+            <?php endif; ?>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Contenuto principale sotto il banner -->
-  <div class="content-wrapper text-center">
-    <h2 class="text-gold mb-4">Slot Disponibili</h2>
-    <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
+      
+    </main>
+      <!-- Contenuto principale sotto il banner -->
+      <div class="content-wrapper text-center">
+        <h2 class="text-gold mb-4">Slot Disponibili</h2>
+        <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
 
     <h2 class="text-gold mb-5">Caratteristiche del server</h2>
     <div class="row justify-content-center g-4">
@@ -233,7 +234,6 @@ $vmStorageSpeed = 7500;
       </div>
     </div>
   </div>
-</main>
 
 <?php include("includes/footer.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
