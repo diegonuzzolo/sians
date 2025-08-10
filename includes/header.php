@@ -257,7 +257,7 @@ $user_logged_in = isset($_SESSION['user_id']);
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link d-flex align-items-center gap-2" href="create_server.php">
+          <a class="nav-link d-flex align-items-center gap-2" href="add_server.php">
             <i class="fa-solid fa-plus"></i> Crea Server
           </a>
         </li>
