@@ -18,7 +18,7 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
 
   
   <style>
@@ -31,13 +31,7 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
     .container {
       max-width: 1100px;
     }
-    .main-container {
-  display: flex;
-  justify-content: center; /* orizzontale */
-  align-items: center;     /* verticale */
-  height: 100vh;           /* altezza viewport per centrare verticalmente */
-  padding: 0 1rem;         /* piccolo padding laterale */
-}
+
     h1 {
       color: #facc15;
       font-weight: 900;
