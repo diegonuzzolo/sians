@@ -286,7 +286,7 @@ $vmStorageSpeed = 7500;
 
     <!-- Nuova sezione piano 400€/mese -->
     <section class="plan-section">
-      <h2>Cosa è incluso nel piano da <span class="text-gold">400€/mese</span></h2>
+      <h2>Cosa è incluso nel piano da <span class="text-gold">200€/mese</span></h2>
       <div class="plan-list">
         <div class="plan-item">
           <i class="bi bi-cpu-fill"></i>
