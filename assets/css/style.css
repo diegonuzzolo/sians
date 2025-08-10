@@ -3,24 +3,20 @@ html, body {
   margin: 0;
 }
 
-body {
-  display: flex;
-  flex-direction: column;
-}
-
 main {
-  flex: 1; /* Si espande per spingere il footer in basso */
-    display: flex;
-  justify-content: center;  /* Centro orizzontale */
-  align-items: center;  /* Centro verticale */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
 }
 
 .main-container {
   display: flex;
-  justify-content: center;  /* Centro orizzontale */
-  align-items: center;      /* Centro verticale */
-  min-height: calc(100vh - 100px); /* Altezza minima meno header/footer */
+  justify-content: center;  /* centro orizzontale */
+  align-items: center;      /* centro verticale */
+  min-height: 100%;         /* prende tutta l’altezza di main */
 }
+
 
 /* Container centrale */
 
