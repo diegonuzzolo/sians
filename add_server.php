@@ -8,7 +8,7 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
 <meta charset="UTF-8">
 <title>Crea un nuovo server</title>
 <style>
