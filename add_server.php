@@ -79,6 +79,21 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         background: linear-gradient(90deg, #00ccff, #00ff88);
         transform: scale(1.02);
     }
+        footer {
+        text-align: center;
+        padding: 15px;
+        font-size: 0.9em;
+        background: rgba(0,0,0,0.8);
+        color: #aaa;
+        border-top: 1px solid #222;
+    }
+    footer a {
+        color: #00ff88;
+        text-decoration: none;
+    }
+    footer a:hover {
+        text-decoration: underline;
+    }
 </style>
 </head>
 <body>
