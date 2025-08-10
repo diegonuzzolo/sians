@@ -12,9 +12,9 @@ main {
 
 .main-container {
   display: flex;
-  justify-content: center;  /* centro orizzontale */
-  align-items: center;      /* centro verticale */
-  min-height: 100%;         /* prende tutta l’altezza di main */
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 60px); /* 60px se hai header/footer */
 }
 
 
@@ -29,7 +29,11 @@ main {
   max-width: 400px;
   box-shadow: 0 8px 24px rgba(255, 204, 0, 0.2);
   transition: box-shadow 0.3s ease;
+
+  /* centratura */
+  margin: 0 auto; /* centra orizzontalmente */
 }
+
 
 .card-custom:hover {
   box-shadow: 0 12px 40px rgba(255, 204, 0, 0.5);
