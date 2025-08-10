@@ -7,7 +7,7 @@ $slotDisponibili = $stmt->fetchColumn();
 
 // Risorse server Bedrock potenziate
 $vmCores = 24;
-$vmRam = 40;
+$vmRam = 64; // aggiornato a 64 GB
 $vmStorageSpeed = 7500;
 ?>
 
@@ -153,7 +153,57 @@ $vmStorageSpeed = 7500;
       display: inline-block;
     }
   }
-  </style>
+
+  /* Nuova sezione piano */
+  .plan-section {
+    background-color: #1a202c;
+    padding: 3rem 1rem;
+    border-radius: 16px;
+    box-shadow: 0 0 30px rgba(250, 204, 21, 0.5);
+    margin-top: 3rem;
+    color: #f8fafc;
+  }
+
+  .plan-section h2 {
+    color: #facc15;
+    font-weight: 900;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+
+  .plan-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+
+  .plan-item {
+    background-color: #334155;
+    border-radius: 12px;
+    flex: 1 1 280px;
+    max-width: 320px;
+    padding: 1.5rem;
+    box-shadow: 0 0 15px rgba(250, 204, 21, 0.3);
+    text-align: center;
+  }
+
+  .plan-item i {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    color: #facc15;
+  }
+
+  .plan-item h5 {
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+
+  .plan-item p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+</style>
 
 <main>
   <!-- Banner visivo -->
@@ -163,26 +213,24 @@ $vmStorageSpeed = 7500;
     <div class="banner-content">
       <h1>Hosting Minecraft Bedrock Edition</h1>
       <p>
-        Server dedicati con <strong>24 core</strong> e <strong>40 GB RAM</strong> per performance
-        eccezionali e zero lag. La scelta perfetta per grandi community Bedrock.
+        Server dedicati con <strong><?= $vmCores ?> core</strong> e <strong><?= $vmRam ?> GB RAM</strong> per performance eccezionali e zero lag. La scelta perfetta per grandi community Bedrock.
       </p>
       
       <div class="hero-buttons">
         <?php if (!isset($_SESSION['user_id'])): ?>
           <a href="register.php" class="btn btn-warning">Registrati Ora</a>
           <a href="login.php" class="btn btn-light">Accedi</a>
-          <?php else: ?>
-            <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
-            <?php endif; ?>
-          </div>
-        </div>
+        <?php else: ?>
+          <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
+        <?php endif; ?>
       </div>
-      
-    </main>
-      <!-- Contenuto principale sotto il banner -->
-      <div class="content-wrapper text-center">
-        <h2 class="text-gold mb-4">Slot Disponibili</h2>
-        <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
+    </div>
+  </div>
+
+  <!-- Contenuto principale sotto il banner -->
+  <div class="content-wrapper text-center">
+    <h2 class="text-gold mb-4">Slot Disponibili</h2>
+    <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
 
     <h2 class="text-gold mb-5">Caratteristiche del server</h2>
     <div class="row justify-content-center g-4">
@@ -233,7 +281,65 @@ $vmStorageSpeed = 7500;
         </div>
       </div>
     </div>
+
+    <!-- Nuova sezione piano 400€/mese -->
+    <section class="plan-section">
+      <h2>Cosa è incluso nel piano da <span class="text-gold">400€/mese</span></h2>
+      <div class="plan-list">
+        <div class="plan-item">
+          <i class="bi bi-cpu-fill"></i>
+          <h5>CPU e RAM dedicate</h5>
+          <p>24 core a 6 GHz e 64 GB RAM DDR5 dedicati esclusivamente al tuo server.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-hdd-fill"></i>
+          <h5>Storage veloce NVMe</h5>
+          <p>SSD NVMe con velocità fino a 7.500 MB/s per caricamenti rapidissimi.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-wifi"></i>
+          <h5>Banda 1 Gbps garantita</h5>
+          <p>Connessione internet ultra veloce e stabile con bassa latenza.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-shield-lock-fill"></i>
+          <h5>Protezione DDoS</h5>
+          <p>Sicurezza avanzata per proteggere il tuo server da attacchi esterni.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-server"></i>
+          <h5>Backup automatici giornalieri</h5>
+          <p>Backup completi e ripristino rapido per non perdere mai i tuoi dati.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-headset"></i>
+          <h5>Supporto tecnico 24/7</h5>
+          <p>Assistenza professionale sempre disponibile via chat, ticket o telefono.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-tools"></i>
+          <h5>Gestione e aggiornamenti</h5>
+          <p>Manutenzione, aggiornamenti e ottimizzazioni server incluse nel prezzo.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-layout-text-window-reverse"></i>
+          <h5>Console Web e Dashboard</h5>
+          <p>Accesso remoto sicuro per controllo completo e gestione intuitiva.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-graph-up"></i>
+          <h5>Scalabilità semplice</h5>
+          <p>Possibilità di aumentare CPU, RAM e banda quando vuoi.</p>
+        </div>
+        <div class="plan-item">
+          <i class="bi bi-shield-check"></i>
+          <h5>Uptime garantito 99.9%</h5>
+          <p>Affidabilità elevata con infrastruttura ridondata e monitoraggio costante.</p>
+        </div>
+      </div>
+    </section>
   </div>
+</main>
 
 <?php include("includes/footer.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
