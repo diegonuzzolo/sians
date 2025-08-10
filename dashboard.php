@@ -27,7 +27,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     <?php if (empty($servers)): ?>
       <div class="alert alert-info text-center fs-5">
-        Non hai ancora server Bedrock. <a href="create_server.php" class="alert-link">Crea un nuovo server</a>.
+        Non hai ancora server Bedrock. <a href="add_server.php" class="alert-link">Crea un nuovo server</a>.
       </div>
       <?php else: ?>
         <table class="table table-dark table-hover align-middle text-center shadow-lg rounded">
