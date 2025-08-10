@@ -19,7 +19,6 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
   
-    <link rel="stylesheet" href="assets/css/style.css">
   
   <style>
     body {
