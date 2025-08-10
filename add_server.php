@@ -16,12 +16,16 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
         color: #f2f2f2;
-        margin: 0;
-        padding: 0;
+        display: flex;
+        flex-direction: column;
     }
     .container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
         max-width: 700px;
-        margin: 60px auto;
+        margin: 0 auto;
         background: rgba(20, 20, 20, 0.95);
         padding: 30px;
         border-radius: 15px;
