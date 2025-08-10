@@ -49,7 +49,7 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         font-weight: bold;
         font-size: 1.1em;
     }
-    select {
+    select, input[type="text"] {
         width: 100%;
         padding: 12px;
         border-radius: 8px;
@@ -99,20 +99,31 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <main>
     <div class="container">
         <h2>🚀 Crea un nuovo server</h2>
-        <form action="create_server.php" method="POST">
+        <form action="create_server.php" method="POST" novalidate>
+            <label for="server_name">Nome Server:</label>
+            <input 
+                type="text" 
+                id="server_name" 
+                name="server_name" 
+                placeholder="Inserisci un nome per il server" 
+                required 
+                minlength="3" 
+                maxlength="50"
+            />
+
             <label for="plan">Seleziona Piano:</label>
             <select name="plan_id" id="plan" required>
-  <option value="" disabled selected>Seleziona un piano...</option>
-  <?php foreach ($plans as $plan): ?>
-    <option value="<?= htmlspecialchars($plan['id']) ?>">
-      <?= htmlspecialchars($plan['name']) ?> — 
-      <?= htmlspecialchars($plan['cpu_cores']) ?> Core / 
-      <?= htmlspecialchars($plan['ram_gb']) ?> GB RAM / 
-      <?= htmlspecialchars($plan['bandwidth_mbps']) ?> Mbps — 
-      €<?= htmlspecialchars($plan['price_per_month']) ?>/mese
-    </option>
-  <?php endforeach; ?>
-</select>
+                <option value="" disabled selected>Seleziona un piano...</option>
+                <?php foreach ($plans as $plan): ?>
+                    <option value="<?= htmlspecialchars($plan['id']) ?>">
+                        <?= htmlspecialchars($plan['name']) ?> — 
+                        <?= htmlspecialchars($plan['cpu_cores']) ?> Core / 
+                        <?= htmlspecialchars($plan['ram_gb']) ?> GB RAM / 
+                        <?= htmlspecialchars($plan['bandwidth_mbps']) ?> Mbps — 
+                        €<?= htmlspecialchars($plan['price_per_month']) ?>/mese
+                    </option>
+                <?php endforeach; ?>
+            </select>
 
             <button type="submit">Crea Server</button>
         </form>
