@@ -102,16 +102,18 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <form action="create_server.php" method="POST">
             <label for="plan">Seleziona Piano:</label>
             <select name="plan_id" id="plan" required>
-                <?php foreach ($plans as $plan): ?>
-                    <option value="<?= htmlspecialchars($plan['id']) ?>">
-                        <?= htmlspecialchars($plan['name']) ?> — 
-                        <?= htmlspecialchars($plan['cpu_cores']) ?> Core / 
-                        <?= htmlspecialchars($plan['ram_gb']) ?> GB RAM / 
-                        <?= htmlspecialchars($plan['bandwidth_mbps']) ?> Mbps — 
-                        €<?= htmlspecialchars($plan['price_per_month']) ?>/mese
-                    </option>
-                <?php endforeach; ?>
-            </select>
+  <option value="" disabled selected>Seleziona un piano...</option>
+  <?php foreach ($plans as $plan): ?>
+    <option value="<?= htmlspecialchars($plan['id']) ?>">
+      <?= htmlspecialchars($plan['name']) ?> — 
+      <?= htmlspecialchars($plan['cpu_cores']) ?> Core / 
+      <?= htmlspecialchars($plan['ram_gb']) ?> GB RAM / 
+      <?= htmlspecialchars($plan['bandwidth_mbps']) ?> Mbps — 
+      €<?= htmlspecialchars($plan['price_per_month']) ?>/mese
+    </option>
+  <?php endforeach; ?>
+</select>
+
             <button type="submit">Crea Server</button>
         </form>
     </div>
