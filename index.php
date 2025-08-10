@@ -263,8 +263,9 @@ $vmStorageSpeed = 7500;
       <div class="col-12 col-md-4">
         <div class="info-box">
           <i class="bi bi-lightning-charge-fill text-warning"></i>
-          <h5>Velocità</h5>
-          <p>Server sempre reattivi grazie a VM isolate e configurazioni ottimizzate.</p>
+        <h5>Velocità</h5>
+<p>Server sempre reattivi grazie a container isolati e configurazioni ottimizzate.</p>
+
         </div>
       </div>
       <div class="col-12 col-md-4">
