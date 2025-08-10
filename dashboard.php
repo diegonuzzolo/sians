@@ -9,7 +9,7 @@ $username = $_SESSION['username'] ?? 'Utente';
 $sql = "SELECT s.id, s.name, s.status, s.type, s.version, s.subdomain, s.tunnel_url, s.progress, 
                v.ip 
         FROM servers s
-        LEFT JOIN containers v ON s.vm_id = v.id
+        LEFT JOIN containers v ON s.container_id = v.id
         WHERE s.user_id = ?
         ORDER BY s.created_at DESC";
 

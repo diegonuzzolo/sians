@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $update = $pdo->prepare("UPDATE containers SET assigned_user_id = ? WHERE id = ?");
     $update->execute([$userId, $containerId]);
 
-    // Inserisco il server nel DB, con il nome e vm_id
+    // Inserisco il server nel DB, con il nome e container_id
     $stmt = $pdo->prepare("
-        INSERT INTO servers (user_id, plan_id, name, vm_id, created_at, status)
+        INSERT INTO servers (user_id, plan_id, name, container_id, created_at, status)
         VALUES (?, ?, ?, ?, NOW(), 'attivo')
     ");
     $stmt->execute([$userId, $planId, $serverName, $containerId]);
