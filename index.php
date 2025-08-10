@@ -290,7 +290,7 @@ $vmStorageSpeed = 7500;
         <div class="plan-item">
           <i class="bi bi-cpu-fill"></i>
           <h5>CPU e RAM dedicate</h5>
-          <p>24 core a 6 GHz e 64 GB RAM DDR5 dedicati esclusivamente al tuo server.</p>
+          <p>24 core a 6 GHz e 52 GB RAM DDR5 dedicati esclusivamente al tuo server.</p>
         </div>
         <div class="plan-item">
           <i class="bi bi-hdd-fill"></i>
