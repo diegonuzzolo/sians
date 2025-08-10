@@ -31,6 +31,13 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
     .container {
       max-width: 1100px;
     }
+    .main-container {
+  display: flex;
+  justify-content: center; /* orizzontale */
+  align-items: center;     /* verticale */
+  height: 100vh;           /* altezza viewport per centrare verticalmente */
+  padding: 0 1rem;         /* piccolo padding laterale */
+}
     h1 {
       color: #facc15;
       font-weight: 900;
