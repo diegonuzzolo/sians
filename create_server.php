@@ -39,20 +39,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
         color: #f2f2f2;
-        display: flex;
-        flex-direction: column;
+        margin: 0;
+        padding: 0;
     }
     .container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
         max-width: 700px;
-        margin: 0 auto;
+        margin: 60px auto;
         background: rgba(20, 20, 20, 0.95);
         padding: 30px;
         border-radius: 15px;
         box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        text-align: center;
     }
     h2 {
         color: #00ff88;
@@ -78,8 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         background: linear-gradient(90deg, #00ccff, #00ff88);
         transform: scale(1.05);
     }
-    footer {
-        margin-top: 50px;
+     footer {
         text-align: center;
         padding: 15px;
         font-size: 0.9em;
