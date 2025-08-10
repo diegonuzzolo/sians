@@ -7,7 +7,7 @@ $slotDisponibili = $stmt->fetchColumn();
 
 // Risorse server Bedrock potenziate
 $vmCores = 24;
-$vmRam = 64; // aggiornato a 64 GB
+$vmRam = 52; // aggiornato a 52 GB
 $vmStorageSpeed = 7500;
 ?>
 
