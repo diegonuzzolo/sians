@@ -4,13 +4,17 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 include(__DIR__ . "/auth_check.php"); // 🔒 Protezione login
-    
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Sanifico e recupero dati
     $planId = intval($_POST['plan_id']);
+    $serverName = trim($_POST['server_name'] ?? '');
     $userId = $_SESSION['user_id'];
 
-    // Verifico che il piano esista
+    if ($serverName === '' || strlen($serverName) < 3) {
+        die("Nome server non valido, minimo 3 caratteri.");
+    }
+
+    // Verifica piano
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE id = ?");
     $stmt->execute([$planId]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -20,15 +24,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Piano selezionato non valido.");
     }
 
-    // Inserisco il server nel DB
+    // Trova VM libera
+    $stmt = $pdo->query("SELECT id FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
+    $freeVm = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$freeVm) {
+        die("Nessuna VM libera disponibile. Riprova più tardi.");
+    }
+
+    $vmId = $freeVm['id'];
+
+    // Inserisci server con vm_id e nome
     $stmt = $pdo->prepare("
-        INSERT INTO servers (user_id, plan_id, created_at, status)
-        VALUES (?, ?, NOW(), 'attivo')
+        INSERT INTO servers (user_id, plan_id, vm_id, name, created_at, status)
+        VALUES (?, ?, ?, ?, NOW(), 'attivo')
     ");
-    $stmt->execute([$userId, $planId]);
+    $stmt->execute([$userId, $planId, $vmId, $serverName]);
+
+    // Assegna VM all'utente
+    $update = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ? WHERE id = ?");
+    $update->execute([$userId, $vmId]);
 
     $serverId = $pdo->lastInsertId();
-} else {
+}
+ else {
     header("Location: select_plan.php");
     exit;
 }
