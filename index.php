@@ -299,7 +299,7 @@ $vmStorageSpeed = 7500;
         </div>
         <div class="plan-item">
           <i class="bi bi-wifi"></i>
-          <h5>Banda 1 Gbps garantita</h5>
+          <h5>Banda 300 Mbps garantita</h5>
           <p>Connessione internet ultra veloce e stabile con bassa latenza.</p>
         </div>
         <div class="plan-item">
