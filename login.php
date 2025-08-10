@@ -1,7 +1,6 @@
 <?php
-$username = $_SESSION['username'] ?? 'Utente';
+session_start();
 require 'config/config.php';
-include 'includes/header.php';
 
 // Abilita error reporting (rimuovi in produzione)
 ini_set('display_errors', 1);
@@ -30,12 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
             header("Location: dashboard.php");
-            exit;
+            exit;  // importantissimo uscire subito
         }
     }
 }
 
+// Ora includi l’header, dopo che NON c’è stato output
+include 'includes/header.php';
 ?>
+
 
 <main>
 
