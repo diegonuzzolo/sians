@@ -72,7 +72,6 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         transform: scale(1.02);
     }
     footer {
-        margin-top: 50px;
         text-align: center;
         padding: 15px;
         font-size: 0.9em;
