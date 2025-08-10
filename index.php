@@ -220,32 +220,33 @@ $vmStorageSpeed = 7500;
         <?php if (!isset($_SESSION['user_id'])): ?>
           <a href="register.php" class="btn btn-warning">Registrati Ora</a>
           <a href="login.php" class="btn btn-light">Accedi</a>
-        <?php else: ?>
-          <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
-        <?php endif; ?>
-      </div>
-    </div>
-  </div>
-
-  <!-- Contenuto principale sotto il banner -->
-  <div class="content-wrapper text-center">
-    <h2 class="text-gold mb-4">Slot Disponibili</h2>
-    <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
-
-    <h2 class="text-gold mb-5">Caratteristiche del server</h2>
-    <div class="row justify-content-center g-4">
-      <div class="col-12 col-md-4">
-        <div class="info-box">
-          <i class="bi bi-cpu-fill text-danger"></i>
-          <h5>CPU</h5>
-          <p><strong><?= $vmCores ?></strong> Core dedicati</p>
+          <?php else: ?>
+            <a href="dashboard.php" class="btn btn-success">Vai alla Dashboard</a>
+            <?php endif; ?>
+          </div>
         </div>
       </div>
-      <div class="col-12 col-md-4">
-        <div class="info-box">
-          <i class="bi bi-memory text-primary"></i>
-          <h5>RAM</h5>
-          <p><strong><?= $vmRam ?></strong> GB DDR5 dedicati</p>
+      
+    </main>
+      <!-- Contenuto principale sotto il banner -->
+      <div class="content-wrapper text-center">
+        <h2 class="text-gold mb-4">Slot Disponibili</h2>
+        <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
+        
+        <h2 class="text-gold mb-5">Caratteristiche del server</h2>
+        <div class="row justify-content-center g-4">
+          <div class="col-12 col-md-4">
+            <div class="info-box">
+              <i class="bi bi-cpu-fill text-danger"></i>
+              <h5>CPU</h5>
+              <p><strong><?= $vmCores ?></strong> Core dedicati</p>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="info-box">
+              <i class="bi bi-memory text-primary"></i>
+              <h5>RAM</h5>
+              <p><strong><?= $vmRam ?></strong> GB DDR5 dedicati</p>
         </div>
       </div>
       <div class="col-12 col-md-4">
@@ -339,7 +340,6 @@ $vmStorageSpeed = 7500;
       </div>
     </section>
   </div>
-</main>
 
 <?php include("includes/footer.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
