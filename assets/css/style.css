@@ -15,6 +15,13 @@ main {
   align-items: center;  /* Centro verticale */
 }
 
+.main-container {
+  display: flex;
+  justify-content: center;  /* Centro orizzontale */
+  align-items: center;      /* Centro verticale */
+  min-height: calc(100vh - 100px); /* Altezza minima meno header/footer */
+}
+
 /* Container centrale */
 
 /* Card login/register */
