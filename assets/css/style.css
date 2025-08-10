@@ -8,7 +8,7 @@ body {
   flex-direction: column;
 }
 
-.main-container {
+main {
   flex: 1;
   display: flex;
   justify-content: center; /* centro orizzontale */
