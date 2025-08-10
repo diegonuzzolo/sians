@@ -8,6 +8,8 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<link rel="stylesheet" href="assets/css/style.css">
+
 <meta charset="UTF-8">
 <title>Crea un nuovo server</title>
 <style>
@@ -49,7 +51,7 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         font-weight: bold;
         font-size: 1.1em;
     }
-    select, input {
+    select, input[type="text"] {
         width: 100%;
         padding: 12px;
         border-radius: 8px;
@@ -77,6 +79,21 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
         background: linear-gradient(90deg, #00ccff, #00ff88);
         transform: scale(1.02);
     }
+    footer {
+        text-align: center;
+        padding: 15px;
+        font-size: 0.9em;
+        background: rgba(0,0,0,0.8);
+        color: #aaa;
+        border-top: 1px solid #222;
+    }
+    footer a {
+        color: #00ff88;
+        text-decoration: none;
+    }
+    footer a:hover {
+        text-decoration: underline;
+    }
 </style>
 </head>
 <body>
@@ -84,10 +101,17 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <main>
     <div class="container">
         <h2>🚀 Crea un nuovo server</h2>
-        <form action="create_server.php" method="POST">
-            
-            <label for="server_name">Nome del server:</label>
-            <input type="text" name="server_name" id="server_name" placeholder="Es: IlMioServerEpico" required>
+        <form action="create_server.php" method="POST" novalidate>
+            <label for="server_name">Nome Server:</label>
+            <input 
+                type="text" 
+                id="server_name" 
+                name="server_name" 
+                placeholder="Inserisci un nome per il server" 
+                required 
+                minlength="3" 
+                maxlength="50"
+            />
 
             <label for="plan">Seleziona Piano:</label>
             <select name="plan_id" id="plan" required>
