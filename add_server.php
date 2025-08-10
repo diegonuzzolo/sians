@@ -10,22 +10,28 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
 <meta charset="UTF-8">
 <title>Crea un nuovo server</title>
-
 <style>
+    html {
+        height: 100%;
+    }
     body {
+        min-height: 100%;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
         color: #f2f2f2;
-        display: flex;
-        flex-direction: column;
     }
-    .container {
+    main {
         flex: 1;
         display: flex;
-        flex-direction: column;
+        align-items: center;
         justify-content: center;
+    }
+    .container {
         max-width: 700px;
-        margin: 0 auto;
+        width: 100%;
         background: rgba(20, 20, 20, 0.95);
         padding: 30px;
         border-radius: 15px;
@@ -89,26 +95,29 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </style>
 </head>
 <body>
-<div class="container">
-    <h2>🚀 Crea un nuovo server</h2>
-    <form action="create_server.php" method="POST">
-        <label for="plan">Seleziona Piano:</label>
-        <select name="plan_id" id="plan" required>
-            <?php foreach ($plans as $plan): ?>
-                <option value="<?= htmlspecialchars($plan['id']) ?>">
-                    <?= htmlspecialchars($plan['name']) ?> — 
-                    <?= htmlspecialchars($plan['cpu_cores']) ?> Core / 
-                    <?= htmlspecialchars($plan['ram_gb']) ?> GB RAM / 
-                    <?= htmlspecialchars($plan['bandwidth_mbps']) ?> Mbps — 
-                    €<?= htmlspecialchars($plan['price_per_month']) ?>/mese
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <button type="submit">Crea Server</button>
-    </form>
-</div>
+
+<main>
+    <div class="container">
+        <h2>🚀 Crea un nuovo server</h2>
+        <form action="create_server.php" method="POST">
+            <label for="plan">Seleziona Piano:</label>
+            <select name="plan_id" id="plan" required>
+                <?php foreach ($plans as $plan): ?>
+                    <option value="<?= htmlspecialchars($plan['id']) ?>">
+                        <?= htmlspecialchars($plan['name']) ?> — 
+                        <?= htmlspecialchars($plan['cpu_cores']) ?> Core / 
+                        <?= htmlspecialchars($plan['ram_gb']) ?> GB RAM / 
+                        <?= htmlspecialchars($plan['bandwidth_mbps']) ?> Mbps — 
+                        €<?= htmlspecialchars($plan['price_per_month']) ?>/mese
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit">Crea Server</button>
+        </form>
+    </div>
+</main>
+
 <?php include("includes/footer.php"); ?>
 
 </body>
 </html>
-
