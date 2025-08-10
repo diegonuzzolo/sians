@@ -52,6 +52,8 @@ $serverId = $pdo->lastInsertId();
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<link rel="stylesheet" href="assets/css/style.css">
+
 <meta charset="UTF-8">
 <title>Server Creato</title>
 <style>
