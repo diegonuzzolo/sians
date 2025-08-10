@@ -3,20 +3,14 @@ html, body {
   margin: 0;
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+}
+
 main {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex: 1;
+  flex: 1; /* Si espande per spingere il footer in basso */
 }
-
-.main-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 60px); /* 60px se hai header/footer */
-}
-
 
 /* Container centrale */
 
@@ -29,11 +23,7 @@ main {
   max-width: 400px;
   box-shadow: 0 8px 24px rgba(255, 204, 0, 0.2);
   transition: box-shadow 0.3s ease;
-
-  /* centratura */
-  margin: 0 auto; /* centra orizzontalmente */
 }
-
 
 .card-custom:hover {
   box-shadow: 0 12px 40px rgba(255, 204, 0, 0.5);
