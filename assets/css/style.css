@@ -15,6 +15,14 @@ main {
   align-items: center;     /* centro verticale */
 }
 
+.main-container {
+  display: flex;
+  justify-content: center; /* orizzontale */
+  align-items: center;     /* verticale */
+  height: 100vh;           /* altezza viewport per centrare verticalmente */
+  padding: 0 1rem;         /* piccolo padding laterale */
+}
+
 .card-custom {
   background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
   border-radius: 1rem;
