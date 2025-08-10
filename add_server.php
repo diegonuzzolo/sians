@@ -10,6 +10,7 @@ $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
 <meta charset="UTF-8">
 <title>Crea un nuovo server</title>
+<?php include("includes/header.php"); ?>
 <style>
     body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
