@@ -24,25 +24,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Cerco una VM/container libera
-    $stmt = $pdo->prepare("SELECT id FROM minecraft_vms WHERE assigned_user_id IS NULL LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id FROM containers WHERE assigned_user_id IS NULL LIMIT 1");
     $stmt->execute();
     $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$vm) {
         die("Spiacenti, nessuna VM/container libera disponibile.");
     }
-    $vmId = $vm['id'];
+    $containerId = $vm['id'];
 
     // Assegno la VM al user
-    $update = $pdo->prepare("UPDATE minecraft_vms SET assigned_user_id = ? WHERE id = ?");
-    $update->execute([$userId, $vmId]);
+    $update = $pdo->prepare("UPDATE containers SET assigned_user_id = ? WHERE id = ?");
+    $update->execute([$userId, $containerId]);
 
     // Inserisco il server nel DB, con il nome e vm_id
     $stmt = $pdo->prepare("
         INSERT INTO servers (user_id, plan_id, name, vm_id, created_at, status)
         VALUES (?, ?, ?, ?, NOW(), 'attivo')
     ");
-    $stmt->execute([$userId, $planId, $serverName, $vmId]);
+    $stmt->execute([$userId, $planId, $serverName, $containerId]);
 
     $serverId = $pdo->lastInsertId();
 } else {
@@ -54,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="it">
 <head>
+        <link rel="stylesheet" href="assets/css/style.css">
+
 <meta charset="UTF-8">
 <title>Server Creato</title>
 <style>
