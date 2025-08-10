@@ -10,6 +10,9 @@ body {
 
 main {
   flex: 1; /* Si espande per spingere il footer in basso */
+    display: flex;
+  justify-content: center;  /* Centro orizzontale */
+  align-items: center;  /* Centro verticale */
 }
 
 /* Container centrale */
