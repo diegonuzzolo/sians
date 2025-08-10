@@ -9,12 +9,12 @@ body {
 }
 
 main {
-  flex: 1; /* Si espande per spingere il footer in basso */
+  flex: 1;
+  display: flex;
+  justify-content: center; /* centro orizzontale */
+  align-items: center;     /* centro verticale */
 }
 
-/* Container centrale */
-
-/* Card login/register */
 .card-custom {
   background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
   border-radius: 1rem;
@@ -22,7 +22,6 @@ main {
   width: 100%;
   max-width: 400px;
   box-shadow: 0 8px 24px rgba(255, 204, 0, 0.2);
-  transition: box-shadow 0.3s ease;
 }
 
 .card-custom:hover {
