@@ -10,7 +10,7 @@ function findAvailableContainer(PDO $pdo) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function checkResourcesAvailable(PDO $pdo, $cpu, $ram_gb, $bandwidth) {
+function checkResourcesAvailable(PDO $pdo, $cpu, $ram_gb) {
     $stmt = $pdo->query("SELECT * FROM resources LIMIT 1");
     $res = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$res) {
@@ -18,14 +18,12 @@ function checkResourcesAvailable(PDO $pdo, $cpu, $ram_gb, $bandwidth) {
     }
     $availableCpu = $res['total_cpu_cores'] - $res['used_cpu_cores'];
     $availableRamMb = ($res['total_ram_gb'] * 1024) - $res['used_ram_mb'];
-    $availableBandwidth = $res['total_bandwidth_mbps'] - $res['used_bandwidth_mbps'];
 
-    return ($cpu <= $availableCpu) && (($ram_gb*1024) <= $availableRamMb) && ($bandwidth <= $availableBandwidth);
+    return ($cpu <= $availableCpu) && (($ram_gb*1024) <= $availableRamMb);
 }
 
 $defaultCpu = 4;
 $defaultRam = 8;
-$defaultBandwidth = 100;
 
 $error = null;
 
@@ -33,11 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $cpuCores = max(1, intval($_POST['cpu_cores'] ?? $defaultCpu));
     $ramGb = max(2, intval($_POST['ram_gb'] ?? $defaultRam));
-    $bandwidthMbps = max(10, intval($_POST['bandwidth_mbps'] ?? $defaultBandwidth));
 
     if (empty($serverName)) {
         $error = "Inserisci un nome valido per il server.";
-    } elseif (!checkResourcesAvailable($pdo, $cpuCores, $ramGb, $bandwidthMbps)) {
+    } elseif (!checkResourcesAvailable($pdo, $cpuCores, $ramGb)) {
         $error = "Risorse insufficienti disponibili per la configurazione richiesta. Riprova con valori inferiori.";
     } 
 
@@ -53,16 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("INSERT INTO servers 
-                (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, bandwidth_mbps, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, ?, NOW(), NOW())");
+                (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW())");
             $stmt->execute([
                 $serverName,
                 $userId,
                 $container['id'],
                 $container['proxmox_containerId'],
                 $cpuCores,
-                $ramGb * 1024,
-                $bandwidthMbps
+                $ramGb * 1024
             ]);
             $serverId = $pdo->lastInsertId();
 
@@ -76,11 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $container['id']
             ]);
 
-            $stmt = $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_bandwidth_mbps = used_bandwidth_mbps + ?");
+            $stmt = $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?");
             $stmt->execute([
                 $cpuCores,
-                $ramGb * 1024,
-                $bandwidthMbps
+                $ramGb * 1024
             ]);
 
             $pdo->commit();
@@ -121,17 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="mb-3">
                     <label for="cpu_cores" class="form-label">CPU Cores</label>
                     <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1" required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
-                    <div class="form-text">Da 1 a 64 core</div>
                 </div>
                 <div class="mb-3">
                     <label for="ram_gb" class="form-label">RAM (GB)</label>
                     <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
-                    <div class="form-text">Minimo 2 GB, massimo 256 GB</div>
-                </div>
-                <div class="mb-3">
-                    <label for="bandwidth_mbps" class="form-label">Bandwidth (Mbps)</label>
-                    <input type="number" name="bandwidth_mbps" id="bandwidth_mbps" class="form-control" min="10" max="10000" step="10" required value="<?= htmlspecialchars($_POST['bandwidth_mbps'] ?? $defaultBandwidth) ?>">
-                    <div class="form-text">Minimo 10 Mbps, massimo 10000 Mbps</div>
                 </div>
             </div>
         </div>
