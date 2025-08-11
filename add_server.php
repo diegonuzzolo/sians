@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
-                'rootfs' => 'local-lvm:64G',
+                'rootfs' => 'local-lvm:64',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
             ]);
