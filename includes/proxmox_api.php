@@ -1,7 +1,7 @@
 <?php
 function proxmoxApiRequest(string $method, string $endpoint, array $postData = null) {
     $baseUrl = "https://192.168.1.251:8006/api2/json";
-    $tokenName = "root@pam!sians";  // sostituisci con il tuo token name
+    $tokenName = "root@pam!sinas";  // sostituisci con il tuo token name
     $tokenValue = "bff3d5bd-b6f6-47f2-a75b-c763feb51c3e";
 
     $url = $baseUrl . $endpoint;
