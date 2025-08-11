@@ -56,9 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
 
-    // Limite massimo RAM a 20 GB
-    if ($ramGb > 20) {
-        $ramGb = 20;
+    // Limite massimo RAM a 24 GB
+    if ($ramGb > 24) {
+        $ramGb = 24;
     }
 
     $cpuCores = calculateCpuCores($ramGb);
@@ -185,9 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     function updateCpuAndPrice() {
         // Limite RAM max 20GB
         let ram = parseInt(ramInput.value) || 2;
-        if (ram > 20) {
-            ram = 20;
-            ramInput.value = 20; // forza il limite nel campo input
+        if (ram > 24) {
+            ram = 24;
+            ramInput.value = 24; // forza il limite nel campo input
         }
 
         let cores = 2;
