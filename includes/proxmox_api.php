@@ -1,6 +1,4 @@
 <?php
-include 'config/config.php';
-
 function proxmoxApiRequest(string $method, string $endpoint, array $postData = null): array
 {
     $url = PROXMOX_API_URL . '/api2/json' . $endpoint;
@@ -32,7 +30,8 @@ function proxmoxApiRequest(string $method, string $endpoint, array $postData = n
 
     curl_close($ch);
 
-    file_put_contents('/tmp/proxmox_api.log', date('Y-m-d H:i:s') . " $method $url\nResponse HTTP $httpCode: $response\n\n", FILE_APPEND);
+    // Salva la risposta grezza per debug
+    file_put_contents('/tmp/proxmox_api_response.log', date('Y-m-d H:i:s') . " $method $url\nHTTP $httpCode\nResponse: $response\n\n", FILE_APPEND);
 
     $data = json_decode($response, true);
 
