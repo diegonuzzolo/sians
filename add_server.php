@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Impossibile ottenere vmid disponibile");
 
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
-
+            $diskGb = 64;
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
@@ -42,9 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'storage' => 'local-lvm',
+                'rootfs' => 'local-lvm:' . (intval($diskGb) . 'G'),
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
             ]);
+
 
             // 3) Recupera IP container (retry se serve)
             $ip = null;
