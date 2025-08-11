@@ -108,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
 
-        <div class="card border-primary shadow-sm">
+        <div class="card border-secondary shadow-sm">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">Configura le Risorse</h5>
             </div>
