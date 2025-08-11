@@ -9,18 +9,21 @@ $defaultRam = 4;
 $error = null;
 
 function calculateCpuCores(int $ramGb): int {
-    if ($ramGb >= 2 && $ramGb <= 4) {
+    if ($ramGb < 2) {
+        // Un server Bedrock ha bisogno di almeno 2 GB di RAM e 2 core per funzionare bene.
+        return 2; 
+    } elseif ($ramGb <= 4) {
+        // Fino a 5 giocatori, 2 core sono sufficienti.
         return 2;
-    } elseif ($ramGb >= 5 && $ramGb <= 6) {
-        return 3;
-    } elseif ($ramGb >= 7 && $ramGb <= 8) {
+    } elseif ($ramGb <= 8) {
+        // Per server con più giocatori (fino a 20), 4 core sono ideali.
         return 4;
-    } elseif ($ramGb > 8) {
-        $extra = intval(($ramGb - 8) / 4);
-        $cores = 4 + $extra;
-        return min($cores, 12); // massimo 12 core
+    } elseif ($ramGb <= 16) {
+        // Per server molto grandi, 6 core offrono un buon bilanciamento.
+        return 6;
     } else {
-        return 2; // default min 2 core
+        // Raramente servono più di 8 core, anche per server enormi.
+        return 8;
     }
 }
 
@@ -60,7 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
-                'storage' => 'local-lvm',
                 'rootfs' => 'local-lvm:' . $diskGb . 'G',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
