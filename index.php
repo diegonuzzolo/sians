@@ -2,9 +2,7 @@
 require 'config/config.php';
 include 'includes/header.php';
 
-// Conta slot disponibili (container non assegnati)
-$stmt = $pdo->query("SELECT COUNT(*) FROM containers WHERE assigned_user_id IS NULL");
-$slotDisponibili = $stmt->fetchColumn();
+
 
 // Variabile usata per storage speed nella descrizione
 $vmStorageSpeed = 7500;
@@ -225,9 +223,6 @@ $vmStorageSpeed = 7500;
 
 <!-- Contenuto principale sotto il banner -->
 <div class="content-wrapper">
-  <h2 class="text-gold mb-5">Slot Disponibili</h2>
-  <div class="display-5 text-success fw-bold mb-5"><?= htmlspecialchars($slotDisponibili) ?></div>
-
   <h2 class="text-gold mt-5 mb-4">Perché scegliere noi?</h2>
   <div class="row text-center g-4">
     <div class="col-12 col-md-4">
