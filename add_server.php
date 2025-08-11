@@ -1,53 +1,51 @@
 <?php
-include __DIR__ . "/auth_check.php";
+include(__DIR__ . "/auth_check.php");
 require 'config/config.php';
 include("includes/proxmox_api.php");
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-$defaultCpu = 2;
-$defaultRam = 4;
-
+$defaultRam = 8;
 $error = null;
+
+function calculateCpuCores(int $ramGb): int {
+    if ($ramGb <= 4) {
+        return 2; // minimo 2 core
+    }
+    $extraCores = intval(floor(($ramGb - 4) / 4));
+    $totalCores = 2 + $extraCores;
+    if ($ramGb > 32) {
+        $totalCores = min(8, $totalCores);
+    } else {
+        $totalCores = min(8, $totalCores);
+    }
+    return $totalCores;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
-    $ramGb = intval($_POST['ram_gb'] ?? 0);
+    $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
 
-    // Calcolo core:
-    // 2 core base per 4 GB
-    // ogni 4 GB RAM in più aggiunge 1 core
-    // max 8 core
-    // se RAM > 32 GB, core max bloccati a 8
-    if ($ramGb <= 4) {
-        $cpuCores = 2;
-    } else {
-        $extraCores = intval(floor(($ramGb - 4) / 4));
-        $cpuCores = 2 + $extraCores;
-        if ($ramGb > 32) {
-            $cpuCores = min(8, $cpuCores);
-        } else {
-            $cpuCores = min(8, $cpuCores);
-        }
-    }
+    // Calcolo cores da ram
+    $cpuCores = calculateCpuCores($ramGb);
 
+    // Validazioni base
     if (empty($serverName)) {
         $error = "Inserisci un nome valido per il server.";
     } elseif ($ramGb < 2) {
-        $error = "Inserisci almeno 2 GB di RAM.";
+        $error = "Inserisci una quantità di RAM valida (minimo 2 GB).";
     }
 
     if (!$error) {
         try {
-            $node = 'pve'; // Nodo Proxmox reale
+            $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
 
             // 1) Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid)
-                throw new Exception("Impossibile ottenere vmid disponibile");
+            if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
 
-            $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
+            $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
             $diskGb = 64;
 
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
@@ -58,12 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'storage' => 'local-lvm',
-                'rootfs' => "local-lvm:${diskGb}G",
+                'rootfs' => 'local-lvm:' . $diskGb . 'G',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
             ]);
 
-            // Recupera IP container (retry)
+            // Recupera IP container (retry se serve)
             $ip = null;
             $maxRetries = 10;
             $retry = 0;
@@ -73,8 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ip = $status['network']['eth0']['ip'] ?? null;
                 $retry++;
             }
-            if (!$ip)
-                $ip = 'IP non disponibile';
+
+            if (!$ip) $ip = 'IP non disponibile';
 
             // Inserisci container nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname) VALUES (?, ?, ?)");
@@ -98,8 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 ?>
+
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
