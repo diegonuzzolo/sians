@@ -1,4 +1,6 @@
 <?php
+include 'config/config.php';
+
 function proxmoxApiRequest(string $method, string $endpoint, array $postData = null): array
 {
     $url = PROXMOX_API_URL . '/api2/json' . $endpoint;
