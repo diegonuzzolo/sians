@@ -81,7 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
 
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
-            $diskGb = 64;
 
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
@@ -90,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
-                'rootfs' => 'local-lvm:' . $diskGb . 'G',
+                'rootfs' => 'local-lvm:64G',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
             ]);
