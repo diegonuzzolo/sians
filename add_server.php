@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'storage' => 'local-lvm',
-                'rootfs' => 'local-lvm:64G',
+                'rootfs' => 'local-lvm:65535M',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
             ]);
