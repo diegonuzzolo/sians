@@ -154,21 +154,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     const cpuInput = document.getElementById('cpu_cores');
 
     function updateCpuCores() {
-        const ram = parseInt(ramInput.value) || <?= $defaultRam ?>;
+        const ram = parseInt(ramInput.value) || 2;
         let cores = 2;
-        if (ram > 4) {
-            cores += Math.floor((ram - 4) / 4);
-        }
-        if (ram > 32) {
-            cores = Math.min(cores, 8);
+
+        if (ram < 2) {
+            cores = 2;
+        } else if (ram <= 4) {
+            cores = 2;
+        } else if (ram <= 8) {
+            cores = 4;
+        } else if (ram <= 16) {
+            cores = 6;
         } else {
-            cores = Math.min(cores, 8);
+            cores = 8;
         }
+
         cpuLabel.textContent = cores;
         cpuInput.value = cores;
     }
 
     ramInput.addEventListener('input', updateCpuCores);
+
+    // Esegui la funzione all'avvio per mostrare il valore iniziale corretto
     updateCpuCores();
 </script>
 
