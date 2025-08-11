@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="hidden" name="cpu_cores" id="cpu_cores" value="<?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?>">
                 </div>
                 <div class="mb-3">
-                    <label>Prezzo indicativo: <span id="priceLabel">€ 0</span></label>
+                    <label><span id="priceLabel">€ 0</span></label>
                 </div>
             </div>
         </div>
