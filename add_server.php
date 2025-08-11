@@ -23,7 +23,6 @@ function checkResourcesAvailable(PDO $pdo, $cpu, $ram_gb, $bandwidth) {
     return ($cpu <= $availableCpu) && (($ram_gb*1024) <= $availableRamMb) && ($bandwidth <= $availableBandwidth);
 }
 
-// Valori di default più soft
 $defaultCpu = 4;
 $defaultRam = 8;
 $defaultBandwidth = 100;
@@ -97,35 +96,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<link rel="stylesheet" href="assets/css/style.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <?php include("includes/header.php"); ?>
 
 <div class="container my-5" style="max-width:600px;">
-    <h2>Crea un nuovo server Minecraft Bedrock</h2>
+    <h2 class="mb-4 text-center">Crea un nuovo server Minecraft Bedrock</h2>
+
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
+
     <form method="POST" action="">
         <div class="mb-3">
             <label for="server_name" class="form-label">Nome Server</label>
             <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
-        <div class="mb-3">
-            <label for="cpu_cores" class="form-label">CPU Cores</label>
-            <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1" required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
-            <small class="text-muted">Scegli tra 1 e 64 core</small>
+
+        <div class="card border-primary shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Configura le Risorse</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="cpu_cores" class="form-label">CPU Cores</label>
+                    <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1" required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
+                    <div class="form-text">Da 1 a 64 core</div>
+                </div>
+                <div class="mb-3">
+                    <label for="ram_gb" class="form-label">RAM (GB)</label>
+                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                    <div class="form-text">Minimo 2 GB, massimo 256 GB</div>
+                </div>
+                <div class="mb-3">
+                    <label for="bandwidth_mbps" class="form-label">Bandwidth (Mbps)</label>
+                    <input type="number" name="bandwidth_mbps" id="bandwidth_mbps" class="form-control" min="10" max="10000" step="10" required value="<?= htmlspecialchars($_POST['bandwidth_mbps'] ?? $defaultBandwidth) ?>">
+                    <div class="form-text">Minimo 10 Mbps, massimo 10000 Mbps</div>
+                </div>
+            </div>
         </div>
-        <div class="mb-3">
-            <label for="ram_gb" class="form-label">RAM (GB)</label>
-            <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
-            <small class="text-muted">Minimo 2 GB, massimo 256 GB</small>
-        </div>
-        <div class="mb-3">
-            <label for="bandwidth_mbps" class="form-label">Bandwidth (Mbps)</label>
-            <input type="number" name="bandwidth_mbps" id="bandwidth_mbps" class="form-control" min="10" max="10000" step="10" required value="<?= htmlspecialchars($_POST['bandwidth_mbps'] ?? $defaultBandwidth) ?>">
-            <small class="text-muted">Minimo 10 Mbps, massimo 10000 Mbps</small>
-        </div>
-        <button type="submit" class="btn btn-primary">Crea Server</button>
+
+        <button type="submit" class="btn btn-success mt-4 w-100">Crea Server</button>
     </form>
 </div>
 
