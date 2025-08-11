@@ -11,19 +11,19 @@ $error = null;
 function calculateCpuCores(int $ramGb): int {
     if ($ramGb >= 2 && $ramGb <= 4) {
         return 2;
-    } elseif ($ramGb > 4 && $ramGb <= 6) {
+    } elseif ($ramGb >= 5 && $ramGb <= 6) {
         return 3;
-    } elseif ($ramGb > 6 && $ramGb <= 8) {
+    } elseif ($ramGb >= 7 && $ramGb <= 8) {
         return 4;
     } elseif ($ramGb > 8) {
         $extra = intval(($ramGb - 8) / 4);
         $cores = 4 + $extra;
-        return min($cores, 12); // limite massimo 12 core
+        return min($cores, 12); // massimo 12 core
     } else {
-        // valori minori di 2GB RAM, default 2 core per sicurezza
-        return 2;
+        return 2; // default min 2 core
     }
 }
+
 
 
 
