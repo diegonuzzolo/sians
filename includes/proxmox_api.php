@@ -1,8 +1,8 @@
     <?php
     function proxmoxApiRequest(string $method, string $endpoint, array $data = []) {
     $baseUrl = "https://192.168.1.251:8006/api2/json";
-    $tokenId = "root@pam!sians-token"; // es. user@realm!tokenid
-    $tokenSecret = "04630a7b-98e3-4090-9226-b9b7dfa025b9";
+    $tokenId = "root@pam!sinas"; // es. user@realm!tokenid
+    $tokenSecret = "bff3d5bd-b6f6-47f2-a75b-c763feb51c3e";
 
     $headers = [
         "Authorization: PVEAPIToken=$tokenId=$tokenSecret",
