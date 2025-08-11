@@ -14,11 +14,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? 0);
 
-    // Calcola core in base alla RAM con max 6 core
-    // Es: 2 GB RAM = 1 core, ogni 4 GB RAM +1 core fino a max 6
-    $cpuCores = min(6, max(1, intval(ceil($ramGb / 4))));
-    
-    // Validazioni base
+    // Calcolo core:
+    // 2 core base per 4 GB
+    // ogni 4 GB RAM in più aggiunge 1 core
+    // max 8 core
+    // se RAM > 32 GB, core max bloccati a 8
+    if ($ramGb <= 4) {
+        $cpuCores = 2;
+    } else {
+        $extraCores = intval(floor(($ramGb - 4) / 4));
+        $cpuCores = 2 + $extraCores;
+        if ($ramGb > 32) {
+            $cpuCores = min(8, $cpuCores);
+        } else {
+            $cpuCores = min(8, $cpuCores);
+        }
+    }
+
     if (empty($serverName)) {
         $error = "Inserisci un nome valido per il server.";
     } elseif ($ramGb < 2) {
@@ -27,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
+            $node = 'pve'; // Nodo Proxmox reale
 
             // 1) Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
@@ -35,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$vmid)
                 throw new Exception("Impossibile ottenere vmid disponibile");
 
-            $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
+            $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
             $diskGb = 64;
 
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
@@ -51,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'password' => 'Lgu8330Serve6'
             ]);
 
-            // Recupera IP container (retry se serve)
+            // Recupera IP container (retry)
             $ip = null;
             $maxRetries = 10;
             $retry = 0;
@@ -138,8 +150,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     function updateCpuCores() {
         const ram = parseInt(ramInput.value) || <?= $defaultRam ?>;
-        // Calcola core in base alla RAM con max 6 core
-        let cores = Math.min(6, Math.max(1, Math.ceil(ram / 4)));
+        let cores = 2;
+        if (ram > 4) {
+            cores += Math.floor((ram - 4) / 4);
+        }
+        if (ram > 32) {
+            cores = Math.min(cores, 8);
+        } else {
+            cores = Math.min(cores, 8);
+        }
         cpuLabel.textContent = cores;
         cpuInput.value = cores;
     }
