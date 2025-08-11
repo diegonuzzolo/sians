@@ -1,44 +1,47 @@
 <?php
-function proxmoxApiRequest(string $method, string $endpoint, array $postData = null) {
-    $baseUrl = "https://192.168.1.251:8006/api2/json";
-    $tokenName = "root@pam!sinas";  // sostituisci con il tuo token name
-    $tokenValue = "bff3d5bd-b6f6-47f2-a75b-c763feb51c3e";
-
-    $url = $baseUrl . $endpoint;
+function proxmoxApiRequest(string $method, string $endpoint, array $postData = null): array
+{
+    $url = PROXMOX_HOST . '/api2/json' . $endpoint;
 
     $headers = [
-        "Authorization: PVEAPIToken=$tokenName=$tokenValue",
-        "Accept: application/json"
+        'Authorization: PVEAPIToken=' . PROXMOX_API_TOKEN_ID . '=' . PROXMOX_API_TOKEN_SECRET,
+        'Accept: application/json',
     ];
 
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);  // solo per test, in produzione abilita
 
-    if ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
-        if ($postData !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-        }
-    } elseif ($method === 'GET') {
-        curl_setopt($ch, CURLOPT_HTTPGET, true);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    if ($postData !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
     }
 
     $response = curl_exec($ch);
+
     if ($response === false) {
-        throw new Exception("Errore CURL: " . curl_error($ch));
+        throw new Exception('Errore cURL: ' . curl_error($ch));
     }
+
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    if (!$json) {
+    file_put_contents('/tmp/proxmox_api.log', date('Y-m-d H:i:s') . " $method $url\nResponse HTTP $httpCode: $response\n\n", FILE_APPEND);
+
+    $data = json_decode($response, true);
+
+    if ($data === null) {
         throw new Exception("Risposta API non valida: $response");
     }
-    if (isset($json['errors'])) {
-        throw new Exception("Errore API Proxmox: " . json_encode($json['errors']));
+
+    if ($httpCode < 200 || $httpCode >= 300) {
+        $errMsg = $data['errors'] ?? $data['message'] ?? 'Errore API sconosciuto';
+        throw new Exception("Errore API: HTTP $httpCode - " . json_encode($errMsg));
     }
 
-    return $json;
+    return $data['data'] ?? [];
 }
