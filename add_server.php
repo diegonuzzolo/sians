@@ -23,13 +23,14 @@ function calculateCpuCores(int $ramGb): int {
 }
 
 function calculatePriceByRam(int $ramGb): float {
-    if ($ramGb <= 2) return 8.0;
-    if ($ramGb <= 4) return 12.0;
-    if ($ramGb <= 6) return 18.0;
-    if ($ramGb <= 8) return 25.0;
-    if ($ramGb <= 16) return 40.0;
-    return 65.0;
+    if ($ramGb <= 2) return (5 + 8) / 2;      // 6.5
+    if ($ramGb <= 4) return (8 + 12) / 2;     // 10
+    if ($ramGb <= 6) return (12 + 18) / 2;    // 15
+    if ($ramGb <= 8) return (18 + 25) / 2;    // 21.5
+    if ($ramGb <= 16) return (30 + 40) / 2;   // 35
+    return (50 + 65) / 2;                      // 57.5
 }
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
@@ -161,36 +162,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     function updateCpuAndPrice() {
         const ram = parseInt(ramInput.value) || 2;
         let cores = 2;
-        let price = 8;
+        let price = 6.5;  // media tra 5 e 8
 
-        if (ram < 2) {
+        if (ram <= 2) {
             cores = 2;
-            price = 8;
+            price = 6.5;    // (5+8)/2
         } else if (ram <= 4) {
             cores = 2;
-            price = 12;
+            price = 10;     // (8+12)/2
         } else if (ram <= 6) {
-            cores = 4;
-            price = 18;
+            cores = 3;      // tra 2-4 suggerito: prendo 3 come media
+            price = 15;     // (12+18)/2
         } else if (ram <= 8) {
             cores = 4;
-            price = 25;
+            price = 21.5;   // (18+25)/2
         } else if (ram <= 16) {
             cores = 6;
-            price = 40;
+            price = 35;     // (30+40)/2
         } else {
             cores = 8;
-            price = 65;
+            price = 57.5;   // (50+65)/2
         }
 
         cpuLabel.textContent = cores;
         cpuInput.value = cores;
-        priceLabel.textContent = "€ " + price;
+        priceLabel.textContent = "€ " + price.toFixed(2);
     }
 
     ramInput.addEventListener('input', updateCpuAndPrice);
     updateCpuAndPrice();
 </script>
+
 
 </body>
 </html>
