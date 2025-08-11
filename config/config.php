@@ -19,9 +19,9 @@ try {
 
 
 // config.php
-if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://proxmox.sians.it');
+if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://192.168.1.251:8006');
 if (!defined('PROXMOX_NODE')) define('PROXMOX_NODE', 'pve') ;
-if (!defined('PROXMOX_API_TOKEN_NAME')) define('PROXMOX_API_TOKEN_NAME', 'diego@pve!sians');
+if (!defined('PROXMOX_API_TOKEN_NAME')) define('PROXMOX_API_TOKEN_NAME', 'root@pam!sians');
 if (!defined('PROXMOX_API_TOKEN_VALUE')) define('PROXMOX_API_TOKEN_VALUE', 'bff3d5bd-b6f6-47f2-a75b-c763feb51c3e');
 if (!defined('CLOUDFLARE_API_TOKEN')) define ('CLOUDFLARE_API_TOKEN', '5qZFVHEm6DDAx10qyEQEjX0VB2vgljgT9sT70FKJ');
 if (!defined('CLOUDFLARE_ZONE_ID')) define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
