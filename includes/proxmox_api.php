@@ -1,42 +1,44 @@
-    <?php
-    function proxmoxApiRequest(string $method, string $endpoint, array $data = []) {
-    $baseUrl = "https://192.168.1.251:8006/api2/json";
-    $tokenId = "root@pam!sinas"; // es. user@realm!tokenid
-    $tokenSecret = "bff3d5bd-b6f6-47f2-a75b-c763feb51c3e";
-
-    $headers = [
-        "Authorization: PVEAPIToken=$tokenId=$tokenSecret",
-        "Accept: application/json"
-    ];
+<?php
+function proxmoxApiRequest(string $method, string $endpoint, array $postData = null) {
+    $baseUrl = "https://IP_O_HOSTNAME_PROXMOX:8006/api2/json";
+    $tokenName = "root@pam!mytoken";  // sostituisci con il tuo token name
+    $tokenValue = "il_tuo_token_api";
 
     $url = $baseUrl . $endpoint;
 
+    $headers = [
+        "Authorization: PVEAPIToken=$tokenName=$tokenValue",
+        "Accept: application/json"
+    ];
+
     $ch = curl_init();
-    if ($method === 'GET' && !empty($data)) {
-        $url .= '?' . http_build_query($data);
-    }
-
     curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);  // solo per test, in produzione abilita
 
-    if (in_array($method, ['POST', 'PUT']) && !empty($data)) {
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        if ($postData !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+        }
+    } elseif ($method === 'GET') {
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
     }
 
     $response = curl_exec($ch);
     if ($response === false) {
-        throw new Exception('Curl error: ' . curl_error($ch));
+        throw new Exception("Errore CURL: " . curl_error($ch));
     }
     curl_close($ch);
 
     $json = json_decode($response, true);
-    if (!$json || !isset($json['data'])) {
-        throw new Exception("Invalid API response: $response");
+    if (!$json) {
+        throw new Exception("Risposta API non valida: $response");
+    }
+    if (isset($json['errors'])) {
+        throw new Exception("Errore API Proxmox: " . json_encode($json['errors']));
     }
 
-    return $json['data'];
+    return $json;
 }
