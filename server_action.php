@@ -4,66 +4,62 @@ require 'config/config.php';
 
 header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Metodo non consentito']);
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input || !isset($input['id'], $input['action'])) {
+    echo json_encode(['success' => false, 'error' => 'Parametri mancanti']);
     exit;
 }
 
-$data = json_decode(file_get_contents('php://input'), true);
+$serverId = intval($input['id']);
+$action = $input['action'];
 
-$serverId = $data['id'] ?? null;
-$action = $data['action'] ?? null;
+$userId = $_SESSION['user_id'] ?? 0;
 
-if (!$serverId || !in_array($action, ['start', 'stop', 'status'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Parametri mancanti o non validi']);
-    exit;
-}
-
-// Prendi info server e container
-$stmt = $pdo->prepare("SELECT s.*, c.ip FROM servers s JOIN containers c ON s.container_id = c.id WHERE s.id = ?");
-$stmt->execute([$serverId]);
+// Recupera info server e container
+$stmt = $pdo->prepare("SELECT s.*, c.ip, c.hostname FROM servers s JOIN containers c ON s.container_id = c.id WHERE s.id = ? AND s.user_id = ?");
+$stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$server) {
-    http_response_code(404);
-    echo json_encode(['success' => false, 'error' => 'Server non trovato']);
+    echo json_encode(['success' => false, 'error' => 'Server non trovato o accesso negato']);
     exit;
 }
 
-$ip = $server['ip'];
-$sshUser = 'root'; // utente nel container
-$sshKeyPath = '/var/www/.ssh/id_ed25519_mc'; // path alla chiave privata SSH
-
-// Comando da eseguire dentro il container
-$remoteCommand = "/usr/local/bin/minecraft_server_control.sh $action";
-
-// Costruisci comando ssh
-$cmd = "ssh -i " . escapeshellarg($sshKeyPath) . " -o StrictHostKeyChecking=no {$sshUser}@{$ip} " . escapeshellarg($remoteCommand);
-
-// Esegui comando
-exec($cmd, $output, $return_var);
-
-if ($return_var !== 0) {
-    echo json_encode(['success' => false, 'error' => "Comando SSH fallito: " . implode("\n", $output)]);
+$statusAllowed = ['start', 'stop'];
+if (!in_array($action, $statusAllowed)) {
+    echo json_encode(['success' => false, 'error' => 'Azione non valida']);
     exit;
 }
 
-// Aggiorna stato nel DB a seconda dell'azione
-$newStatus = null;
-if ($action === 'start') {
-    $newStatus = 'running';
-} elseif ($action === 'stop') {
-    $newStatus = 'stopped';
-} elseif ($action === 'status') {
-    $statusOutput = implode("\n", $output);
-    $newStatus = trim($statusOutput) === 'running' ? 'running' : 'stopped';
-}
+try {
+    // Costruisci comando SSH da eseguire sulla VM (esempio)
+    // Qui devi personalizzare il comando per avviare/fermare il server Minecraft, 
+    // basandoti su come è gestito il server (es. script start.sh, stop.sh)
 
-if ($newStatus !== null) {
-    $update = $pdo->prepare("UPDATE servers SET status = ?, updated_at = NOW() WHERE id = ?");
-    $update->execute([$newStatus, $serverId]);
-}
+    $sshUser = 'minecraft'; // o altro utente che usi
+    $containerIp = $server['ip']; // IP della VM/container
 
-echo json_encode(['success' => true, 'status' => $newStatus]);
+    if ($action === 'start') {
+        $cmd = "ssh -o ConnectTimeout=5 {$sshUser}@{$containerIp} 'screen -dmS mcserver ./start.sh'";
+        $newStatus = 'running';
+    } else { // stop
+        $cmd = "ssh -o ConnectTimeout=5 {$sshUser}@{$containerIp} './stop.sh'";
+        $newStatus = 'stopped';
+    }
+
+    // Esegui comando remoto
+    exec($cmd, $output, $returnVar);
+
+    if ($returnVar !== 0) {
+        throw new Exception("Errore esecuzione comando remoto");
+    }
+
+    // Aggiorna stato nel DB
+    $stmt = $pdo->prepare("UPDATE servers SET status = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$newStatus, $serverId]);
+
+    echo json_encode(['success' => true]);
+
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}
