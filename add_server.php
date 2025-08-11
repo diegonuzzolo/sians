@@ -29,14 +29,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 1) Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
+            if (!$vmid)
+                throw new Exception("Impossibile ottenere vmid disponibile");
 
-            // 2) Crea container con VMID specifico
+            $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
+
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
                 'hostname' => 'mcserver-' . time(),
                 'memory' => $ramGb * 1024,
+                'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'storage' => 'local-lvm',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
@@ -54,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $retry++;
             }
 
-            if (!$ip) $ip = 'IP non disponibile';
+            if (!$ip)
+                $ip = 'IP non disponibile';
 
             // 4) Inserisci container nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname) VALUES (?, ?, ?)");
@@ -98,7 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST" action="">
         <div class="mb-3">
             <label for="server_name" class="form-label">Nome Server</label>
-            <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+            <input type="text" name="server_name" id="server_name" class="form-control" required
+                value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
 
         <div class="card border-primary shadow-sm">
@@ -107,12 +112,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="cpu_cores" >CPU Cores</label>
-                    <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1" required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
+                    <label for="cpu_cores">CPU Cores</label>
+                    <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1"
+                        required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
                 </div>
                 <div class="mb-3">
-                    <label for="ram_gb" >RAM (GB)</label>
-                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                    <label for="ram_gb">RAM (GB)</label>
+                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1"
+                        required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
                 </div>
             </div>
         </div>
@@ -124,4 +131,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php include("includes/footer.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
