@@ -192,12 +192,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     function getPriceLabel(ram) {
-        if (ram <= 2) return "€ 5 - € 8 (Ideale per test o server molto piccoli)";
-        if (ram <= 4) return "€ 8 - € 12 (Un buon punto di partenza per server Bedrock)";
-        if (ram <= 6) return "€ 12 - € 18 (Opzione di fascia media per server con più giocatori)";
-        if (ram <= 8) return "€ 18 - € 25 (Consigliato per server con 20+ giocatori o mondi grandi)";
-        if (ram <= 16) return "€ 30 - € 40 (Per server molto grandi, con molti plugin o community attive)";
-        return "€ 50 - € 65 (Soluzione \"premium\" per chi non vuole compromessi)";
+        if (ram <= 2) return "€ 8 (Ideale per test o server molto piccoli)";
+        if (ram <= 4) return "€ 12 (Un buon punto di partenza per server Bedrock)";
+        if (ram <= 6) return "€ 18 (Opzione di fascia media per server con più giocatori)";
+        if (ram <= 8) return "€ 25 (Consigliato per server con 20+ giocatori o mondi grandi)";
+        if (ram <= 16) return "€ 40 (Per server molto grandi, community attive)";
+        return "€ 65 (Soluzione \"premium\" per chi non vuole compromessi)";
     }
 
     function updateFields() {
