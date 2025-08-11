@@ -19,7 +19,7 @@ try {
 
 
 // config.php
-if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://192.168.1.251:8006/api2/json');
+if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://192.168.1.251:8006');
 if (!defined('PROXMOX_NODE')) define('PROXMOX_NODE', 'pve') ;
 if (!defined('PROXMOX_API_TOKEN_NAME')) define('PROXMOX_API_TOKEN_NAME', 'root@pam!sians');
 if (!defined('PROXMOX_API_TOKEN_VALUE')) define('PROXMOX_API_TOKEN_VALUE', 'bff3d5bd-b6f6-47f2-a75b-c763feb51c3e');
