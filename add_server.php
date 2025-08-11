@@ -1,5 +1,5 @@
 <?php
-include(__DIR__ . "/auth_check.php");
+include __DIR__ . "/auth_check.php";
 require 'config/config.php';
 include("includes/proxmox_api.php");
 
@@ -12,29 +12,32 @@ $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
-    $cpuCores = intval($_POST['cpu_cores'] ?? 0);
     $ramGb = intval($_POST['ram_gb'] ?? 0);
 
+    // Calcola core in base alla RAM con max 6 core
+    // Es: 2 GB RAM = 1 core, ogni 4 GB RAM +1 core fino a max 6
+    $cpuCores = min(6, max(1, intval(ceil($ramGb / 4))));
+    
+    // Validazioni base
     if (empty($serverName)) {
         $error = "Inserisci un nome valido per il server.";
-    } elseif ($cpuCores < 1 || $ramGb < 2) {
-        $error = "Inserisci valori validi per CPU e RAM.";
+    } elseif ($ramGb < 2) {
+        $error = "Inserisci almeno 2 GB di RAM.";
     }
 
     if (!$error) {
         try {
-            $node = 'pve';
+            $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
 
+            // 1) Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid) {
+            if (!$vmid)
                 throw new Exception("Impossibile ottenere vmid disponibile");
-            }
 
-            $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
+            $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
             $diskGb = 64;
 
-            // Creazione container
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
@@ -42,29 +45,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
+                'storage' => 'local-lvm',
                 'rootfs' => "local-lvm:${diskGb}G",
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
                 'password' => 'Lgu8330Serve6'
             ]);
 
-            // Attendi e prendi IP
+            // Recupera IP container (retry se serve)
             $ip = null;
-            for ($retry = 0; $retry < 10 && !$ip; $retry++) {
+            $maxRetries = 10;
+            $retry = 0;
+            while ($retry < $maxRetries && !$ip) {
                 sleep(3);
                 $status = proxmoxApiRequest('GET', "/nodes/$node/lxc/$vmid/status/current");
-                $ip = $status['data']['network']['eth0']['ip'] ?? null;
+                $ip = $status['network']['eth0']['ip'] ?? null;
+                $retry++;
             }
-
-            if (!$ip) {
+            if (!$ip)
                 $ip = 'IP non disponibile';
-            }
 
-            // DB insert container
+            // Inserisci container nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname) VALUES (?, ?, ?)");
             $stmt->execute([$vmid, $ip, 'mcserver-' . time()]);
             $containerId = $pdo->lastInsertId();
 
-            // DB insert server
+            // Inserisci server nel DB
             $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW())");
             $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024]);
             $serverId = $pdo->lastInsertId();
@@ -81,9 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
 ?>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <?php include("includes/header.php"); ?>
 
 <div class="container my-5" style="max-width:600px;">
@@ -106,15 +113,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label>CPU Cores</label>
-                    <span id="cpu_label" class="fw-bold ms-2"><?= $defaultCpu ?></span>
-                    <input type="hidden" name="cpu_cores" id="cpu_cores" value="<?= $defaultCpu ?>">
-                </div>
-
-                <div class="mb-3">
                     <label for="ram_gb">RAM (GB)</label>
-                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1"
-                        required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required
+                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                </div>
+                <div class="mb-3">
+                    <label for="cpu_cores">CPU Cores: <span id="cpuLabel"><?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?></span></label>
+                    <input type="hidden" name="cpu_cores" id="cpu_cores" value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
                 </div>
             </div>
         </div>
@@ -123,18 +128,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 
+<?php include("includes/footer.php"); ?>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.getElementById('ram_gb').addEventListener('input', function() {
-    let ram = parseInt(this.value) || 0;
-    let cores = Math.ceil(ram / 2); // 1 core ogni 2 GB
-    if (cores < 1) cores = 1;
-    if (cores > 64) cores = 64;
-    document.getElementById('cpu_label').textContent = cores;
-    document.getElementById('cpu_cores').value = cores;
-});
+    const ramInput = document.getElementById('ram_gb');
+    const cpuLabel = document.getElementById('cpuLabel');
+    const cpuInput = document.getElementById('cpu_cores');
+
+    function updateCpuCores() {
+        const ram = parseInt(ramInput.value) || <?= $defaultRam ?>;
+        // Calcola core in base alla RAM con max 6 core
+        let cores = Math.min(6, Math.max(1, Math.ceil(ram / 4)));
+        cpuLabel.textContent = cores;
+        cpuInput.value = cores;
+    }
+
+    ramInput.addEventListener('input', updateCpuCores);
+    updateCpuCores();
 </script>
 
-<?php include("includes/footer.php"); ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
