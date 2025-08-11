@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cores' => $cpuCores,
                 'storage' => 'local-lvm',
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
-                'password' => 'lgu8330'
+                'password' => 'Lgu8330Serve6'
             ]);
 
             // 3) Recupera IP container (retry se serve)
