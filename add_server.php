@@ -5,22 +5,24 @@ include("includes/proxmox_api.php");
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-$defaultRam = 8;
+$defaultRam = 4;
 $error = null;
 
 function calculateCpuCores(int $ramGb): int {
     if ($ramGb <= 4) {
-        return 2; // minimo 2 core
-    }
-    $extraCores = intval(floor(($ramGb - 4) / 4));
-    $totalCores = 2 + $extraCores;
-    if ($ramGb > 32) {
-        $totalCores = min(8, $totalCores);
+        return 2;               // 2-4 GB RAM => 2 core
+    } elseif ($ramGb <= 6) {
+        return 3;               // 4-6 GB RAM => 2-4 core, prendo 3 come media
+    } elseif ($ramGb <= 8) {
+        return 4;               // 6-8 GB RAM => 4 core
     } else {
-        $totalCores = min(8, $totalCores);
+        // 8+ GB RAM => 4+ core, aggiungo 1 core ogni 4 GB sopra gli 8GB fino a max 12 core
+        $extraCores = intval(($ramGb - 8) / 4);
+        $cores = 4 + $extraCores;
+        return min($cores, 12); // max 12 core
     }
-    return $totalCores;
 }
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
