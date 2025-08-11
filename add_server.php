@@ -7,6 +7,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 
 $defaultCpu = 4;
 $defaultRam = 8;
+$defaultDisk = 20; // Default disco 20GB
 
 $error = null;
 
@@ -14,65 +15,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $cpuCores = intval($_POST['cpu_cores'] ?? 0);
     $ramGb = intval($_POST['ram_gb'] ?? 0);
+    $diskGb = intval($_POST['disk_gb'] ?? 0);
 
     // Validazioni base
-    if (empty($serverName)) {
-        $error = "Inserisci un nome valido per il server.";
-    } elseif ($cpuCores < 1 || $ramGb < 2) {
-        $error = "Inserisci valori validi per CPU e RAM.";
+    if (!$serverName) {
+        $error = "Il nome del server è obbligatorio.";
+    } elseif ($cpuCores < 1 || $cpuCores > 64) {
+        $error = "CPU cores deve essere tra 1 e 64.";
+    } elseif ($ramGb < 2 || $ramGb > 256) {
+        $error = "RAM deve essere tra 2 e 256 GB.";
+    } elseif ($diskGb < 5 || $diskGb > 500) {
+        $error = "Disco deve essere tra 5 e 500 GB.";
     }
 
     if (!$error) {
         try {
-            $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
+            $node = PROXMOX_NODE; // Es. 'pve'
 
             // 1) Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid)
-                throw new Exception("Impossibile ottenere vmid disponibile");
+            if (!$vmid) throw new Exception("Impossibile ottenere VMID disponibile");
 
-            $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
-            $diskGb = 64;
+            // 2) Crea container LXC
+            $hostname = 'mcserver-' . time();
+
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-                'hostname' => 'mcserver-' . time(),
-                'memory' => $ramGb * 1024,
-                'swap' => intval($swapMb),
+                'hostname' => $hostname,
+                'memory' => $ramGb * 1024, // in MB
+                'swap' => $ramGb * 512, // per esempio la metà della RAM in swap
                 'cores' => $cpuCores,
                 'storage' => 'local-lvm',
-                'rootfs' => 'local-lvm:' . (intval($diskGb) . 'G'),
+                'rootfs' => "local-lvm:$diskGb" . "G",
                 'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
-                'password' => 'Lgu8330Serve6'
+                'password' => 'Lgu8330Serve6' // usa password sicura e poi cambiala!
             ]);
 
-
-            // 3) Recupera IP container (retry se serve)
+            // 3) Attendi IP container (con retry)
             $ip = null;
-            $maxRetries = 10;
-            $retry = 0;
-            while ($retry < $maxRetries && !$ip) {
+            for ($i = 0; $i < 10; $i++) {
                 sleep(3);
                 $status = proxmoxApiRequest('GET', "/nodes/$node/lxc/$vmid/status/current");
-                $ip = $status['network']['eth0']['ip'] ?? null;
-                $retry++;
+                $ip = $status['data']['network']['eth0']['ip'] ?? null;
+                if ($ip) break;
             }
 
-            if (!$ip)
+            if (!$ip) {
                 $ip = 'IP non disponibile';
+            }
 
             // 4) Inserisci container nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname) VALUES (?, ?, ?)");
-            $stmt->execute([$vmid, $ip, 'mcserver-' . time()]);
+            $stmt->execute([$vmid, $ip, $hostname]);
             $containerId = $pdo->lastInsertId();
 
             // 5) Inserisci server nel DB
-            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW())");
-            $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024]);
+            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, disk_gb, created_at, updated_at) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, ?, NOW(), NOW())");
+            $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024, $diskGb]);
             $serverId = $pdo->lastInsertId();
 
-            // 6) Aggiorna container assegnato
+            // 6) Aggiorna container con dati utente/server
             $stmt3 = $pdo->prepare("UPDATE containers SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
             $stmt3->execute([$userId, $serverId, $containerId]);
 
@@ -84,11 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 ?>
-
-<!-- Il resto del codice HTML + form rimane invariato -->
-
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -104,34 +104,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST" action="">
         <div class="mb-3">
             <label for="server_name" class="form-label">Nome Server</label>
-            <input type="text" name="server_name" id="server_name" class="form-control" required
-                value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+            <input type="text" name="server_name" id="server_name" class="form-control" required value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
 
-        <div class="card border-primary shadow-sm">
+        <div class="card border-primary shadow-sm mb-3">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">Configura le Risorse</h5>
             </div>
             <div class="card-body">
                 <div class="mb-3">
                     <label for="cpu_cores">CPU Cores</label>
-                    <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1"
-                        required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
+                    <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1" required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
                 </div>
                 <div class="mb-3">
                     <label for="ram_gb">RAM (GB)</label>
-                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1"
-                        required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                </div>
+                <div class="mb-3">
+                    <label for="disk_gb">Disco (GB)</label>
+                    <input type="number" name="disk_gb" id="disk_gb" class="form-control" min="5" max="500" step="1" required value="<?= htmlspecialchars($_POST['disk_gb'] ?? $defaultDisk) ?>">
                 </div>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-success mt-4 w-100">Crea Server</button>
+        <button type="submit" class="btn btn-success mt-3 w-100">Crea Server</button>
     </form>
 </div>
 
 <?php include("includes/footer.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>
