@@ -5,8 +5,8 @@ include("includes/proxmox_api.php");
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-$defaultCpu = 4;
-$defaultRam = 8;
+$defaultCpu = 2;
+$defaultRam = 4;
 
 $error = null;
 
