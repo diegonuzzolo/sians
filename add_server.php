@@ -9,10 +9,12 @@ $defaultRam = 4;
 $error = null;
 
 function calculateCpuCores(int $ramGb): int {
-    if ($ramGb < 2) {
+    if ($ramGb <= 2) {
         return 2;
     } elseif ($ramGb <= 4) {
         return 2;
+    } elseif ($ramGb <= 6) {
+        return 3;
     } elseif ($ramGb <= 8) {
         return 4;
     } elseif ($ramGb <= 16) {
@@ -22,23 +24,45 @@ function calculateCpuCores(int $ramGb): int {
     }
 }
 
-function calculatePriceByRam(int $ramGb): float {
-    if ($ramGb <= 2) return (5 + 8) / 2;      // 6.5
-    if ($ramGb <= 4) return (8 + 12) / 2;     // 10
-    if ($ramGb <= 6) return (12 + 18) / 2;    // 15
-    if ($ramGb <= 8) return (18 + 25) / 2;    // 21.5
-    if ($ramGb <= 16) return (30 + 40) / 2;   // 35
-    return (50 + 65) / 2;                      // 57.5
-}
+function calculatePrice(int $ramGb): float {
+    // Prezzi medi originali:
+    // 2GB => 6.5, 4GB => 10, 6GB => 15, 8GB => 21.5, 16GB => 35, 32GB => 57.5
+    // Ridotti del 15%
+    $priceTable = [
+        2 => 6.5 * 0.85,
+        4 => 10 * 0.85,
+        6 => 15 * 0.85,
+        8 => 21.5 * 0.85,
+        16 => 35 * 0.85,
+        32 => 57.5 * 0.85,
+    ];
 
+    if ($ramGb <= 2) {
+        return $priceTable[2];
+    } elseif ($ramGb <= 4) {
+        return $priceTable[4];
+    } elseif ($ramGb <= 6) {
+        return $priceTable[6];
+    } elseif ($ramGb <= 8) {
+        return $priceTable[8];
+    } elseif ($ramGb <= 16) {
+        return $priceTable[16];
+    } else {
+        return $priceTable[32];
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
 
-    // Calcolo cores e prezzo da ram
+    // Limite massimo RAM a 20 GB
+    if ($ramGb > 20) {
+        $ramGb = 20;
+    }
+
     $cpuCores = calculateCpuCores($ramGb);
-    $priceEur = calculatePriceByRam($ramGb);
+    $price = calculatePrice($ramGb);
 
     // Validazioni base
     if (empty($serverName)) {
@@ -51,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
 
-            // Ottieni VMID disponibile
+            // 1) Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
             if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
@@ -85,13 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$ip) $ip = 'IP non disponibile';
 
             // Inserisci container nel DB
-            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname, cpu_cores, ram_mb, storage_gb) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $ip, 'mcserver-' . time(), $cpuCores, $ramGb * 1024, $diskGb]);
+            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$vmid, $ip, 'mcserver-' . time(), $cpuCores, $ramGb * 1024]);
             $containerId = $pdo->lastInsertId();
 
-            // Inserisci server nel DB con prezzo
-            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, price_eur, created_at, updated_at) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, ?, NOW(), NOW())");
-            $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024, $priceEur]);
+            // Inserisci server nel DB, incluso il prezzo
+            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW(), ?)");
+            $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024, $price]);
             $serverId = $pdo->lastInsertId();
 
             // Aggiorna container assegnato
@@ -152,7 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <?php include("includes/footer.php"); ?>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const ramInput = document.getElementById('ram_gb');
     const cpuLabel = document.getElementById('cpuLabel');
@@ -160,28 +183,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     const priceLabel = document.getElementById('priceLabel');
 
     function updateCpuAndPrice() {
-        const ram = parseInt(ramInput.value) || 2;
+        // Limite RAM max 20GB
+        let ram = parseInt(ramInput.value) || 2;
+        if (ram > 20) {
+            ram = 20;
+            ramInput.value = 20; // forza il limite nel campo input
+        }
+
         let cores = 2;
-        let price = 6.5;  // media tra 5 e 8
+        let price = 6.5 * 0.85;  // media tra 5 e 8 * 0.85
 
         if (ram <= 2) {
             cores = 2;
-            price = 6.5;    // (5+8)/2
+            price = 6.5 * 0.85;
         } else if (ram <= 4) {
             cores = 2;
-            price = 10;     // (8+12)/2
+            price = 10 * 0.85;
         } else if (ram <= 6) {
-            cores = 3;      // tra 2-4 suggerito: prendo 3 come media
-            price = 15;     // (12+18)/2
+            cores = 3;
+            price = 15 * 0.85;
         } else if (ram <= 8) {
             cores = 4;
-            price = 21.5;   // (18+25)/2
+            price = 21.5 * 0.85;
         } else if (ram <= 16) {
             cores = 6;
-            price = 35;     // (30+40)/2
+            price = 35 * 0.85;
         } else {
             cores = 8;
-            price = 57.5;   // (50+65)/2
+            price = 57.5 * 0.85;
         }
 
         cpuLabel.textContent = cores;
@@ -192,6 +221,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ramInput.addEventListener('input', updateCpuAndPrice);
     updateCpuAndPrice();
 </script>
+
+
 
 
 </body>
