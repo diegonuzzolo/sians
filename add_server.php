@@ -114,11 +114,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="cpu_cores" class="form-label">CPU Cores</label>
+                    <label for="cpu_cores" >CPU Cores</label>
                     <input type="number" name="cpu_cores" id="cpu_cores" class="form-control" min="1" max="64" step="1" required value="<?= htmlspecialchars($_POST['cpu_cores'] ?? $defaultCpu) ?>">
                 </div>
                 <div class="mb-3">
-                    <label for="ram_gb" class="form-label">RAM (GB)</label>
+                    <label for="ram_gb" >RAM (GB)</label>
                     <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
                 </div>
             </div>
