@@ -1,11 +1,10 @@
 <?php
-require 'config/config.php';
 function proxmoxApiRequest(string $method, string $endpoint, array $postData = null): array
 {
-    $url = PROXMOX_HOST . '/api2/json' . $endpoint;
+    $url = PROXMOX_API_URL . '/api2/json' . $endpoint;
 
     $headers = [
-        'Authorization: PVEAPIToken=' . PROXMOX_API_TOKEN_ID . '=' . PROXMOX_API_TOKEN_SECRET,
+        'Authorization: PVEAPIToken=' . PROXMOX_API_TOKEN_NAME . '=' . PROXMOX_API_TOKEN_VALUE,
         'Accept: application/json',
     ];
 
