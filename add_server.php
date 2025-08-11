@@ -5,10 +5,6 @@ include("includes/proxmox_api.php");
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-
-
-
-
 $defaultCpu = 4;
 $defaultRam = 8;
 
@@ -19,51 +15,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cpuCores = intval($_POST['cpu_cores'] ?? 0);
     $ramGb = intval($_POST['ram_gb'] ?? 0);
 
-    // ...validazioni...
+    // Validazioni base
+    if (empty($serverName)) {
+        $error = "Inserisci un nome valido per il server.";
+    } elseif ($cpuCores < 1 || $ramGb < 2) {
+        $error = "Inserisci valori validi per CPU e RAM.";
+    }
 
-    try {
-        // 1) Crea container su Proxmox
-        $node = 'pve'; // Modifica con il nodo Proxmox reale
-        $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
-            'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-            'hostname' => 'mcserver-' . time(),
-            'memory' => $ramGb * 1024,
-            'cores' => $cpuCores,
-            'storage' => 'local-lvm',
-            'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
-            'password' => 'lgu8330'
-        ]);
-        $vmid = $containerData['vmid'] ?? null;
-        if (!$vmid) throw new Exception("Impossibile ottenere VMID dopo creazione container");
+    if (!$error) {
+        try {
+            $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
 
-        // 2) Recupera IP container (potresti dover aspettare un po' o fare retry)
-        $status = proxmoxApiRequest('GET', "/nodes/$node/lxc/$vmid/status/current");
-        $ip = $status['network']['eth0']['ip'] ?? null;
+            // 1) Ottieni VMID disponibile
+            $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
+            $vmid = $nextIdResp['data'] ?? null;
+            if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
 
-        // 3) Inserisci container nel DB
-        $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname) VALUES (?, ?, ?)");
-        $stmt->execute([$vmid, $ip, 'mcserver-' . time()]);
-        $containerId = $pdo->lastInsertId();
+            // 2) Crea container con VMID specifico
+            $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
+                'vmid' => $vmid,
+                'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+                'hostname' => 'mcserver-' . time(),
+                'memory' => $ramGb * 1024,
+                'cores' => $cpuCores,
+                'storage' => 'local-lvm',
+                'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
+                'password' => 'lgu8330'
+            ]);
 
-        // 4) Inserisci server nel DB con container assegnato
-        $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW())");
-        $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024]);
-        $serverId = $pdo->lastInsertId();
+            // 3) Recupera IP container (retry se serve)
+            $ip = null;
+            $maxRetries = 10;
+            $retry = 0;
+            while ($retry < $maxRetries && !$ip) {
+                sleep(3);
+                $status = proxmoxApiRequest('GET', "/nodes/$node/lxc/$vmid/status/current");
+                $ip = $status['network']['eth0']['ip'] ?? null;
+                $retry++;
+            }
 
-        // 5) Aggiorna container con utente e server assegnati
-        $stmt3 = $pdo->prepare("UPDATE containers SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-        $stmt3->execute([$userId, $serverId, $containerId]);
+            if (!$ip) $ip = 'IP non disponibile';
 
-        header("Location: dashboard.php?created=1");
-        exit;
+            // 4) Inserisci container nel DB
+            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname) VALUES (?, ?, ?)");
+            $stmt->execute([$vmid, $ip, 'mcserver-' . time()]);
+            $containerId = $pdo->lastInsertId();
 
-    } catch (Exception $e) {
-        $error = "Errore nella creazione del server: " . $e->getMessage();
+            // 5) Inserisci server nel DB
+            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW())");
+            $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024]);
+            $serverId = $pdo->lastInsertId();
+
+            // 6) Aggiorna container assegnato
+            $stmt3 = $pdo->prepare("UPDATE containers SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
+            $stmt3->execute([$userId, $serverId, $containerId]);
+
+            header("Location: dashboard.php?created=1");
+            exit;
+
+        } catch (Exception $e) {
+            $error = "Errore nella creazione del server: " . $e->getMessage();
+        }
     }
 }
 
-
 ?>
+
+<!-- Il resto del codice HTML + form rimane invariato -->
+
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
