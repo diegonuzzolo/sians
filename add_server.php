@@ -9,25 +9,15 @@ $defaultRam = 4;
 $error = null;
 
 function calculateCpuCores(int $ramGb): int {
-    if ($ramGb <= 2) {
-        return 2;
-    } elseif ($ramGb <= 4) {
-        return 2;
-    } elseif ($ramGb <= 6) {
-        return 3;
-    } elseif ($ramGb <= 8) {
-        return 4;
-    } elseif ($ramGb <= 16) {
-        return 6;
-    } else {
-        return 8;
-    }
+    if ($ramGb <= 2) return 2;
+    elseif ($ramGb <= 4) return 2;
+    elseif ($ramGb <= 6) return 3;
+    elseif ($ramGb <= 8) return 4;
+    elseif ($ramGb <= 16) return 6;
+    else return 8;
 }
 
 function calculatePrice(int $ramGb): float {
-    // Prezzi medi originali:
-    // 2GB => 6.5, 4GB => 10, 6GB => 15, 8GB => 21.5, 16GB => 35, 32GB => 57.5
-    // Ridotti del 15%
     $priceTable = [
         2 => 6.5 * 0.85,
         4 => 10 * 0.85,
@@ -36,35 +26,23 @@ function calculatePrice(int $ramGb): float {
         16 => 35 * 0.85,
         32 => 57.5 * 0.85,
     ];
-
-    if ($ramGb <= 2) {
-        return $priceTable[2];
-    } elseif ($ramGb <= 4) {
-        return $priceTable[4];
-    } elseif ($ramGb <= 6) {
-        return $priceTable[6];
-    } elseif ($ramGb <= 8) {
-        return $priceTable[8];
-    } elseif ($ramGb <= 16) {
-        return $priceTable[16];
-    } else {
-        return $priceTable[32];
-    }
+    if ($ramGb <= 2) return $priceTable[2];
+    elseif ($ramGb <= 4) return $priceTable[4];
+    elseif ($ramGb <= 6) return $priceTable[6];
+    elseif ($ramGb <= 8) return $priceTable[8];
+    elseif ($ramGb <= 16) return $priceTable[16];
+    else return $priceTable[32];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
 
-    // Limite massimo RAM a 20 GB
-    if ($ramGb > 20) {
-        $ramGb = 20;
-    }
+    if ($ramGb > 20) $ramGb = 20;
 
     $cpuCores = calculateCpuCores($ramGb);
     $price = calculatePrice($ramGb);
 
-    // Validazioni base
     if (empty($serverName)) {
         $error = "Inserisci un nome valido per il server.";
     } elseif ($ramGb < 2) {
@@ -73,51 +51,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
-
-            // 1) Ottieni VMID disponibile
+            $node = 'pve';
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
+            if (!$vmid) throw new Exception("Impossibile ottenere VMID disponibile");
 
-            $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
+            $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
 
-            $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
-                'vmid' => $vmid,
+            // IP statico (in futuro si può rendere dinamico)
+            $ipAddress = "192.168.1.101";
+            $gateway = "192.168.1.254";
+
+            // 1) Creazione container
+            proxmoxApiRequest('POST', "/nodes/$node/lxc", [
+                'vmid'       => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-                'hostname' => 'mcserver-' . time(),
-                'memory' => $ramGb * 1024,
-                'swap' => intval($swapMb),
-                'cores' => $cpuCores,
-                'rootfs' => 'local-lvm:64',
-                'net0' => 'name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254',
-                'password' => 'Lgu8330Serve6'
+                'hostname'   => 'mcserver-' . time(),
+                'memory'     => $ramGb * 1024,
+                'swap'       => intval($swapMb),
+                'cores'      => $cpuCores,
+                'rootfs'     => 'local-lvm:64',
+                'net0'       => "name=eth0,bridge=vmbr0,ip=$ipAddress/24,gw=$gateway",
+                'password'   => 'Lgu8330Serve6',
+                'start'      => 1
             ]);
 
-            // Recupera IP container (retry se serve)
+            // 2) Configurazione netplan dentro il container
+            $netplanConfig = <<<EOT
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses: [$ipAddress/24]
+      gateway4: $gateway
+      nameservers:
+        addresses: [8.8.8.8,1.1.1.1]
+EOT;
+
+            proxmoxApiRequest('POST', "/nodes/$node/lxc/$vmid/exec", [
+                'command' => '/bin/bash',
+                'args'    => ['-c', "echo \"$netplanConfig\" > /etc/netplan/50-cloud-init.yaml && netplan apply"]
+            ]);
+
+            // 3) Attendi che il container risponda con IP
             $ip = null;
             $maxRetries = 10;
             $retry = 0;
             while ($retry < $maxRetries && !$ip) {
                 sleep(3);
                 $status = proxmoxApiRequest('GET', "/nodes/$node/lxc/$vmid/status/current");
-                $ip = $status['network']['eth0']['ip'] ?? null;
+                $ip = $status['data']['network']['eth0']['ip'] ?? null;
                 $retry++;
             }
+            if (!$ip) $ip = $ipAddress;
 
-            if (!$ip) $ip = 'IP non disponibile';
-
-            // Inserisci container nel DB
+            // 4) Inserimento nel DB
+            $hostname = 'mcserver-' . time();
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $ip, 'mcserver-' . time(), $cpuCores, $ramGb * 1024]);
+            $stmt->execute([$vmid, $ip, $hostname, $cpuCores, $ramGb * 1024]);
             $containerId = $pdo->lastInsertId();
 
-            // Inserisci server nel DB, incluso il prezzo
             $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW(), ?)");
             $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024, $price]);
             $serverId = $pdo->lastInsertId();
 
-            // Aggiorna container assegnato
             $stmt3 = $pdo->prepare("UPDATE containers SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
             $stmt3->execute([$userId, $serverId, $containerId]);
 
