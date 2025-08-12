@@ -7,16 +7,23 @@ $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
 $error = null;
 
-function calculateCpuCores(int $ramGb): int {
-    if ($ramGb <= 2) return 2;
-    if ($ramGb <= 4) return 2;
-    if ($ramGb <= 6) return 3;
-    if ($ramGb <= 8) return 4;
-    if ($ramGb <= 16) return 6;
+function calculateCpuCores(int $ramGb): int
+{
+    if ($ramGb <= 2)
+        return 2;
+    if ($ramGb <= 4)
+        return 2;
+    if ($ramGb <= 6)
+        return 3;
+    if ($ramGb <= 8)
+        return 4;
+    if ($ramGb <= 16)
+        return 6;
     return 8;
 }
 
-function calculatePrice(int $ramGb): float {
+function calculatePrice(int $ramGb): float
+{
     $priceTable = [
         2 => 6.5 * 0.85,
         4 => 10 * 0.85,
@@ -26,16 +33,22 @@ function calculatePrice(int $ramGb): float {
         32 => 57.5 * 0.85,
     ];
 
-    if ($ramGb <= 2) return $priceTable[2];
-    if ($ramGb <= 4) return $priceTable[4];
-    if ($ramGb <= 6) return $priceTable[6];
-    if ($ramGb <= 8) return $priceTable[8];
-    if ($ramGb <= 16) return $priceTable[16];
+    if ($ramGb <= 2)
+        return $priceTable[2];
+    if ($ramGb <= 4)
+        return $priceTable[4];
+    if ($ramGb <= 6)
+        return $priceTable[6];
+    if ($ramGb <= 8)
+        return $priceTable[8];
+    if ($ramGb <= 16)
+        return $priceTable[16];
     return $priceTable[32];
 }
 
 // Funzione per ottenere il primo template disponibile
-function getFirstAvailableTemplate($node) {
+function getFirstAvailableTemplate($node)
+{
     // 1) Recupera lista storage disponibili sul nodo
     $storagesResp = proxmoxApiRequest('GET', "/nodes/$node/storage");
     if (empty($storagesResp['data'])) {
@@ -44,7 +57,8 @@ function getFirstAvailableTemplate($node) {
 
     foreach ($storagesResp['data'] as $storage) {
         $storageName = $storage['storage'] ?? null;
-        if (!$storageName) continue;
+        if (!$storageName)
+            continue;
 
         // 2) Lista contenuti dello storage
         $contentResp = proxmoxApiRequest('GET', "/nodes/$node/storage/$storageName/content");
@@ -66,7 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
 
-    if ($ramGb > 20) $ramGb = 20;
+    if ($ramGb > 20)
+        $ramGb = 20;
 
     $cpuCores = calculateCpuCores($ramGb);
     $price = calculatePrice($ramGb);
@@ -79,11 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            $node = 'pve';
-            
+            $node = 'pve'; // o il nome corretto del nodo
+            print_r(proxmoxApiRequest('GET', "/nodes/$node/storage"));
+
+
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid) throw new Exception("Impossibile ottenere vmid");
+            if (!$vmid)
+                throw new Exception("Impossibile ottenere vmid");
 
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
 
@@ -146,12 +164,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card-body">
                 <div class="mb-3">
                     <label for="ram_gb">RAM (GB)</label>
-                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required
-                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1"
+                        required value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
                 </div>
                 <div class="mb-3">
-                    <label for="cpu_cores">CPU Cores: <span id="cpuLabel"><?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?></span></label>
-                    <input type="hidden" name="cpu_cores" id="cpu_cores" value="<?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?>">
+                    <label for="cpu_cores">CPU Cores: <span
+                            id="cpuLabel"><?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?></span></label>
+                    <input type="hidden" name="cpu_cores" id="cpu_cores"
+                        value="<?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?>">
                 </div>
                 <div class="mb-3">
                     <label><span id="priceLabel">€ 0</span></label>
@@ -162,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit" class="btn btn-success mt-4 w-100">Crea Server</button>
     </form>
 </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <?php include("includes/footer.php"); ?>
 
@@ -216,4 +236,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 </body>
+
 </html>
