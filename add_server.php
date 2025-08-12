@@ -58,40 +58,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
 
-            // IP statico (in futuro si può rendere dinamico)
-            $ipAddress = "192.168.1.101";
-            $gateway = "192.168.1.254";
+// Crea container
+$containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
+    'vmid' => $vmid,
+    'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+    'hostname' => 'mcserver-' . time(),
+    'memory' => $ramGb * 1024,
+    'swap' => intval($swapMb),
+    'cores' => $cpuCores,
+    'rootfs' => 'local-lvm:64',
+    'net0' => 'name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254',
+    'password' => 'Lgu8330Serve6',
+    'start' => 1 // avvia subito
+]);
 
-            // 1) Creazione container
-            proxmoxApiRequest('POST', "/nodes/$node/lxc", [
-                'vmid'       => $vmid,
-                'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-                'hostname'   => 'mcserver-' . time(),
-                'memory'     => $ramGb * 1024,
-                'swap'       => intval($swapMb),
-                'cores'      => $cpuCores,
-                'rootfs'     => 'local-lvm:64',
-                'net0'       => "name=eth0,bridge=vmbr0,ip=$ipAddress/24,gw=$gateway",
-                'password'   => 'Lgu8330Serve6',
-                'start'      => 1
-            ]);
-
-            // 2) Configurazione netplan dentro il container
-            $netplanConfig = <<<EOT
+// File di configurazione Netplan
+$netplanConfig = <<<EOT
 network:
   version: 2
   ethernets:
     eth0:
-      addresses: [$ipAddress/24]
-      gateway4: $gateway
+      dhcp4: no
+      addresses:
+        - 192.168.1.101/24
+      gateway4: 192.168.1.254
       nameservers:
-        addresses: [8.8.8.8,1.1.1.1]
+        addresses: [8.8.8.8, 1.1.1.1]
 EOT;
 
-            proxmoxApiRequest('POST', "/nodes/$node/lxc/$vmid/exec", [
-                'command' => '/bin/bash',
-                'args'    => ['-c', "echo \"$netplanConfig\" > /etc/netplan/50-cloud-init.yaml && netplan apply"]
-            ]);
+// Scrive il file netplan dentro il container
+proxmoxApiRequest('POST', "/nodes/$node/lxc/$vmid/exec", [
+    'command' => 'bash',
+    'extra-args' => ['-c', 'echo ' . escapeshellarg($netplanConfig) . ' > /etc/netplan/50-cloud-init.yaml']
+]);
+
+// Applica la configurazione
+proxmoxApiRequest('POST', "/nodes/$node/lxc/$vmid/exec", [
+    'command' => 'netplan',
+    'extra-args' => ['apply']
+]);
+
 
             // 3) Attendi che il container risponda con IP
             $ip = null;
