@@ -18,6 +18,7 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <?php include("includes/header.php"); ?>
 <link rel="stylesheet" href="assets/css/style.css">
+
 <main>
   <div class="container my-5">
     <h1 class="mb-5 text-center text-bedrock display-4 fw-bold">🎮 La Mia Dashboard</h1>
@@ -29,15 +30,20 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php else: ?>
       <div class="d-flex flex-wrap justify-content-center gap-4">
         <?php foreach ($containers as $c): ?>
+          <?php
+            $serverExists = !empty($c['server_id']);
+            $status = $c['server_status'] ?? null;
+            $serverInstalled = $serverExists && $status !== 'not_installed' && $status !== null;
+          ?>
           <div class="card server-card shadow-lg text-center p-3" style="width: 280px; border-radius: 15px;">
             <div class="card-header bg-bedrock text-white rounded-top py-3">
               <h4 class="card-title mb-0 text-truncate" title="<?= htmlspecialchars($c['server_name'] ?? 'Server non installato') ?>">
-                <?= $c['server_id'] ? htmlspecialchars($c['server_name']) : "<em>Server non installato</em>" ?>
+                <?= $serverInstalled ? htmlspecialchars($c['server_name']) : "<em>Server non installato</em>" ?>
               </h4>
             </div>
             <div class="card-body py-4">
               <p><strong>Tunnel URL:</strong><br>
-                <?php if (!empty($c['tunnel_url'])): ?>
+                <?php if ($serverInstalled && !empty($c['tunnel_url'])): ?>
                   <a href="<?= htmlspecialchars($c['tunnel_url']) ?>" target="_blank" class="text-decoration-none text-bedrock fw-semibold">
                     <?= htmlspecialchars($c['tunnel_url']) ?>
                   </a>
@@ -48,8 +54,8 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
               <p><strong>CPU Cores:</strong> <?= htmlspecialchars($c['cpu_cores'] ?? '-') ?></p>
               <p><strong>RAM:</strong> <?= round(($c['ram_mb'] ?? 0) / 1024, 2) ?> GB</p>
 
-              <?php if ($c['server_id']): ?>
-                <p><strong>Stato:</strong> <span class="status-badge <?= 'status-' . ($c['server_status'] ?? 'stopped') ?>"><?= htmlspecialchars(ucfirst($c['server_status'] ?? 'stopped')) ?></span></p>
+              <?php if ($serverInstalled): ?>
+                <p><strong>Stato:</strong> <span class="status-badge <?= 'status-' . $status ?>"><?= htmlspecialchars(ucfirst($status)) ?></span></p>
                 <a href="server.php?id=<?= $c['server_id'] ?>" class="btn btn-bedrock btn-lg w-100 mt-3">Gestisci Server</a>
               <?php else: ?>
                 <button class="btn btn-primary btn-install btn-lg w-100 mt-3" data-container-id="<?= $c['container_id'] ?>">Installa Server Bedrock</button>
@@ -121,6 +127,7 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
   .status-running { color: #00ff00; font-weight: 700; }
   .status-stopped { color: #ff5555; font-weight: 700; }
   .status-installing { color: #ffaa00; font-weight: 700; }
+  .status-not_installed { color: #cccccc; font-weight: 700; font-style: italic; }
 </style>
 
 <?php include("includes/footer.php"); ?>

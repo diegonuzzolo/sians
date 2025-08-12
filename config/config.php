@@ -19,13 +19,15 @@ try {
 
 
 // config.php
-if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://192.168.1.251:8006');
+if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://192.168.1.251:8006/api2/json');
 if (!defined('PROXMOX_NODE')) define('PROXMOX_NODE', 'pve') ;
 if (!defined('PROXMOX_API_TOKEN_NAME')) define('PROXMOX_API_TOKEN_NAME', 'root@pam!sians');
 if (!defined('PROXMOX_API_TOKEN_VALUE')) define('PROXMOX_API_TOKEN_VALUE', '0b4b070d-90bc-40a5-b0d1-9db4df95aa79');
 if (!defined('CLOUDFLARE_API_TOKEN')) define ('CLOUDFLARE_API_TOKEN', '5qZFVHEm6DDAx10qyEQEjX0VB2vgljgT9sT70FKJ');
 if (!defined('CLOUDFLARE_ZONE_ID')) define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 if (!defined('CLOUDFLARE_API_BASE')) define('CLOUDFLARE_API_BASE', 'https://api.cloudflare.com/client/v4');
+    define('PROXMOX_TEMPLATE_STORAGE', 'local'); // dove si trova il template LXC
+define('PROXMOX_TEMPLATE_NAME', 'ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst'); // esempio template
 if (!defined('DOMAIN')) define ('DOMAIN', 'sians.it');
 define ('DB_HOST', 'localhost');
 define ('DB_NAME', 'minecraft_platform');
