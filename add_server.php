@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card-body">
                 <div class="mb-4">
                     <label for="ram_gb" class="form-label text-white fw-semibold">
-                        RAM: <span id="ramValue"><?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?></span> GB
+                        RAM (GB): <span id="ramValue"><?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?></span> GB
                     </label>
                     <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                         value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
@@ -252,6 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <span>20GB</span>
                     </div>
                 </div>
+
 
                 <div class="mb-3">
                     <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
@@ -331,16 +332,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         this.disabled = true;
         this.textContent = 'Creazione in corso...';
     });
-
-    const ramValue = document.getElementById('ramValue');
-
-    ramInput.addEventListener('input', () => {
-        ramValue.textContent = ramInput.value;
-        updateCpuAndPrice();
-    });
-
-
     const ramInput = document.getElementById('ram_gb');
+    const ramValue = document.getElementById('ramValue');
     const cpuLabel = document.getElementById('cpuLabel');
     const cpuInput = document.getElementById('cpu_cores');
     const cpuProgress = document.getElementById('cpuProgress');
@@ -351,39 +344,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (ram > 20) ram = 20;
 
         let cores = 2;
-        let price = 6.5 * 0.85; // default for 2GB
+        let price = 6.5 * 0.85;
 
         if (ram <= 2) {
-            cores = 2;
-            price = 6.5 * 0.85;
+            cores = 2; price = 6.5 * 0.85;
         } else if (ram <= 4) {
-            cores = 2;
-            price = 10 * 0.85;
+            cores = 2; price = 10 * 0.85;
         } else if (ram <= 6) {
-            cores = 3;
-            price = 15 * 0.85;
+            cores = 3; price = 15 * 0.85;
         } else if (ram <= 8) {
-            cores = 4;
-            price = 21.5 * 0.85;
+            cores = 4; price = 21.5 * 0.85;
         } else if (ram <= 16) {
-            cores = 6;
-            price = 35 * 0.85;
+            cores = 6; price = 35 * 0.85;
         } else {
-            cores = 8;
-            price = 57.5 * 0.85;
+            cores = 8; price = 57.5 * 0.85;
         }
 
         cpuLabel.textContent = cores;
         cpuInput.value = cores;
-
-        let percent = (cores / 8) * 100;
-        cpuProgress.style.width = percent + '%';
-
+        cpuProgress.style.width = (cores / 8) * 100 + '%';
         priceLabel.textContent = "€ " + price.toFixed(2);
     }
 
-    ramInput.addEventListener('input', updateCpuAndPrice);
+    // Aggiorna RAM e CPU live
+    ramInput.addEventListener('input', () => {
+        ramValue.textContent = ramInput.value;
+        updateCpuAndPrice();
+    });
+
     updateCpuAndPrice();
+
 </script>
 
 <?php include("includes/footer.php"); ?>
