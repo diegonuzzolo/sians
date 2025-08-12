@@ -53,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // 1) Controllo che il template esista
             $templates = proxmoxApiRequest('GET', "/nodes/$node/storage/local/content");
-            $templateName = 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst';
             $foundTemplate = false;
             foreach ($templates['data'] as $t) {
                 if ($t['volid'] === $templateName) {
@@ -74,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
             proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
-                'ostemplate' => $templateName,
+                'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
                 'hostname' => 'mcserver-' . time(),
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
