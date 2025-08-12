@@ -1,4 +1,5 @@
 <?php
+session_start();
 include("auth_check.php");
 require 'config/config.php';
 
@@ -27,9 +28,7 @@ function getNextFreePrivateIp(PDO $pdo): string {
             return $baseIp . $i;
         }
     }
-
-    // Se non ci sono IP liberi
-    throw new Exception("Nessun IP privato disponibile nel range $baseIp$start-$baseIp$end");
+    return $baseIp . $start;
 }
 
 function calculateCpuCores(int $ramGb): int {
@@ -85,7 +84,7 @@ function proxmoxLogin() {
     ];
 }
 
-define('PROXMOX_STORAGE', 'local-lvm'); // cambia se usi altro storage
+define('PROXMOX_STORAGE', 'local-lvm');
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
     $swapMb = intval($ramMb * 1.5);
@@ -94,13 +93,13 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) 
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
         'storage' => PROXMOX_STORAGE,
-        'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
+        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
         'memory' => $ramMb,
         'swap' => $swapMb,
         'cores' => $cpu,
         'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'Lgu8330Serve6',
+        'password' => 'MinecraftStrongPass123!',
     ];
 
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
@@ -143,29 +142,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            // Trova vmid libero
             $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
             $maxVmid = (int)$stmt->fetchColumn();
             $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
-            // Trova prossimo IP privato usando funzione
             $nextIp = getNextFreePrivateIp($pdo);
-
             $storageGb = 64;
 
-            // Login Proxmox
             $auth = proxmoxLogin();
 
-            // Crea container LXC
             createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
 
-            // Inserisci container nel DB
-            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
+            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp, 'creating']);
             $containerId = $pdo->lastInsertId();
 
-            // Stato server iniziale
-            $status = 'not_installed';
+            $status = 'creating';
 
             $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
             $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
@@ -174,15 +166,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
             $stmt3->execute([$serverId, $containerId]);
 
-            header("Location: dashboard.php?created=1");
-            exit;
+            $_SESSION['creating_server'] = ['vmid' => $vmid, 'server_id' => $serverId];
 
+            // Qui la pagina di attesa e redirect viene gestita nel frontend (HTML/JS)
         } catch (Exception $e) {
             $error = "Errore nella creazione del server: " . $e->getMessage();
         }
     }
 }
 ?>
+
 
 
 <?php include("includes/header.php"); ?>
