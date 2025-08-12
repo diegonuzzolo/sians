@@ -105,7 +105,7 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp)
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
         'storage' => PROXMOX_TEMPLATE_STORAGE,
-        'ostemplate' => 'local:cache/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+        'ostemplate' => PROXMOX_TEMPLATE_STORAGE . ':vztmpl/' . PROXMOX_TEMPLATE_NAME,
         'memory' => $ramMb,
         'cores' => $cpu,
         'rootfs' => $storageGb . "G",
