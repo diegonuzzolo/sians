@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card-body">
                 <div class="mb-4">
                     <label for="ram_gb" class="form-label text-white fw-semibold">
-                        RAM (GB): <span id="ramValue"><?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?></span> GB
+                        RAM: <span id="ramValue"><?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?></span> GB
                     </label>
                     <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                         value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
