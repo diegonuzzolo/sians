@@ -21,8 +21,8 @@ try {
 // Config Proxmox API
 define('PROXMOX_API_URL', 'https://192.168.1.251:8006/api2/json');
 define('PROXMOX_NODE', 'pve');
-define('PROXMOX_API_TOKEN_NAME', 'root@pam!sians');  // esempio: user@realm!tokenname
-define('PROXMOX_API_TOKEN_VALUE', '0b4b070d-90bc-40a5-b0d1-9db4df95aa79');
+define('PROXMOX_API_TOKEN_NAME', 'diego@pam!sians');  // esempio: user@realm!tokenname
+define('PROXMOX_API_TOKEN_VALUE', 'c6375a6b-a067-404b-9357-84d78a3ec023');
 
 // Storage e template LXC
 define('PROXMOX_TEMPLATE_STORAGE', 'local');
