@@ -42,7 +42,7 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
               </h4>
             </div>
             <div class="card-body py-4">
-              <p><strong>Tunnel URL:</strong><br>
+              <p><strong>IP:</strong><br>
                 <?php if ($serverInstalled && !empty($c['tunnel_url'])): ?>
                   <a href="<?= htmlspecialchars($c['tunnel_url']) ?>" target="_blank" class="text-decoration-none text-bedrock fw-semibold">
                     <?= htmlspecialchars($c['tunnel_url']) ?>
