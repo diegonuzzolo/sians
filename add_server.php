@@ -35,15 +35,32 @@ function calculatePrice(int $ramGb): float {
 }
 
 // Funzione per ottenere il primo template disponibile
-function getFirstAvailableTemplate($node = 'pve', $storage = 'local') {
-    $templates = proxmoxApiRequest('GET', "/nodes/$node/storage/$storage/content");
-    foreach ($templates['data'] as $item) {
-        if ($item['content'] === 'vztmpl') {
-            return $item['volid']; // esempio: local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst
+function getFirstAvailableTemplate($node) {
+    // 1) Recupera lista storage disponibili sul nodo
+    $storagesResp = proxmoxApiRequest('GET', "/nodes/$node/storage");
+    if (empty($storagesResp['data'])) {
+        throw new Exception("Nessuno storage trovato sul nodo $node");
+    }
+
+    foreach ($storagesResp['data'] as $storage) {
+        $storageName = $storage['storage'] ?? null;
+        if (!$storageName) continue;
+
+        // 2) Lista contenuti dello storage
+        $contentResp = proxmoxApiRequest('GET', "/nodes/$node/storage/$storageName/content");
+        if (!empty($contentResp['data'])) {
+            foreach ($contentResp['data'] as $item) {
+                if (($item['content'] ?? '') === 'vztmpl') {
+                    // Template LXC trovato
+                    return $storageName . ':' . $item['volid'];
+                }
+            }
         }
     }
-    throw new Exception("Nessun template LXC trovato su $storage di $node");
+
+    throw new Exception("Errore: Nessun template LXC trovato su nessuno storage di $node");
 }
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
@@ -73,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
-                'ostemplate' => $template,
+                'ostemplate' => getFirstAvailableTemplate($node),
                 'hostname' => 'mcserver-' . time(),
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
