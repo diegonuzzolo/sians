@@ -131,7 +131,8 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
         'cores' => $cpu,
         'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'MinecraftStrongPass123!',
+        'password' => 'Lgu8330Serve6',
+        'onboot' => 1, 
     ];
 
     error_log("Creazione container Proxmox - dati POST: " . print_r($postData, true));
