@@ -22,7 +22,7 @@ try {
 if (!defined('PROXMOX_API_URL')) define('PROXMOX_API_URL', 'https://192.168.1.251:8006');
 if (!defined('PROXMOX_NODE')) define('PROXMOX_NODE', 'pve') ;
 if (!defined('PROXMOX_API_TOKEN_NAME')) define('PROXMOX_API_TOKEN_NAME', 'root@pam!sinas');
-if (!defined('PROXMOX_API_TOKEN_VALUE')) define('PROXMOX_API_TOKEN_VALUE', 'bff3d5bd-b6f6-47f2-a75b-c763feb51c3e');
+if (!defined('PROXMOX_API_TOKEN_VALUE')) define('PROXMOX_API_TOKEN_VALUE', '74e414b6-cdef-4ac5-a0a9-03a06156bb5f');
 if (!defined('CLOUDFLARE_API_TOKEN')) define ('CLOUDFLARE_API_TOKEN', '5qZFVHEm6DDAx10qyEQEjX0VB2vgljgT9sT70FKJ');
 if (!defined('CLOUDFLARE_ZONE_ID')) define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 if (!defined('CLOUDFLARE_API_BASE')) define('CLOUDFLARE_API_BASE', 'https://api.cloudflare.com/client/v4');
