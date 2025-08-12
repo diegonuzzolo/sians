@@ -1,6 +1,5 @@
 <?php
-ob_start(); // Inizia output buffering
-
+session_start();
 include("auth_check.php");
 require 'config/config.php';
 
@@ -8,6 +7,13 @@ $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
 $error = null;
 
+// --- Token anti-doppio submit ---
+if (!isset($_SESSION['form_token'])) {
+    $_SESSION['form_token'] = bin2hex(random_bytes(32));
+}
+$form_token = $_SESSION['form_token'];
+
+// Funzione per ottenere IP libero
 function getNextFreePrivateIp(PDO $pdo): string {
     $baseIp = '192.168.1.';
     $start = 101;
@@ -30,7 +36,7 @@ function getNextFreePrivateIp(PDO $pdo): string {
         }
     }
 
-    return $baseIp . $start; // fallback
+    return $baseIp . $start;
 }
 
 function calculateCpuCores(int $ramGb): int {
@@ -59,15 +65,6 @@ function calculatePrice(int $ramGb): float {
     return $priceTable[32];
 }
 
-function ipIncrement($ip) {
-    $parts = explode('.', $ip);
-    for ($i = 3; $i >= 0; $i--) {
-        if (++$parts[$i] <= 255) break;
-        $parts[$i] = 0;
-    }
-    return implode('.', $parts);
-}
-
 function proxmoxLogin() {
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
@@ -94,8 +91,7 @@ function proxmoxLogin() {
         'csrf' => $json['data']['CSRFPreventionToken']
     ];
 }
-
-define('PROXMOX_STORAGE', 'local-lvm'); // Assicurati che sia il tuo storage LVM corretto
+define('PROXMOX_STORAGE', 'local-lvm'); // il tuo storage LVM corretto
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
     $swapMb = intval($ramMb * 1.5);
@@ -137,58 +133,68 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) 
     return $json['data'];
 }
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $serverName = trim($_POST['server_name'] ?? '');
-    $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
-    if ($ramGb > 20) $ramGb = 20;
 
-    $cpuCores = calculateCpuCores($ramGb);
-    $price = calculatePrice($ramGb);
+    if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']) {
+        $error = "Richiesta duplicata o token non valido.";
+    } else {
+        // Evita doppio submit invalidando il token
+        unset($_SESSION['form_token']);
 
-    if (empty($serverName)) {
-        $error = "Inserisci un nome valido per il server.";
-    } elseif ($ramGb < 2) {
-        $error = "Inserisci una quantità di RAM valida (minimo 2 GB).";
-    }
+        $serverName = trim($_POST['server_name'] ?? '');
+        $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
+        if ($ramGb > 20) $ramGb = 20;
 
-    if (!$error) {
-        try {
-            $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-            $maxVmid = (int)$stmt->fetchColumn();
-            $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
+        $cpuCores = calculateCpuCores($ramGb);
+        $price = calculatePrice($ramGb);
 
-            $nextIp = getNextFreePrivateIp($pdo);
+        if (empty($serverName)) {
+            $error = "Inserisci un nome valido per il server.";
+        } elseif ($ramGb < 2) {
+            $error = "Inserisci una quantità di RAM valida (minimo 2 GB).";
+        }
 
-            $storageGb = 64;
+        if (!$error) {
+            try {
+                $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
+                $maxVmid = (int)$stmt->fetchColumn();
+                $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
-            $auth = proxmoxLogin();
+                $nextIp = getNextFreePrivateIp($pdo);
 
-            createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
+                $storageGb = 64;
 
-            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
-            $containerId = $pdo->lastInsertId();
+                $auth = proxmoxLogin();
 
-            $status = 'not_installed';
+                createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
 
-            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
-            $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
-            $serverId = $pdo->lastInsertId();
+                $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
+                $containerId = $pdo->lastInsertId();
 
-            $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
-            $stmt3->execute([$serverId, $containerId]);
+                $status = 'not_installed';
 
-            header("Location: dashboard.php?created=1");
-            exit();
+                $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
+                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
+                $serverId = $pdo->lastInsertId();
 
-        } catch (Exception $e) {
-            $error = "Errore nella creazione del server: " . $e->getMessage();
+                $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
+                $stmt3->execute([$serverId, $containerId]);
+
+                // Rigenera token per il prossimo submit (se rimane sulla pagina)
+                $_SESSION['form_token'] = bin2hex(random_bytes(32));
+
+                // Redirect alla dashboard
+                header("Location: dashboard.php?created=1");
+                exit;
+
+            } catch (Exception $e) {
+                $error = "Errore nella creazione del server: " . $e->getMessage();
+            }
         }
     }
 }
-
-ob_end_flush();
-
 ?>
 
 
@@ -204,48 +210,55 @@ ob_end_flush();
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="" class="bg-dark p-4 rounded-4 shadow-lg">
-        <div class="mb-4">
-            <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
-            <input type="text" name="server_name" id="server_name"
-                class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
-                placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+    <form method="POST" action="add_server.php" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
+    <div class="mb-4">
+        <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
+        <input type="text" name="server_name" id="server_name"
+            class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
+            placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+    </div>
+
+    <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
+        <div class="card-header bg-primary rounded-3 py-2 text-white text-center fs-5 fw-bold">
+            Configura le Risorse
         </div>
-
-        <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-            <div class="card-header bg-primary rounded-3 py-2 text-white text-center fs-5 fw-bold">
-                Configura le Risorse
-            </div>
-            <div class="card-body">
-                <div class="mb-4">
-                    <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
-                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
-                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
-                    <div class="d-flex justify-content-between text-white small mt-1">
-                        <span>2GB</span>
-                        <span>20GB</span>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
-                            class="fs-5"></span></label>
-                    <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
-                    <div class="progress" style="height: 8px;">
-                        <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                            style="width: 0%; transition: width 0.4s;"></div>
-                    </div>
-                </div>
-
-                <div class="mb-0 text-white fw-semibold fs-5 text-center">
-                    <span id="priceLabel">€ 0.00</span>
+        <div class="card-body">
+            <div class="mb-4">
+                <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
+                <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
+                    value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
+                <div class="d-flex justify-content-between text-white small mt-1">
+                    <span>2GB</span>
+                    <span>20GB</span>
                 </div>
             </div>
-        </div>
 
-        <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm" style="font-size: 1.2rem;">Crea
-            Server</button>
-    </form>
+            <div class="mb-3">
+                <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
+                        class="fs-5"></span></label>
+                <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
+                <div class="progress" style="height: 8px;">
+                    <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
+                        style="width: 0%; transition: width 0.4s;"></div>
+                </div>
+            </div>
+
+            <div class="mb-0 text-white fw-semibold fs-5 text-center">
+                <span id="priceLabel">€ 0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token anti-duplicazione -->
+    <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
+
+    <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm" style="font-size: 1.2rem;" id="submitBtn">
+        Crea Server
+    </button>
+</form>
+
+
+
 </div>
 
 <style>
@@ -284,6 +297,14 @@ ob_end_flush();
 </style>
 
 <script>
+
+        const form = document.getElementById('createServerForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Creazione in corso...';
+    });
     const ramInput = document.getElementById('ram_gb');
     const cpuLabel = document.getElementById('cpuLabel');
     const cpuInput = document.getElementById('cpu_cores');
