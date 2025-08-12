@@ -50,8 +50,8 @@ function calculatePrice(int $ramGb): float {
 function proxmoxLogin() {
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
-        'username' => PROXMOX_USER,
-        'password' => PROXMOX_PASSWORD
+        'username' => "root",
+        'password' => "Lgu8330Serve6"
     ];
 
     $ch = curl_init($url);
