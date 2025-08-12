@@ -100,7 +100,7 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) 
         'cores' => $cpu,
         'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'MinecraftStrongPass123!',
+        'password' => 'Lgu8330Serve6',
     ];
 
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
