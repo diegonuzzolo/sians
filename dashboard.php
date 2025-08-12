@@ -20,11 +20,11 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <link rel="stylesheet" href="assets/css/style.css">
 <main>
   <div class="container my-5">
-    <h1 class="mb-5 text-center text-bedrock display-4 fw-bold">🎮 Minecraft Bedrock - La Mia Dashboard</h1>
+    <h1 class="mb-5 text-center text-bedrock display-4 fw-bold">🎮 La Mia Dashboard</h1>
 
     <?php if (empty($containers)): ?>
       <div class="alert alert-info text-center fs-5">
-        Non hai ancora container assegnati. Contatta l’amministratore.
+        Non hai ancora server. Creane uno nuovo.
       </div>
     <?php else: ?>
       <div class="d-flex flex-wrap justify-content-center gap-4">
