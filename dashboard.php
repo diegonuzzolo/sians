@@ -37,7 +37,7 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
           ?>
           <div class="card server-card shadow-lg text-center p-3" style="width: 280px; border-radius: 15px;">
             <div class="card-header bg-bedrock text-white rounded-top py-3">
-              <h4 class="card-title mb-0 text-truncate" title="<?= htmlspecialchars($c['server_name'] ?? 'Server non installato') ?>">
+              <h4 class="card-title mb-0 text-truncate" title="<?= htmlspecialchars($c['server_name'] ?? 'Container vuoto') ?>">
                 <?= $serverInstalled ? htmlspecialchars($c['server_name']) : "<em>Server non installato</em>" ?>
               </h4>
             </div>
