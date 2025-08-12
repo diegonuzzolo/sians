@@ -121,44 +121,51 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
 {
     $swapMb = intval($ramMb * 1.5);
 
-    $postFields = "vmid=$vmid"
-        . "&hostname=mcserver-$vmid"
-        . "&storage=" . PROXMOX_STORAGE
-        . "&ostemplate=local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst"
-        . "&memory=$ramMb"
-        . "&swap=$swapMb"
-        . "&cores=$cpu"
-        . "&rootfs=" . PROXMOX_STORAGE . ":$storageGb"
-        . "&net0=name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254"
-        . "&password=Lgu8330Serve6";
+    $postData = [
+        'vmid' => $vmid,
+        'hostname' => "mcserver-$vmid",
+        'storage' => PROXMOX_STORAGE,
+        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+        'memory' => $ramMb,
+        'swap' => $swapMb,
+        'cores' => $cpu,
+        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
+        'password' => 'MinecraftStrongPass123!',
+    ];
+
+    error_log("Creazione container Proxmox - dati POST: " . print_r($postData, true));
 
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
     $ch = curl_init($url);
 
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "CSRFPreventionToken: {$auth['csrf']}",
         "Cookie: PVEAuthCookie={$auth['ticket']}",
-        "Content-Type: application/x-www-form-urlencoded"
     ]);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
     if ($response === false) {
-        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
+        $err = curl_error($ch);
+        error_log("CURL createLxc error: $err");
+        throw new Exception('Errore CURL createLxc: ' . $err);
     }
     curl_close($ch);
 
+    error_log("Risposta createLxcContainer: $response");
+
     $json = json_decode($response, true);
     if (isset($json['errors']) || !isset($json['data'])) {
+        error_log("Errore creazione container Proxmox: " . json_encode($json));
         throw new Exception('Errore creazione container: ' . json_encode($json));
     }
 
     return $json['data'];
 }
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -228,10 +235,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 
-<?php include("includes/header.php"); ?>
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
+<?php include 'includes/header.php'; ?>
 <div class="container my-5" style="max-width: 480px;">
     <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server</h2>
 
@@ -253,9 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="card-body">
                 <div class="mb-4">
-                    <label for="ram_gb" class="form-label text-white fw-semibold">
-                        RAM: <span id="ramValue"><?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?></span> GB
-                    </label>
+                    <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB) <span id="ramDisplay" class="fw-bold"></span></label>
                     <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                         value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                     <div class="d-flex justify-content-between text-white small mt-1">
@@ -264,10 +267,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
 
-
                 <div class="mb-3">
-                    <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
-                            class="fs-5"></span></label>
+                    <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel" class="fs-5"></span></label>
                     <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
                     <div class="progress" style="height: 8px;">
                         <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
@@ -285,13 +286,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
 
         <button id="createServerBtn" type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm"
-            style="font-size: 1.2rem;" id="submitBtn">
+            style="font-size: 1.2rem;">
             Crea Server
         </button>
     </form>
-
-
-
 </div>
 
 <style>
@@ -330,21 +328,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </style>
 
 <script>
-
     const form = document.getElementById('createServerForm');
-    const submitBtn = document.getElementById('submitBtn');
-
-    form.addEventListener('submit', () => {
-        submitBtn.disabled = true;
-        submitBtn.innerText = 'Creazione in corso...';
-    });
-
-    document.getElementById('createServerBtn').addEventListener('click', function () {
-        this.disabled = true;
-        this.textContent = 'Creazione in corso...';
-    });
+    const submitBtn = document.getElementById('createServerBtn');
     const ramInput = document.getElementById('ram_gb');
-    const ramValue = document.getElementById('ramValue');
+    const ramDisplay = document.getElementById('ramDisplay');
     const cpuLabel = document.getElementById('cpuLabel');
     const cpuInput = document.getElementById('cpu_cores');
     const cpuProgress = document.getElementById('cpuProgress');
@@ -354,37 +341,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         let ram = parseInt(ramInput.value) || 2;
         if (ram > 20) ram = 20;
 
+        ramDisplay.textContent = ram + ' GB';
+
         let cores = 2;
         let price = 6.5 * 0.85;
 
         if (ram <= 2) {
-            cores = 2; price = 6.5 * 0.85;
+            cores = 2;
+            price = 6.5 * 0.85;
         } else if (ram <= 4) {
-            cores = 2; price = 10 * 0.85;
+            cores = 2;
+            price = 10 * 0.85;
         } else if (ram <= 6) {
-            cores = 3; price = 15 * 0.85;
+            cores = 3;
+            price = 15 * 0.85;
         } else if (ram <= 8) {
-            cores = 4; price = 21.5 * 0.85;
+            cores = 4;
+            price = 21.5 * 0.85;
         } else if (ram <= 16) {
-            cores = 6; price = 35 * 0.85;
+            cores = 6;
+            price = 35 * 0.85;
         } else {
-            cores = 8; price = 57.5 * 0.85;
+            cores = 8;
+            price = 57.5 * 0.85;
         }
 
         cpuLabel.textContent = cores;
         cpuInput.value = cores;
-        cpuProgress.style.width = (cores / 8) * 100 + '%';
+
+        let percent = (cores / 8) * 100;
+        cpuProgress.style.width = percent + '%';
+
         priceLabel.textContent = "€ " + price.toFixed(2);
     }
 
-    // Aggiorna RAM e CPU live
-    ramInput.addEventListener('input', () => {
-        ramValue.textContent = ramInput.value;
-        updateCpuAndPrice();
+    ramInput.addEventListener('input', updateCpuAndPrice);
+
+    form.addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Creazione in corso...';
     });
 
     updateCpuAndPrice();
-
 </script>
 
 <?php include("includes/footer.php"); ?>
