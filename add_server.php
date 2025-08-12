@@ -80,8 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$error) {
         try {
             $node = 'pve';
-            $template = getFirstAvailableTemplate($node, 'local');
-
+            
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
             if (!$vmid) throw new Exception("Impossibile ottenere vmid");
