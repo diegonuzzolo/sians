@@ -168,6 +168,32 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
     return $json['data'];
 }
 
+function startLxcContainer($vmid, $auth) {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
+    $ch = curl_init($url);
+
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "CSRFPreventionToken: {$auth['csrf']}",
+        "Cookie: PVEAuthCookie={$auth['ticket']}",
+    ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $response = curl_exec($ch);
+    if ($response === false) {
+        throw new Exception('Errore CURL startLxcContainer: ' . curl_error($ch));
+    }
+    curl_close($ch);
+
+    $json = json_decode($response, true);
+    if (isset($json['errors'])) {
+        throw new Exception('Errore avvio container: ' . json_encode($json));
+    }
+    return $json['data'] ?? true;
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     error_log('POST ricevuto: ' . print_r($_POST, true));
     error_log('Token sessione: ' . ($_SESSION['form_token'] ?? 'manca'));
@@ -204,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth = proxmoxLogin();
 
                 $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
-
+                startLxcContainer($vmid, $auth);
                 if (!$result) {
                     throw new Exception('Creazione container fallita senza errore specifico.');
                 }
