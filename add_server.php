@@ -104,12 +104,12 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp)
 $postData = [
     'vmid' => $vmid,
     'hostname' => "mcserver-$vmid",
-    'storage' => 'local',
+    'storage' => 'local-lvm',
     'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
     'memory' => $ramMb,
     'cores' => $cpu,
-    'rootfs' => $storageGb . "G",
-    'net0' => 'name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254',
+    'rootfs' => $storageGb . "G", // se storage = local-lvm, va bene cosi
+    'net0' => "name=eth0,bridge=vmbr0,ip={$privateIp}/24,gw=192.168.1.254",
     'password' => 'MinecraftStrongPass123!',
 ];
 
