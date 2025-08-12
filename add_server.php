@@ -116,7 +116,6 @@ function proxmoxLogin()
     ];
 }
 
-define('PROXMOX_STORAGE', 'local-lvm'); // il tuo storage LVM corretto
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
 {
