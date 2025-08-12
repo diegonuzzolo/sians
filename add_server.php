@@ -14,7 +14,8 @@ if (!isset($_SESSION['form_token'])) {
 $form_token = $_SESSION['form_token'];
 
 // Funzione per ottenere IP libero
-function getNextFreePrivateIp(PDO $pdo): string {
+function getNextFreePrivateIp(PDO $pdo): string
+{
     $baseIp = '192.168.1.';
     $start = 101;
     $end = 254;
@@ -26,7 +27,7 @@ function getNextFreePrivateIp(PDO $pdo): string {
     foreach ($usedIps as $ip) {
         $parts = explode('.', $ip);
         if (count($parts) === 4) {
-            $usedLastOctets[] = (int)$parts[3];
+            $usedLastOctets[] = (int) $parts[3];
         }
     }
 
@@ -39,16 +40,23 @@ function getNextFreePrivateIp(PDO $pdo): string {
     return $baseIp . $start;
 }
 
-function calculateCpuCores(int $ramGb): int {
-    if ($ramGb <= 2) return 2;
-    if ($ramGb <= 4) return 2;
-    if ($ramGb <= 6) return 3;
-    if ($ramGb <= 8) return 4;
-    if ($ramGb <= 16) return 6;
+function calculateCpuCores(int $ramGb): int
+{
+    if ($ramGb <= 2)
+        return 2;
+    if ($ramGb <= 4)
+        return 2;
+    if ($ramGb <= 6)
+        return 3;
+    if ($ramGb <= 8)
+        return 4;
+    if ($ramGb <= 16)
+        return 6;
     return 8;
 }
 
-function calculatePrice(int $ramGb): float {
+function calculatePrice(int $ramGb): float
+{
     $priceTable = [
         2 => 6.5 * 0.85,
         4 => 10 * 0.85,
@@ -57,15 +65,21 @@ function calculatePrice(int $ramGb): float {
         16 => 35 * 0.85,
         32 => 57.5 * 0.85,
     ];
-    if ($ramGb <= 2) return $priceTable[2];
-    if ($ramGb <= 4) return $priceTable[4];
-    if ($ramGb <= 6) return $priceTable[6];
-    if ($ramGb <= 8) return $priceTable[8];
-    if ($ramGb <= 16) return $priceTable[16];
+    if ($ramGb <= 2)
+        return $priceTable[2];
+    if ($ramGb <= 4)
+        return $priceTable[4];
+    if ($ramGb <= 6)
+        return $priceTable[6];
+    if ($ramGb <= 8)
+        return $priceTable[8];
+    if ($ramGb <= 16)
+        return $priceTable[16];
     return $priceTable[32];
 }
 
-function proxmoxLogin() {
+function proxmoxLogin()
+{
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
         'username' => PROXMOX_USERNAME,
@@ -79,7 +93,8 @@ function proxmoxLogin() {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) throw new Exception('Errore CURL login: ' . curl_error($ch));
+    if ($response === false)
+        throw new Exception('Errore CURL login: ' . curl_error($ch));
     curl_close($ch);
 
     $json = json_decode($response, true);
@@ -93,7 +108,8 @@ function proxmoxLogin() {
 }
 define('PROXMOX_STORAGE', 'local-lvm'); // il tuo storage LVM corretto
 
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
+function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
+{
     $swapMb = intval($ramMb * 1.5);
 
     $postData = [
@@ -122,7 +138,8 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) 
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
+    if ($response === false)
+        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
     curl_close($ch);
 
     $json = json_decode($response, true);
@@ -144,7 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $serverName = trim($_POST['server_name'] ?? '');
         $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
-        if ($ramGb > 20) $ramGb = 20;
+        if ($ramGb > 20)
+            $ramGb = 20;
 
         $cpuCores = calculateCpuCores($ramGb);
         $price = calculatePrice($ramGb);
@@ -158,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$error) {
             try {
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $maxVmid = (int)$stmt->fetchColumn();
+                $maxVmid = (int) $stmt->fetchColumn();
                 $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
                 $nextIp = getNextFreePrivateIp($pdo);
@@ -211,51 +229,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" action="add_server.php" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
-    <div class="mb-4">
-        <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
-        <input type="text" name="server_name" id="server_name"
-            class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
-            placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
-    </div>
-
-    <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-        <div class="card-header bg-primary rounded-3 py-2 text-white text-center fs-5 fw-bold">
-            Configura le Risorse
+        <div class="mb-4">
+            <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
+            <input type="text" name="server_name" id="server_name"
+                class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
+                placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
-        <div class="card-body">
-            <div class="mb-4">
-                <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
-                <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
-                    value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
-                <div class="d-flex justify-content-between text-white small mt-1">
-                    <span>2GB</span>
-                    <span>20GB</span>
+
+        <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
+            <div class="card-header bg-primary rounded-3 py-2 text-white text-center fs-5 fw-bold">
+                Configura le Risorse
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
+                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
+                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
+                    <div class="d-flex justify-content-between text-white small mt-1">
+                        <span>2GB</span>
+                        <span>20GB</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
+                            class="fs-5"></span></label>
+                    <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
+                    <div class="progress" style="height: 8px;">
+                        <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
+                            style="width: 0%; transition: width 0.4s;"></div>
+                    </div>
+                </div>
+
+                <div class="mb-0 text-white fw-semibold fs-5 text-center">
+                    <span id="priceLabel">€ 0.00</span>
                 </div>
             </div>
-
-            <div class="mb-3">
-                <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
-                        class="fs-5"></span></label>
-                <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
-                <div class="progress" style="height: 8px;">
-                    <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                        style="width: 0%; transition: width 0.4s;"></div>
-                </div>
-            </div>
-
-            <div class="mb-0 text-white fw-semibold fs-5 text-center">
-                <span id="priceLabel">€ 0.00</span>
-            </div>
         </div>
-    </div>
 
-    <!-- Token anti-duplicazione -->
-    <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
+        <!-- Token anti-duplicazione -->
+        <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
 
-    <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm" style="font-size: 1.2rem;" id="submitBtn">
-        Crea Server
-    </button>
-</form>
+        <button id="createServerBtn" type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm"
+            style="font-size: 1.2rem;" id="submitBtn">
+            Crea Server
+        </button>
+    </form>
 
 
 
@@ -298,12 +317,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 
-        const form = document.getElementById('createServerForm');
+    const form = document.getElementById('createServerForm');
     const submitBtn = document.getElementById('submitBtn');
 
     form.addEventListener('submit', () => {
         submitBtn.disabled = true;
         submitBtn.innerText = 'Creazione in corso...';
+    });
+
+    document.getElementById('createServerBtn').addEventListener('click', function () {
+        this.disabled = true;
+        this.textContent = 'Creazione in corso...';
     });
     const ramInput = document.getElementById('ram_gb');
     const cpuLabel = document.getElementById('cpuLabel');
