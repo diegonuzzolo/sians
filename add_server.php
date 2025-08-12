@@ -168,17 +168,19 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log('POST ricevuto: ' . print_r($_POST, true));
+    error_log('Token sessione: ' . ($_SESSION['form_token'] ?? 'manca'));
+    error_log('Token POST: ' . ($_POST['form_token'] ?? 'manca'));
 
     if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']) {
         $error = "Richiesta duplicata o token non valido.";
     } else {
-        // Evita doppio submit invalidando il token
+        // Invalida il token subito per prevenire doppio submit
         unset($_SESSION['form_token']);
 
         $serverName = trim($_POST['server_name'] ?? '');
         $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
-        if ($ramGb > 20)
-            $ramGb = 20;
+        if ($ramGb > 20) $ramGb = 20;
 
         $cpuCores = calculateCpuCores($ramGb);
         $price = calculatePrice($ramGb);
@@ -196,14 +198,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
                 $nextIp = getNextFreePrivateIp($pdo);
-
                 $storageGb = 64;
-
-                error_log("Dati per creazione: vmid=$vmid, cpuCores=$cpuCores, ramGb=$ramGb, storageGb=$storageGb, nextIp=$nextIp");
 
                 $auth = proxmoxLogin();
 
-                createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
+                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
+
+                if (!$result) {
+                    throw new Exception('Creazione container fallita senza errore specifico.');
+                }
 
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
@@ -218,20 +221,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
                 $stmt3->execute([$serverId, $containerId]);
 
-                // Rigenera token per il prossimo submit (se rimane sulla pagina)
+                // Rigenera token per la prossima volta
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));
 
-                // Redirect alla dashboard
                 header("Location: dashboard.php?created=1");
                 exit;
 
             } catch (Exception $e) {
-                error_log("Eccezione durante creazione server: " . $e->getMessage());
                 $error = "Errore nella creazione del server: " . $e->getMessage();
             }
         }
     }
 }
+
 ?>
 
 
