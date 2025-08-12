@@ -58,7 +58,7 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <p><strong>Stato:</strong> <span class="status-badge <?= 'status-' . $status ?>"><?= htmlspecialchars(ucfirst($status)) ?></span></p>
                 <a href="server.php?id=<?= $c['server_id'] ?>" class="btn btn-bedrock btn-lg w-100 mt-3">Gestisci Server</a>
               <?php else: ?>
-                <button class="btn btn-primary btn-install btn-lg w-100 mt-3" data-container-id="<?= $c['container_id'] ?>">Installa Server Bedrock</button>
+                <button class="btn btn-primary btn-install btn-lg w-100 mt-3" data-container-id="<?= $c['container_id'] ?>">Installa</button>
               <?php endif; ?>
             </div>
           </div>
