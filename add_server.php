@@ -25,6 +25,7 @@ function calculatePrice(int $ramGb): float {
         16 => 35 * 0.85,
         32 => 57.5 * 0.85,
     ];
+
     if ($ramGb <= 2) return $priceTable[2];
     if ($ramGb <= 4) return $priceTable[4];
     if ($ramGb <= 6) return $priceTable[6];
@@ -33,76 +34,65 @@ function calculatePrice(int $ramGb): float {
     return $priceTable[32];
 }
 
+// Funzione per ottenere il primo template disponibile
+function getFirstAvailableTemplate($node = 'pve', $storage = 'local') {
+    $templates = proxmoxApiRequest('GET', "/nodes/$node/storage/$storage/content");
+    foreach ($templates['data'] as $item) {
+        if ($item['content'] === 'vztmpl') {
+            return $item['volid']; // esempio: local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst
+        }
+    }
+    throw new Exception("Nessun template LXC trovato su $storage di $node");
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
+
     if ($ramGb > 20) $ramGb = 20;
 
     $cpuCores = calculateCpuCores($ramGb);
     $price = calculatePrice($ramGb);
 
     if (empty($serverName)) {
-        $error = "Inserisci un nome valido.";
+        $error = "Inserisci un nome valido per il server.";
     } elseif ($ramGb < 2) {
-        $error = "Minimo 2GB di RAM.";
+        $error = "Inserisci almeno 2 GB di RAM.";
     }
 
     if (!$error) {
         try {
-            $node = 'pve'; // cambia se il tuo nodo si chiama diversamente
+            $node = 'pve';
+            $template = getFirstAvailableTemplate($node, 'local');
 
-            // 1) Controllo che il template esista
-            $templates = proxmoxApiRequest('GET', "/nodes/$node/storage/local/content");
-            $foundTemplate = false;
-            foreach ($templates['data'] as $t) {
-                if ($t['volid'] === $templateName) {
-                    $foundTemplate = true;
-                    break;
-                }
-            }
-            if (!$foundTemplate) {
-                throw new Exception("Template non trovato su $node.");
-            }
-
-            // 2) VMID libero
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
-            if (!$vmid) throw new Exception("Impossibile ottenere un VMID libero");
+            if (!$vmid) throw new Exception("Impossibile ottenere vmid");
 
-            // 3) Crea container
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192));
+
             proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
-                'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
+                'ostemplate' => $template,
                 'hostname' => 'mcserver-' . time(),
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'rootfs' => 'local-lvm:64',
-                'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
-                'password' => 'Lgu8330Serve6',
-                'start' => 1
+                'net0' => 'name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254',
+                'password' => 'Lgu8330Serve6'
             ]);
 
-            // 4) Recupera IP dal config
-            sleep(5);
-            $config = proxmoxApiRequest('GET', "/nodes/$node/lxc/$vmid/config");
-            $ip = 'IP non disponibile';
-            if (!empty($config['data']['net0']) && preg_match('/ip=(\d+\.\d+\.\d+\.\d+)/', $config['data']['net0'], $m)) {
-                $ip = $m[1];
-            }
-
-            // 5) Salva nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?)");
-            $hostname = 'mcserver-' . time();
-            $stmt->execute([$vmid, $ip, $hostname, $cpuCores, $ramGb * 1024]);
+            $stmt->execute([$vmid, 'IP in attesa', 'mcserver-' . time(), $cpuCores, $ramGb * 1024]);
             $containerId = $pdo->lastInsertId();
 
-            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, 'running', 'bedrock', ?, ?, NOW(), NOW(), ?)");
+            $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, NOW(), NOW(), ?)");
             $stmt2->execute([$serverName, $userId, $containerId, $vmid, $cpuCores, $ramGb * 1024, $price]);
+            $serverId = $pdo->lastInsertId();
 
             $stmt3 = $pdo->prepare("UPDATE containers SET assigned_user_id = ?, assigned_server_id = ? WHERE id = ?");
-            $stmt3->execute([$userId, $pdo->lastInsertId(), $containerId]);
+            $stmt3->execute([$userId, $serverId, $containerId]);
 
             header("Location: dashboard.php?created=1");
             exit;
@@ -112,8 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 ?>
+
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
