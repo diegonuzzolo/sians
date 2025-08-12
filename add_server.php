@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <div class="container my-5" style="max-width: 480px;">
-    <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server Minecraft Bedrock</h2>
+    <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server</h2>
 
     <!-- Qui va un eventuale alert errore -->
 
@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="mb-0 text-white fw-semibold fs-5 text-center">
-                    Prezzo: <span id="priceLabel">€ 0.00</span>
+                     <span id="priceLabel">€ 0.00</span>
                 </div>
             </div>
         </div>
