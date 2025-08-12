@@ -61,8 +61,8 @@ function ipIncrement($ip) {
 function proxmoxLogin() {
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
-        'username' => "root",
-        'password' => "Lgu8330Serve6"
+        'username' => PROXMOX_API_TOKEN_NAME,
+        'password' => PROXMOX_API_TOKEN_VALUE
     ];
 
     $ch = curl_init($url);
@@ -99,7 +99,7 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $auth, $privateIp) 
         'cores' => $cpu,
         'rootfs' => $storageGb . "G",
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'MinecraftStrongPass123!',
+        'password' => 'Lgu8330Serve6',
     ];
 
     $ch = curl_init($url);
