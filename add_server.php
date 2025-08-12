@@ -6,8 +6,20 @@ error_reporting(E_ALL);
 require_once 'config/config.php';
 require_once 'auth_check.php';
 
-
 $userId = $_SESSION['user_id'] ?? 0;
+// Controlla se l'utente ha almeno un server ready
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND status IN ('running', 'installed', 'ready')");
+$stmt->execute([$userId]);
+$readyCount = (int) $stmt->fetchColumn();
+
+if ($readyCount === 0) {
+    // Se non c'è nessun server pronto, blocca l'accesso
+    // e mostra messaggio o reindirizza a install_wait o a pagina di info
+    header("Location: install_wait.php"); // o altra pagina, oppure mostra messaggio
+    exit;
+}
+
+
 $defaultRam = 4;
 $error = null;
 

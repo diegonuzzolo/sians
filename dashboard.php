@@ -4,6 +4,18 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
+// Controlla se l'utente ha almeno un server ready
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND status IN ('running', 'installed', 'ready')");
+$stmt->execute([$userId]);
+$readyCount = (int) $stmt->fetchColumn();
+
+if ($readyCount === 0) {
+    // Se non c'è nessun server pronto, blocca l'accesso
+    // e mostra messaggio o reindirizza a install_wait o a pagina di info
+    header("Location: install_wait.php"); // o altra pagina, oppure mostra messaggio
+    exit;
+}
+
 $sql = "SELECT c.id AS container_id, c.cpu_cores, c.ram_mb, c.assigned_server_id,
                s.id AS server_id, s.name AS server_name, s.status AS server_status, s.tunnel_url
         FROM containers c
