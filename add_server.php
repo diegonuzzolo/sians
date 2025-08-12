@@ -6,6 +6,32 @@ $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
 $error = null;
 
+function getNextFreePrivateIp(PDO $pdo): string {
+    $baseIp = '192.168.1.';
+    $start = 101;
+    $end = 254;
+
+    $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip LIKE '192.168.1.%'");
+    $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $usedLastOctets = [];
+    foreach ($usedIps as $ip) {
+        $parts = explode('.', $ip);
+        if (count($parts) === 4) {
+            $usedLastOctets[] = (int)$parts[3];
+        }
+    }
+
+    for ($i = $start; $i <= $end; $i++) {
+        if (!in_array($i, $usedLastOctets)) {
+            return $baseIp . $i;
+        }
+    }
+
+    // Se non ci sono IP liberi
+    throw new Exception("Nessun IP privato disponibile nel range $baseIp$start-$baseIp$end");
+}
+
 function calculateCpuCores(int $ramGb): int {
     if ($ramGb <= 2) return 2;
     if ($ramGb <= 4) return 2;
@@ -30,15 +56,6 @@ function calculatePrice(int $ramGb): float {
     if ($ramGb <= 8) return $priceTable[8];
     if ($ramGb <= 16) return $priceTable[16];
     return $priceTable[32];
-}
-
-function ipIncrement($ip) {
-    $parts = explode('.', $ip);
-    for ($i = 3; $i >= 0; $i--) {
-        if (++$parts[$i] <= 255) break;
-        $parts[$i] = 0;
-    }
-    return implode('.', $parts);
 }
 
 function proxmoxLogin() {
@@ -67,17 +84,21 @@ function proxmoxLogin() {
         'csrf' => $json['data']['CSRFPreventionToken']
     ];
 }
-define('PROXMOX_STORAGE', 'local-lvm'); // usa il tuo storage LVM corretto
+
+define('PROXMOX_STORAGE', 'local-lvm'); // cambia se usi altro storage
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
+    $swapMb = intval($ramMb * 1.5);
+
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
         'storage' => PROXMOX_STORAGE,
         'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
         'memory' => $ramMb,
+        'swap' => $swapMb,
         'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,  // Senza "G"
+        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
         'password' => 'MinecraftStrongPass123!',
     ];
@@ -127,18 +148,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $maxVmid = (int)$stmt->fetchColumn();
             $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
-            // Trova prossimo IP privato
-            $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip IS NOT NULL ORDER BY id DESC LIMIT 1");
-            $lastIp = $stmt->fetchColumn();
-            if ($lastIp) {
-                $nextIp = ipIncrement($lastIp);
-                $parts = explode('.', $nextIp);
-                if ($parts[0] != 192 || $parts[1] != 168 || $parts[2] != 1 || $parts[3] > 254) {
-                    $nextIp = '192.168.1.101';
-                }
-            } else {
-                $nextIp = '192.168.1.101';
-            }
+            // Trova prossimo IP privato usando funzione
+            $nextIp = getNextFreePrivateIp($pdo);
 
             $storageGb = 64;
 
