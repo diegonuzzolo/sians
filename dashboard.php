@@ -48,7 +48,7 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?= htmlspecialchars($c['tunnel_url']) ?>
                   </a>
                 <?php else: ?>
-                  <span class="text-orange">Non disponibile</span>
+                  <span class="text">Non disponibile</span>
                 <?php endif; ?>
               </p>
               <p><strong>CPU Cores:</strong> <?= htmlspecialchars($c['cpu_cores'] ?? '-') ?></p>
