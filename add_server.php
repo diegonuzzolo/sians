@@ -1,5 +1,6 @@
 <?php
-session_start();
+ob_start(); // Inizia output buffering
+
 include("auth_check.php");
 require 'config/config.php';
 
@@ -28,7 +29,8 @@ function getNextFreePrivateIp(PDO $pdo): string {
             return $baseIp . $i;
         }
     }
-    return $baseIp . $start;
+
+    return $baseIp . $start; // fallback
 }
 
 function calculateCpuCores(int $ramGb): int {
@@ -55,6 +57,15 @@ function calculatePrice(int $ramGb): float {
     if ($ramGb <= 8) return $priceTable[8];
     if ($ramGb <= 16) return $priceTable[16];
     return $priceTable[32];
+}
+
+function ipIncrement($ip) {
+    $parts = explode('.', $ip);
+    for ($i = 3; $i >= 0; $i--) {
+        if (++$parts[$i] <= 255) break;
+        $parts[$i] = 0;
+    }
+    return implode('.', $parts);
 }
 
 function proxmoxLogin() {
@@ -84,7 +95,7 @@ function proxmoxLogin() {
     ];
 }
 
-define('PROXMOX_STORAGE', 'local-lvm');
+define('PROXMOX_STORAGE', 'local-lvm'); // Assicurati che sia il tuo storage LVM corretto
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
     $swapMb = intval($ramMb * 1.5);
@@ -147,17 +158,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
             $nextIp = getNextFreePrivateIp($pdo);
+
             $storageGb = 64;
 
             $auth = proxmoxLogin();
 
             createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
 
-            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp, 'creating']);
+            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
             $containerId = $pdo->lastInsertId();
 
-            $status = 'creating';
+            $status = 'not_installed';
 
             $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
             $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
@@ -166,14 +178,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
             $stmt3->execute([$serverId, $containerId]);
 
-            $_SESSION['creating_server'] = ['vmid' => $vmid, 'server_id' => $serverId];
+            header("Location: dashboard.php?created=1");
+            exit();
 
-            // Qui la pagina di attesa e redirect viene gestita nel frontend (HTML/JS)
         } catch (Exception $e) {
             $error = "Errore nella creazione del server: " . $e->getMessage();
         }
     }
 }
+
+ob_end_flush();
+
 ?>
 
 
