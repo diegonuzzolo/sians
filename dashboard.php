@@ -1,13 +1,11 @@
-
 <?php
 include("auth_check.php");
 require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Prendi i container associati all'utente e info server se esiste
-$sql = "SELECT c.id AS container_id, c.private_ip, c.hostname, c.cpu_cores, c.ram_mb, c.assigned_server_id,
-               s.id AS server_id, s.name AS server_name, s.status AS server_status
+$sql = "SELECT c.id AS container_id, c.cpu_cores, c.ram_mb, c.assigned_server_id,
+               s.id AS server_id, s.name AS server_name, s.status AS server_status, s.tunnel_url
         FROM containers c
         LEFT JOIN servers s ON s.container_id = c.id
         WHERE c.assigned_user_id = ?
@@ -21,35 +19,41 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <?php include("includes/header.php"); ?>
 <link rel="stylesheet" href="assets/css/style.css">
 <main>
-  <div class="container my-4">
-    <h1 class="mb-4 text-center text-bedrock">🎮 Minecraft Bedrock - La Mia Dashboard</h1>
+  <div class="container my-5">
+    <h1 class="mb-5 text-center text-bedrock display-4 fw-bold">🎮 Minecraft Bedrock - La Mia Dashboard</h1>
 
     <?php if (empty($containers)): ?>
       <div class="alert alert-info text-center fs-5">
         Non hai ancora container assegnati. Contatta l’amministratore.
       </div>
     <?php else: ?>
-      <div class="row g-4">
+      <div class="d-flex flex-wrap justify-content-center gap-4">
         <?php foreach ($containers as $c): ?>
-          <div class="col-md-6 col-lg-4">
-            <div class="card shadow-lg">
-              <div class="card-header bg-bedrock text-white">
-                <h5 class="card-title mb-0"><?= htmlspecialchars($c['hostname']) ?></h5>
-              </div>
-              <div class="card-body">
-                <p><strong>IP privato:</strong> <?= htmlspecialchars($c['private_ip'] ?? '-') ?></p>
-                <p><strong>CPU Cores:</strong> <?= htmlspecialchars($c['cpu_cores'] ?? '-') ?></p>
-                <p><strong>RAM:</strong> <?= round(($c['ram_mb'] ?? 0) / 1024, 2) ?> GB</p>
-
-                <?php if ($c['server_id']): ?>
-                  <p><strong>Server:</strong> <?= htmlspecialchars($c['server_name'] ?? '-') ?></p>
-                  <p><strong>Stato:</strong> <?= htmlspecialchars($c['server_status'] ?? '-') ?></p>
-                  <a href="server.php?id=<?= $c['server_id'] ?>" class="btn btn-bedrock">Gestisci Server</a>
+          <div class="card server-card shadow-lg text-center p-3" style="width: 280px; border-radius: 15px;">
+            <div class="card-header bg-bedrock text-white rounded-top py-3">
+              <h4 class="card-title mb-0 text-truncate" title="<?= htmlspecialchars($c['server_name'] ?? 'Server non installato') ?>">
+                <?= $c['server_id'] ? htmlspecialchars($c['server_name']) : "<em>Server non installato</em>" ?>
+              </h4>
+            </div>
+            <div class="card-body py-4">
+              <p><strong>Tunnel URL:</strong><br>
+                <?php if (!empty($c['tunnel_url'])): ?>
+                  <a href="<?= htmlspecialchars($c['tunnel_url']) ?>" target="_blank" class="text-decoration-none text-bedrock fw-semibold">
+                    <?= htmlspecialchars($c['tunnel_url']) ?>
+                  </a>
                 <?php else: ?>
-                  <p><em>Server non installato</em></p>
-                  <button class="btn btn-primary btn-install" data-container-id="<?= $c['container_id'] ?>">Installa Server Bedrock</button>
+                  <span class="text-muted">Non disponibile</span>
                 <?php endif; ?>
-              </div>
+              </p>
+              <p><strong>CPU Cores:</strong> <?= htmlspecialchars($c['cpu_cores'] ?? '-') ?></p>
+              <p><strong>RAM:</strong> <?= round(($c['ram_mb'] ?? 0) / 1024, 2) ?> GB</p>
+
+              <?php if ($c['server_id']): ?>
+                <p><strong>Stato:</strong> <span class="status-badge <?= 'status-' . ($c['server_status'] ?? 'stopped') ?>"><?= htmlspecialchars(ucfirst($c['server_status'] ?? 'stopped')) ?></span></p>
+                <a href="server.php?id=<?= $c['server_id'] ?>" class="btn btn-bedrock btn-lg w-100 mt-3">Gestisci Server</a>
+              <?php else: ?>
+                <button class="btn btn-primary btn-install btn-lg w-100 mt-3" data-container-id="<?= $c['container_id'] ?>">Installa Server Bedrock</button>
+              <?php endif; ?>
             </div>
           </div>
         <?php endforeach; ?>
@@ -91,14 +95,32 @@ $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </script>
 
 <style>
-  .bg-bedrock { background-color: #003f54; }
+  .bg-bedrock { background-color: #003f54 !important; }
   .text-bedrock { color: #00c8ff; text-shadow: 1px 1px 3px black; }
-  .btn-bedrock { background-color: #00c8ff; color: black; font-weight: bold; }
+  .btn-bedrock {
+    background-color: #00c8ff;
+    color: black;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+  }
+  .btn-bedrock:hover {
+    background-color: #0099cc;
+    color: white;
+  }
+  .server-card {
+    background: #001f2d;
+    color: white;
+    cursor: default;
+    user-select: none;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .server-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 24px rgba(0, 200, 255, 0.5);
+  }
+  .status-running { color: #00ff00; font-weight: 700; }
+  .status-stopped { color: #ff5555; font-weight: 700; }
+  .status-installing { color: #ffaa00; font-weight: 700; }
 </style>
 
 <?php include("includes/footer.php"); ?>
-
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
