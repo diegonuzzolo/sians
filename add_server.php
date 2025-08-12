@@ -3,9 +3,9 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-session_start();
-include 'auth_check.php';
-require 'config/config.php';
+require_once 'config/config.php';
+require_once 'auth_check.php';
+
 
 $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
