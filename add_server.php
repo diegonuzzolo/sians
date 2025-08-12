@@ -95,7 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$error) {
         try {
             $node = 'pve'; // o il nome corretto del nodo
-            print_r(proxmoxApiRequest('GET', "/nodes/$node/storage"));
 
 
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
