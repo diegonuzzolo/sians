@@ -6,25 +6,16 @@ $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
 $error = null;
 
-function calculateCpuCores(int $ramGb): int
-{
-    if ($ramGb <= 2) {
-        return 2;
-    } elseif ($ramGb <= 4) {
-        return 2;
-    } elseif ($ramGb <= 6) {
-        return 3;
-    } elseif ($ramGb <= 8) {
-        return 4;
-    } elseif ($ramGb <= 16) {
-        return 6;
-    } else {
-        return 8;
-    }
+function calculateCpuCores(int $ramGb): int {
+    if ($ramGb <= 2) return 2;
+    if ($ramGb <= 4) return 2;
+    if ($ramGb <= 6) return 3;
+    if ($ramGb <= 8) return 4;
+    if ($ramGb <= 16) return 6;
+    return 8;
 }
 
-function calculatePrice(int $ramGb): float
-{
+function calculatePrice(int $ramGb): float {
     $priceTable = [
         2 => 6.5 * 0.85,
         4 => 10 * 0.85,
@@ -33,105 +24,91 @@ function calculatePrice(int $ramGb): float
         16 => 35 * 0.85,
         32 => 57.5 * 0.85,
     ];
-
-    if ($ramGb <= 2) {
-        return $priceTable[2];
-    } elseif ($ramGb <= 4) {
-        return $priceTable[4];
-    } elseif ($ramGb <= 6) {
-        return $priceTable[6];
-    } elseif ($ramGb <= 8) {
-        return $priceTable[8];
-    } elseif ($ramGb <= 16) {
-        return $priceTable[16];
-    } else {
-        return $priceTable[32];
-    }
+    if ($ramGb <= 2) return $priceTable[2];
+    if ($ramGb <= 4) return $priceTable[4];
+    if ($ramGb <= 6) return $priceTable[6];
+    if ($ramGb <= 8) return $priceTable[8];
+    if ($ramGb <= 16) return $priceTable[16];
+    return $priceTable[32];
 }
 
-function ipIncrement($ip)
-{
+function ipIncrement($ip) {
     $parts = explode('.', $ip);
     for ($i = 3; $i >= 0; $i--) {
-        if (++$parts[$i] <= 255) {
-            break;
-        }
+        if (++$parts[$i] <= 255) break;
         $parts[$i] = 0;
     }
     return implode('.', $parts);
 }
 
-function proxmoxCurlRequest($method, $endpoint, $data = null)
-{
-    $url = PROXMOX_API_URL . $endpoint;
-
-    $headers = [
-        "Authorization: PVEAPIToken=" . PROXMOX_API_TOKEN_NAME . "=" . PROXMOX_API_TOKEN_VALUE,
+function proxmoxLogin() {
+    $url = PROXMOX_API_URL . '/access/ticket';
+    $data = [
+        'username' => PROXMOX_USERNAME,
+        'password' => PROXMOX_PASSWORD,
     ];
 
     $ch = curl_init($url);
-
-    if ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
-        if ($data) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        }
-    } elseif ($method === 'GET') {
-        curl_setopt($ch, CURLOPT_HTTPGET, true);
-    } else {
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        if ($data) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        }
-    }
-
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // attenzione in produzione
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL: ' . curl_error($ch));
-    }
+    if ($response === false) throw new Exception('Errore CURL login: ' . curl_error($ch));
     curl_close($ch);
 
-    return json_decode($response, true);
+    $json = json_decode($response, true);
+    if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
+        throw new Exception('Login Proxmox fallito: ' . $response);
+    }
+    return [
+        'ticket' => $json['data']['ticket'],
+        'csrf' => $json['data']['CSRFPreventionToken']
+    ];
 }
 
+function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
+    $postData = [
+        'vmid' => $vmid,
+        'hostname' => "mcserver-$vmid",
+        'storage' => PROXMOX_STORAGE,
+        'ostemplate' => PROXMOX_TEMPLATE,
+        'memory' => $ramMb,
+        'cores' => $cpu,
+        'rootfs' => $storageGb . "G",
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
+        'password' => 'MinecraftStrongPass123!',
+    ];
 
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp)
-{
-$postData = [
-    'vmid' => $vmid,
-    'hostname' => "mcserver-$vmid",
-    'storage' => 'local-lvm',
-    'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-    'memory' => $ramMb,
-    'cores' => $cpu,
-    'rootfs' => $storageGb . "G", // se storage = local-lvm, va bene cosi
-    'net0' => "name=eth0,bridge=vmbr0,ip={$privateIp}/24,gw=192.168.1.254",
-    'password' => 'MinecraftStrongPass123!',
-];
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
+    $ch = curl_init($url);
 
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "CSRFPreventionToken: {$auth['csrf']}",
+        "Cookie: PVEAuthCookie={$auth['ticket']}",
+    ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
+    $response = curl_exec($ch);
+    if ($response === false) throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
+    curl_close($ch);
 
-
-    $result = proxmoxCurlRequest('POST', "/nodes/" . PROXMOX_NODE . "/lxc", $postData);
-
-    if (isset($result['errors']) || !isset($result['data'])) {
-        throw new Exception('Errore creazione container: ' . json_encode($result));
+    $json = json_decode($response, true);
+    if (isset($json['errors']) || !isset($json['data'])) {
+        throw new Exception('Errore creazione container: ' . json_encode($json));
     }
 
-    return $result['data'];
+    return $json['data'];
 }
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
-
-    if ($ramGb > 20)
-        $ramGb = 20;
+    if ($ramGb > 20) $ramGb = 20;
 
     $cpuCores = calculateCpuCores($ramGb);
     $price = calculatePrice($ramGb);
@@ -144,15 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            // Ottieni vmid disponibile da DB o Proxmox API
+            // Trova vmid libero
             $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-            $maxVmid = (int) $stmt->fetchColumn();
-            $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101; // parte da 101
+            $maxVmid = (int)$stmt->fetchColumn();
+            $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
 
-            // Calcola prossimo IP privato
+            // Trova prossimo IP privato
             $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip IS NOT NULL ORDER BY id DESC LIMIT 1");
             $lastIp = $stmt->fetchColumn();
-
             if ($lastIp) {
                 $nextIp = ipIncrement($lastIp);
                 $parts = explode('.', $nextIp);
@@ -163,26 +139,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nextIp = '192.168.1.101';
             }
 
-
-            // Storage fisso 64 GB
             $storageGb = 64;
 
-            createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp);
+            // Login Proxmox
+            $auth = proxmoxLogin();
 
+            // Crea container LXC
+            createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
 
-            // Salva container nel DB con IP
+            // Inserisci container nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
             $containerId = $pdo->lastInsertId();
 
-            // Stato iniziale server non installato
+            // Stato server iniziale
             $status = 'not_installed';
 
             $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
             $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
             $serverId = $pdo->lastInsertId();
 
-            // Aggiorna container con server_id
             $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
             $stmt3->execute([$serverId, $containerId]);
 
@@ -195,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 
 <?php include("includes/header.php"); ?>
 

@@ -19,11 +19,10 @@ try {
 }
 
 // Config Proxmox API
+
 define('PROXMOX_API_URL', 'https://192.168.1.251:8006/api2/json');
 define('PROXMOX_NODE', 'pve');
-define('PROXMOX_API_TOKEN_NAME', 'diego@pam!sians');  // esempio: user@realm!tokenname
-define('PROXMOX_API_TOKEN_VALUE', 'c6375a6b-a067-404b-9357-84d78a3ec023');
-
-// Storage e template LXC
-define('PROXMOX_TEMPLATE_STORAGE', 'local');
-define('PROXMOX_TEMPLATE_NAME', 'ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst');
+define('PROXMOX_USERNAME', 'root@pam');
+define('PROXMOX_PASSWORD', 'Lgu8330Serve6'); // metti la tua password root
+define('PROXMOX_STORAGE', 'local-lvm');             // storage LVM per rootfs
+define('PROXMOX_TEMPLATE', 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst');
