@@ -81,15 +81,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            // PRIMA: calcola IP da assegnare
-            $usedIps = $pdo->query("SELECT ip FROM containers WHERE ip IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+            // Recupera IP privati già assegnati
+            $usedPrivateIps = $pdo->query("SELECT private_ip FROM containers WHERE private_ip IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
             $subnetBase = '192.168.1.';
             $startIp = 101;
             $endIp = 150;
 
-            $ipToAssign = findFirstFreeIp($usedIps, $subnetBase, $startIp, $endIp);
-            if (!$ipToAssign) {
-                throw new Exception("Nessun IP libero disponibile.");
+            $privateIp = findFirstFreeIp($usedPrivateIps, $subnetBase, $startIp, $endIp);
+            if (!$privateIp) {
+                throw new Exception("Nessun IP privato libero disponibile.");
             }
 
             $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $hostname = 'mcserver-' . time();
 
-            // Crea container con IP dinamico
+            // Crea container con IP privato assegnato
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
@@ -112,8 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'rootfs' => 'local-lvm:64',
-                'net0' => "name=eth0,bridge=vmbr0,ip={$ipToAssign}/24,gw=192.168.1.254",
-                'password' => 'Lgu8330Serve6' // considera di gestire in modo più sicuro
+                'net0' => "name=eth0,bridge=vmbr0,ip={$privateIp}/24,gw=192.168.1.254",
+                'password' => 'Lgu8330Serve6' // valuta di usare gestione password sicura
             ]);
 
             // Recupera IP container (retry se serve)
@@ -129,9 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$ip) $ip = 'IP non disponibile';
 
-            // Inserisci container nel DB con IP assegnato
-            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $ipToAssign, $hostname, $cpuCores, $ramGb * 1024]);
+            // Inserisci container nel DB con private_ip
+            $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, private_ip, hostname, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$vmid, $privateIp, $hostname, $cpuCores, $ramGb * 1024]);
             $containerId = $pdo->lastInsertId();
 
             // Inserisci server nel DB, incluso il prezzo
