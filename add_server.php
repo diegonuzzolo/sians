@@ -25,9 +25,6 @@ function calculateCpuCores(int $ramGb): int {
 }
 
 function calculatePrice(int $ramGb): float {
-    // Prezzi medi originali:
-    // 2GB => 6.5, 4GB => 10, 6GB => 15, 8GB => 21.5, 16GB => 35, 32GB => 57.5
-    // Ridotti del 15%
     $priceTable = [
         2 => 6.5 * 0.85,
         4 => 10 * 0.85,
@@ -52,6 +49,17 @@ function calculatePrice(int $ramGb): float {
     }
 }
 
+// Funzione per trovare primo IP libero in range
+function findFirstFreeIp(array $usedIps, string $subnetBase, int $startIp, int $endIp): ?string {
+    for ($i = $startIp; $i <= $endIp; $i++) {
+        $candidate = $subnetBase . $i;
+        if (!in_array($candidate, $usedIps)) {
+            return $candidate;
+        }
+    }
+    return null;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
@@ -73,25 +81,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
+            // PRIMA: calcola IP da assegnare
+            $usedIps = $pdo->query("SELECT ip FROM containers WHERE ip IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+            $subnetBase = '192.168.1.';
+            $startIp = 101;
+            $endIp = 150;
+
+            $ipToAssign = findFirstFreeIp($usedIps, $subnetBase, $startIp, $endIp);
+            if (!$ipToAssign) {
+                throw new Exception("Nessun IP libero disponibile.");
+            }
+
             $node = 'pve'; // Cambia con il tuo nodo reale Proxmox
 
-            // 1) Ottieni VMID disponibile
+            // Ottieni VMID disponibile
             $nextIdResp = proxmoxApiRequest('GET', '/cluster/nextid');
             $vmid = $nextIdResp['data'] ?? null;
             if (!$vmid) throw new Exception("Impossibile ottenere vmid disponibile");
 
             $swapMb = max(512, min($ramGb * 1024 / 2, 8192)); // metà della RAM, minimo 512 MB, max 8192 MB
 
+            $hostname = 'mcserver-' . time();
+
+            // Crea container con IP dinamico
             $containerData = proxmoxApiRequest('POST', "/nodes/$node/lxc", [
                 'vmid' => $vmid,
                 'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
-                'hostname' => 'mcserver-' . time(),
+                'hostname' => $hostname,
                 'memory' => $ramGb * 1024,
                 'swap' => intval($swapMb),
                 'cores' => $cpuCores,
                 'rootfs' => 'local-lvm:64',
-                'net0' => 'name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254',
-                'password' => 'Lgu8330Serve6'
+                'net0' => "name=eth0,bridge=vmbr0,ip={$ipToAssign}/24,gw=192.168.1.254",
+                'password' => 'Lgu8330Serve6' // considera di gestire in modo più sicuro
             ]);
 
             // Recupera IP container (retry se serve)
@@ -107,9 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$ip) $ip = 'IP non disponibile';
 
-            // Inserisci container nel DB
+            // Inserisci container nel DB con IP assegnato
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ip, hostname, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$vmid, $ip, 'mcserver-' . time(), $cpuCores, $ramGb * 1024]);
+            $stmt->execute([$vmid, $ipToAssign, $hostname, $cpuCores, $ramGb * 1024]);
             $containerId = $pdo->lastInsertId();
 
             // Inserisci server nel DB, incluso il prezzo
@@ -130,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
