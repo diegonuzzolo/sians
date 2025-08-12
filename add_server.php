@@ -7,19 +7,12 @@ $defaultRam = 4;
 $error = null;
 
 function calculateCpuCores(int $ramGb): int {
-    if ($ramGb <= 2) {
-        return 2;
-    } elseif ($ramGb <= 4) {
-        return 2;
-    } elseif ($ramGb <= 6) {
-        return 3;
-    } elseif ($ramGb <= 8) {
-        return 4;
-    } elseif ($ramGb <= 16) {
-        return 6;
-    } else {
-        return 8;
-    }
+    if ($ramGb <= 2) return 2;
+    if ($ramGb <= 4) return 2;
+    if ($ramGb <= 6) return 3;
+    if ($ramGb <= 8) return 4;
+    if ($ramGb <= 16) return 6;
+    return 8;
 }
 
 function calculatePrice(int $ramGb): float {
@@ -32,53 +25,44 @@ function calculatePrice(int $ramGb): float {
         32 => 57.5 * 0.85,
     ];
 
-    if ($ramGb <= 2) {
-        return $priceTable[2];
-    } elseif ($ramGb <= 4) {
-        return $priceTable[4];
-    } elseif ($ramGb <= 6) {
-        return $priceTable[6];
-    } elseif ($ramGb <= 8) {
-        return $priceTable[8];
-    } elseif ($ramGb <= 16) {
-        return $priceTable[16];
-    } else {
-        return $priceTable[32];
+    foreach ($priceTable as $limit => $price) {
+        if ($ramGb <= $limit) return $price;
     }
+    return end($priceTable);
 }
 
-function proxmoxLogin() {
-    $url = PROXMOX_API_URL . '/access/ticket';
-    $data = [
-        'username' => "root",
-        'password' => "Lgu8330Serve6"
+/**
+ * Funzione generica per chiamare API Proxmox con token
+ */
+function proxmoxCurlRequest(string $endpoint, string $method = 'GET', array $postFields = []) {
+    $url = PROXMOX_API_URL . $endpoint;
+    $headers = [
+        'Authorization: PVEAPIToken=' . PROXMOX_API_TOKEN_NAME . '=' . PROXMOX_API_TOKEN_VALUE,
     ];
 
     $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Cambia in true in produzione
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Cambia a true in produzione
+
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postFields));
+    }
 
     $response = curl_exec($ch);
     if ($response === false) {
-        throw new Exception('Errore CURL login: ' . curl_error($ch));
+        throw new Exception('Errore CURL: ' . curl_error($ch));
     }
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
-        throw new Exception('Login Proxmox fallito: ' . $response);
-    }
-    return [
-        'ticket' => $json['data']['ticket'],
-        'csrf' => $json['data']['CSRFPreventionToken']
-    ];
+    return json_decode($response, true);
 }
 
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $auth) {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
-
+/**
+ * Crea un container LXC su Proxmox via API
+ */
+function createLxcContainer($vmid, $cpu, $ramMb, $storageGb) {
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
@@ -88,31 +72,16 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $auth) {
         'cores' => $cpu,
         'rootfs' => $storageGb . "G",
         'net0' => 'name=eth0,bridge=vmbr0,ip=dhcp',
-        'password' => 'MinecraftStrongPass123!',
+        'password' => 'MinecraftStrongPass123!', // o genera random
     ];
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $response = proxmoxCurlRequest("/nodes/" . PROXMOX_NODE . "/lxc", 'POST', $postData);
 
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (isset($json['errors']) || !isset($json['data'])) {
-        throw new Exception('Creazione container fallita: ' . $response);
+    if (isset($response['errors']) || !isset($response['data'])) {
+        throw new Exception('Errore creazione container: ' . json_encode($response['errors'] ?? $response));
     }
 
-    return $json['data'];
+    return $response['data'];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -132,19 +101,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$error) {
         try {
-            // Ottieni vmid disponibile da DB o Proxmox API
+            // Trova il max vmid usato e incrementa (min 101)
             $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
             $maxVmid = (int) $stmt->fetchColumn();
-            $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101; // parte da 101
+            $vmid = $maxVmid >= 101 ? $maxVmid + 1 : 101;
 
-            // Login Proxmox
-            $auth = proxmoxLogin();
+            $storageGb = 20; // fisso per ora
 
-            // Storage fisso 20 GB
-            $storageGb = 20;
-
-            // Crea container
-            createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $auth);
+            // Crea il container Proxmox
+            createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb);
 
             // Salva container nel DB
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb) VALUES (?, ?, ?, ?, ?)");
@@ -170,8 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 ?>
+
 <?php include("includes/header.php"); ?>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -179,13 +144,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="container my-5" style="max-width: 480px;">
     <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server</h2>
 
-    <!-- Qui va un eventuale alert errore -->
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
 
     <form method="POST" action="" class="bg-dark p-4 rounded-4 shadow-lg">
         <div class="mb-4">
             <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
             <input type="text" name="server_name" id="server_name" class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
-                placeholder="Es. Il Mio Server" value="">
+                placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
 
         <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
@@ -195,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card-body">
                 <div class="mb-4">
                     <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
-                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1" value="4">
+                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1" value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
                     <div class="d-flex justify-content-between text-white small mt-1">
                         <span>2GB</span>
                         <span>20GB</span>
@@ -211,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="mb-0 text-white fw-semibold fs-5 text-center">
-                     <span id="priceLabel">€ 0.00</span>
+                    <span id="priceLabel">€ 0.00</span>
                 </div>
             </div>
         </div>
@@ -293,14 +260,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   ramInput.addEventListener('input', updateCpuAndPrice);
-
-  // inizializza al caricamento pagina
   updateCpuAndPrice();
 </script>
 
-
 <?php include("includes/footer.php"); ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
