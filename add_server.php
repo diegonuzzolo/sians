@@ -127,25 +127,19 @@ EOT;
     }
 }
 ?>
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <?php include("includes/header.php"); ?>
-
 <div class="container my-5" style="max-width:600px;">
     <h2 class="mb-4 text-center">Crea un nuovo server Minecraft Bedrock</h2>
-
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
-
     <form method="POST" action="">
         <div class="mb-3">
             <label for="server_name" class="form-label">Nome Server</label>
             <input type="text" name="server_name" id="server_name" class="form-control" required
-                value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+                   value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
-
         <div class="card border-primary shadow-sm">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">Configura le Risorse</h5>
@@ -153,11 +147,11 @@ EOT;
             <div class="card-body">
                 <div class="mb-3">
                     <label for="ram_gb">RAM (GB)</label>
-                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="256" step="1" required
-                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
+                    <input type="number" name="ram_gb" id="ram_gb" class="form-control" min="2" max="20" step="1" required
+                           value="<?= htmlspecialchars($_POST['ram_gb'] ?? $defaultRam) ?>">
                 </div>
                 <div class="mb-3">
-                    <label for="cpu_cores">CPU Cores: <span id="cpuLabel"><?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?></span></label>
+                    <label>CPU Cores: <span id="cpuLabel"><?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?></span></label>
                     <input type="hidden" name="cpu_cores" id="cpu_cores" value="<?= htmlspecialchars($_POST['cpu_cores'] ?? 2) ?>">
                 </div>
                 <div class="mb-3">
@@ -165,62 +159,35 @@ EOT;
                 </div>
             </div>
         </div>
-
         <button type="submit" class="btn btn-success mt-4 w-100">Crea Server</button>
     </form>
 </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <?php include("includes/footer.php"); ?>
-
 <script>
     const ramInput = document.getElementById('ram_gb');
     const cpuLabel = document.getElementById('cpuLabel');
     const cpuInput = document.getElementById('cpu_cores');
     const priceLabel = document.getElementById('priceLabel');
-
     function updateCpuAndPrice() {
-        // Limite RAM max 20GB
         let ram = parseInt(ramInput.value) || 2;
         if (ram > 20) {
             ram = 20;
-            ramInput.value = 20; // forza il limite nel campo input
+            ramInput.value = 20;
         }
-
-        let cores = 2;
-        let price = 6.5 * 0.85;  // media tra 5 e 8 * 0.85
-
-        if (ram <= 2) {
-            cores = 2;
-            price = 6.5 * 0.85;
-        } else if (ram <= 4) {
-            cores = 2;
-            price = 10 * 0.85;
-        } else if (ram <= 6) {
-            cores = 3;
-            price = 15 * 0.85;
-        } else if (ram <= 8) {
-            cores = 4;
-            price = 21.5 * 0.85;
-        } else if (ram <= 16) {
-            cores = 6;
-            price = 35 * 0.85;
-        } else {
-            cores = 8;
-            price = 57.5 * 0.85;
-        }
-
+        let cores = 2, price = 6.5 * 0.85;
+        if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
+        else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
+        else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
+        else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
+        else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
+        else { cores = 8; price = 57.5 * 0.85; }
         cpuLabel.textContent = cores;
         cpuInput.value = cores;
         priceLabel.textContent = "€ " + price.toFixed(2);
     }
-
     ramInput.addEventListener('input', updateCpuAndPrice);
     updateCpuAndPrice();
 </script>
-
-
-
-
 </body>
 </html>
