@@ -1,11 +1,6 @@
 <?php
-
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-require_once 'config/config.php';
-require_once 'auth_check.php';
-
+require_once("auth_check.php");
+require_once ('config/config.php');
 
 $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
@@ -17,7 +12,7 @@ if (!isset($_SESSION['form_token'])) {
 }
 $form_token = $_SESSION['form_token'];
 
-// Funzione per ottenere IP libero (la tua originale)
+// Funzione per ottenere IP libero
 function getNextFreePrivateIp(PDO $pdo): string
 {
     $baseIp = '192.168.1.';
@@ -97,19 +92,14 @@ function proxmoxLogin()
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        $err = curl_error($ch);
-        error_log("CURL login error: $err");
-        throw new Exception('Errore CURL login: ' . $err);
-    }
+    if ($response === false)
+        throw new Exception('Errore CURL login: ' . curl_error($ch));
     curl_close($ch);
 
     $json = json_decode($response, true);
     if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
-        error_log("Proxmox login fallito: $response");
         throw new Exception('Login Proxmox fallito: ' . $response);
     }
-    error_log("Proxmox login OK: ticket ricevuto");
     return [
         'ticket' => $json['data']['ticket'],
         'csrf' => $json['data']['CSRFPreventionToken']
@@ -121,6 +111,7 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
 {
     $swapMb = intval($ramMb * 1.5);
 
+    // Costruzione manuale della query per evitare problemi di encoding
     $postFields = "vmid=$vmid"
         . "&hostname=mcserver-$vmid"
         . "&storage=" . PROXMOX_STORAGE
@@ -130,7 +121,7 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
         . "&cores=$cpu"
         . "&rootfs=" . PROXMOX_STORAGE . ":$storageGb"
         . "&net0=name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254"
-        . "&password=Lgu8330Serve6";
+        . "&password=MinecraftStrongPass123!";
 
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
     $ch = curl_init($url);
@@ -170,8 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $serverName = trim($_POST['server_name'] ?? '');
         $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
-        if ($ramGb > 20)
-            $ramGb = 20;
+        if ($ramGb > 20) $ramGb = 20;
 
         $cpuCores = calculateCpuCores($ramGb);
         $price = calculatePrice($ramGb);
@@ -184,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$error) {
             try {
+                // Prendi il prossimo vmid disponibile
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
                 $maxVmid = (int) $stmt->fetchColumn();
                 $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
@@ -192,22 +183,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $storageGb = 64;
 
-                error_log("Dati per creazione: vmid=$vmid, cpuCores=$cpuCores, ramGb=$ramGb, storageGb=$storageGb, nextIp=$nextIp");
-
+                // Login Proxmox
                 $auth = proxmoxLogin();
 
+                // Crea container LXC
                 createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
 
+                // Inserisci container nel DB
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
                 $containerId = $pdo->lastInsertId();
 
                 $status = 'not_installed';
 
+                // Inserisci server nel DB
                 $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
                 $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
                 $serverId = $pdo->lastInsertId();
 
+                // Aggiorna container con server assegnato
                 $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
                 $stmt3->execute([$serverId, $containerId]);
 
@@ -219,13 +213,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
 
             } catch (Exception $e) {
-                error_log("Eccezione durante creazione server: " . $e->getMessage());
                 $error = "Errore nella creazione del server: " . $e->getMessage();
             }
         }
     }
 }
 ?>
+
 
 
 <?php include("includes/header.php"); ?>
