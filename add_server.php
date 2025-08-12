@@ -1,6 +1,6 @@
-include("auth_check.php");
 <?php
 session_start();
+include 'auth_check.php';
 require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
@@ -13,7 +13,7 @@ if (!isset($_SESSION['form_token'])) {
 }
 $form_token = $_SESSION['form_token'];
 
-// Funzione per ottenere IP libero
+// Funzione per ottenere IP libero (la tua originale)
 function getNextFreePrivateIp(PDO $pdo): string
 {
     $baseIp = '192.168.1.';
@@ -93,19 +93,25 @@ function proxmoxLogin()
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false)
-        throw new Exception('Errore CURL login: ' . curl_error($ch));
+    if ($response === false) {
+        $err = curl_error($ch);
+        error_log("CURL login error: $err");
+        throw new Exception('Errore CURL login: ' . $err);
+    }
     curl_close($ch);
 
     $json = json_decode($response, true);
     if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
+        error_log("Proxmox login fallito: $response");
         throw new Exception('Login Proxmox fallito: ' . $response);
     }
+    error_log("Proxmox login OK: ticket ricevuto");
     return [
         'ticket' => $json['data']['ticket'],
         'csrf' => $json['data']['CSRFPreventionToken']
     ];
 }
+
 define('PROXMOX_STORAGE', 'local-lvm'); // il tuo storage LVM corretto
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
@@ -125,6 +131,8 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
         'password' => 'MinecraftStrongPass123!',
     ];
 
+    error_log("Creazione container Proxmox - dati POST: " . print_r($postData, true));
+
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
     $ch = curl_init($url);
 
@@ -138,18 +146,23 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false)
-        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
+    if ($response === false) {
+        $err = curl_error($ch);
+        error_log("CURL createLxc error: $err");
+        throw new Exception('Errore CURL createLxc: ' . $err);
+    }
     curl_close($ch);
+
+    error_log("Risposta createLxcContainer: $response");
 
     $json = json_decode($response, true);
     if (isset($json['errors']) || !isset($json['data'])) {
+        error_log("Errore creazione container Proxmox: " . json_encode($json));
         throw new Exception('Errore creazione container: ' . json_encode($json));
     }
 
     return $json['data'];
 }
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -183,6 +196,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $storageGb = 64;
 
+                error_log("Dati per creazione: vmid=$vmid, cpuCores=$cpuCores, ramGb=$ramGb, storageGb=$storageGb, nextIp=$nextIp");
+
                 $auth = proxmoxLogin();
 
                 createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
@@ -208,13 +223,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
 
             } catch (Exception $e) {
+                error_log("Eccezione durante creazione server: " . $e->getMessage());
                 $error = "Errore nella creazione del server: " . $e->getMessage();
             }
         }
     }
 }
 ?>
-
 
 
 <?php include("includes/header.php"); ?>
