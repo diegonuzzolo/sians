@@ -101,17 +101,18 @@ function proxmoxCurlRequest($method, $endpoint, $data = null)
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp)
 {
-    $postData = [
+$postData = [
     'vmid' => $vmid,
     'hostname' => "mcserver-$vmid",
-    'storage' => 'local', // lo storage del template e dove sarà creato il rootfs
+    'storage' => 'local',
     'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
     'memory' => $ramMb,
     'cores' => $cpu,
-    'rootfs' => $storageGb . 'G',
-    'net0' => "name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254",
+    'rootfs' => $storageGb . "G",
+    'net0' => 'name=eth0,bridge=vmbr0,ip=192.168.1.101/24,gw=192.168.1.254',
     'password' => 'MinecraftStrongPass123!',
 ];
+
 
 
 
