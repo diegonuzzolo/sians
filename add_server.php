@@ -1,6 +1,6 @@
+include("auth_check.php");
 <?php
 session_start();
-include("auth_check.php");
 require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
@@ -242,7 +242,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="card-body">
                 <div class="mb-4">
-                    <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
+                    <label for="ram_gb" class="form-label text-white fw-semibold">
+                        RAM (GB): <span id="ramValue"><?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?></span> GB
+                    </label>
                     <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                         value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                     <div class="d-flex justify-content-between text-white small mt-1">
@@ -329,6 +331,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         this.disabled = true;
         this.textContent = 'Creazione in corso...';
     });
+
+    const ramValue = document.getElementById('ramValue');
+
+    ramInput.addEventListener('input', () => {
+        ramValue.textContent = ramInput.value;
+        updateCpuAndPrice();
+    });
+
+
     const ramInput = document.getElementById('ram_gb');
     const cpuLabel = document.getElementById('cpuLabel');
     const cpuInput = document.getElementById('cpu_cores');
