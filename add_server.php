@@ -6,8 +6,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
 $error = null;
 
-function calculateCpuCores(int $ramGb): int
-{
+function calculateCpuCores(int $ramGb): int {
     if ($ramGb <= 2) {
         return 2;
     } elseif ($ramGb <= 4) {
@@ -23,8 +22,7 @@ function calculateCpuCores(int $ramGb): int
     }
 }
 
-function calculatePrice(int $ramGb): float
-{
+function calculatePrice(int $ramGb): float {
     $priceTable = [
         2 => 6.5 * 0.85,
         4 => 10 * 0.85,
@@ -49,8 +47,7 @@ function calculatePrice(int $ramGb): float
     }
 }
 
-function ipIncrement($ip)
-{
+function ipIncrement($ip) {
     $parts = explode('.', $ip);
     for ($i = 3; $i >= 0; $i--) {
         if (++$parts[$i] <= 255) {
@@ -61,8 +58,7 @@ function ipIncrement($ip)
     return implode('.', $parts);
 }
 
-function proxmoxCurlRequest($method, $endpoint, $data = null)
-{
+function proxmoxCurlRequest($method, $endpoint, $data = null) {
     $url = PROXMOX_API_URL . $endpoint;
 
     $headers = [
@@ -99,8 +95,7 @@ function proxmoxCurlRequest($method, $endpoint, $data = null)
 }
 
 
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp)
-{
+function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp) {
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
@@ -127,8 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? '');
     $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
 
-    if ($ramGb > 20)
-        $ramGb = 20;
+    if ($ramGb > 20) $ramGb = 20;
 
     $cpuCores = calculateCpuCores($ramGb);
     $price = calculatePrice($ramGb);
@@ -161,15 +155,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
 
-            // Crea container con IP privato assegnato
+            // Storage fisso 64 GB
+            $storageGb = 64;
+
             createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp);
 
-
-            // Storage fisso 20 GB
-            $storageGb = 20;
-
-            // Crea container con IP privato assegnato
-            createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $auth, $nextIp);
 
             // Salva container nel DB con IP
             $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
@@ -211,8 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST" action="" class="bg-dark p-4 rounded-4 shadow-lg">
         <div class="mb-4">
             <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
-            <input type="text" name="server_name" id="server_name"
-                class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
+            <input type="text" name="server_name" id="server_name" class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
                 placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
         </div>
 
@@ -223,8 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card-body">
                 <div class="mb-4">
                     <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB)</label>
-                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
-                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
+                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1" value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                     <div class="d-flex justify-content-between text-white small mt-1">
                         <span>2GB</span>
                         <span>20GB</span>
@@ -232,106 +220,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel"
-                            class="fs-5"></span></label>
+                    <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel" class="fs-5"></span></label>
                     <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
                     <div class="progress" style="height: 8px;">
-                        <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                            style="width: 0%; transition: width 0.4s;"></div>
+                        <div id="cpuProgress" class="progress-bar bg-info" role="progressbar" style="width: 0%; transition: width 0.4s;"></div>
                     </div>
                 </div>
 
                 <div class="mb-0 text-white fw-semibold fs-5 text-center">
-                    <span id="priceLabel">€ 0.00</span>
+                     <span id="priceLabel">€ 0.00</span>
                 </div>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm" style="font-size: 1.2rem;">Crea
-            Server</button>
+        <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm" style="font-size: 1.2rem;">Crea Server</button>
     </form>
 </div>
 
 <style>
-    .bg-bedrock {
-        background-color: #003f54 !important;
-    }
-
-    .text-bedrock {
-        color: #00c8ff;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    }
-
-    .form-control-lg {
-        border-radius: 12px;
-    }
-
-    .form-range {
-        cursor: pointer;
-    }
-
-    .btn-success {
-        background-color: #00c8ff;
-        border: none;
-        transition: background-color 0.3s ease;
-    }
-
-    .btn-success:hover,
-    .btn-success:focus {
-        background-color: #0099cc;
-        box-shadow: 0 0 12px #00c8ffaa;
-    }
-
-    label {
-        user-select: none;
-    }
+  .bg-bedrock {
+    background-color: #003f54 !important;
+  }
+  .text-bedrock {
+    color: #00c8ff;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+  }
+  .form-control-lg {
+    border-radius: 12px;
+  }
+  .form-range {
+    cursor: pointer;
+  }
+  .btn-success {
+    background-color: #00c8ff;
+    border: none;
+    transition: background-color 0.3s ease;
+  }
+  .btn-success:hover, .btn-success:focus {
+    background-color: #0099cc;
+    box-shadow: 0 0 12px #00c8ffaa;
+  }
+  label {
+    user-select: none;
+  }
 </style>
 
 <script>
-    const ramInput = document.getElementById('ram_gb');
-    const cpuLabel = document.getElementById('cpuLabel');
-    const cpuInput = document.getElementById('cpu_cores');
-    const cpuProgress = document.getElementById('cpuProgress');
-    const priceLabel = document.getElementById('priceLabel');
+  const ramInput = document.getElementById('ram_gb');
+  const cpuLabel = document.getElementById('cpuLabel');
+  const cpuInput = document.getElementById('cpu_cores');
+  const cpuProgress = document.getElementById('cpuProgress');
+  const priceLabel = document.getElementById('priceLabel');
 
-    function updateCpuAndPrice() {
-        let ram = parseInt(ramInput.value) || 2;
-        if (ram > 20) ram = 20;
+  function updateCpuAndPrice() {
+    let ram = parseInt(ramInput.value) || 2;
+    if (ram > 20) ram = 20;
 
-        let cores = 2;
-        let price = 6.5 * 0.85; // default for 2GB
+    let cores = 2;
+    let price = 6.5 * 0.85; // default for 2GB
 
-        if (ram <= 2) {
-            cores = 2;
-            price = 6.5 * 0.85;
-        } else if (ram <= 4) {
-            cores = 2;
-            price = 10 * 0.85;
-        } else if (ram <= 6) {
-            cores = 3;
-            price = 15 * 0.85;
-        } else if (ram <= 8) {
-            cores = 4;
-            price = 21.5 * 0.85;
-        } else if (ram <= 16) {
-            cores = 6;
-            price = 35 * 0.85;
-        } else {
-            cores = 8;
-            price = 57.5 * 0.85;
-        }
-
-        cpuLabel.textContent = cores;
-        cpuInput.value = cores;
-
-        let percent = (cores / 8) * 100;
-        cpuProgress.style.width = percent + '%';
-
-        priceLabel.textContent = "€ " + price.toFixed(2);
+    if (ram <= 2) {
+      cores = 2;
+      price = 6.5 * 0.85;
+    } else if (ram <= 4) {
+      cores = 2;
+      price = 10 * 0.85;
+    } else if (ram <= 6) {
+      cores = 3;
+      price = 15 * 0.85;
+    } else if (ram <= 8) {
+      cores = 4;
+      price = 21.5 * 0.85;
+    } else if (ram <= 16) {
+      cores = 6;
+      price = 35 * 0.85;
+    } else {
+      cores = 8;
+      price = 57.5 * 0.85;
     }
 
-    ramInput.addEventListener('input', updateCpuAndPrice);
-    updateCpuAndPrice();
+    cpuLabel.textContent = cores;
+    cpuInput.value = cores;
+
+    let percent = (cores / 8) * 100;
+    cpuProgress.style.width = percent + '%';
+
+    priceLabel.textContent = "€ " + price.toFixed(2);
+  }
+
+  ramInput.addEventListener('input', updateCpuAndPrice);
+  updateCpuAndPrice();
 </script>
 
 <?php include("includes/footer.php"); ?>
