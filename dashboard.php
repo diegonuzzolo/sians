@@ -4,16 +4,24 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Controlla se l'utente ha almeno un server ready
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND status IN ('running', 'installed', 'ready')");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
 $stmt->execute([$userId]);
-$readyCount = (int) $stmt->fetchColumn();
+$totalServers = (int)$stmt->fetchColumn();
 
-if ($readyCount === 0) {
-    // Se non c'è nessun server pronto, blocca l'accesso
-    // e mostra messaggio o reindirizza a install_wait o a pagina di info
-    header("Location: install_wait.php"); // o altra pagina, oppure mostra messaggio
-    exit;
+if ($totalServers === 0) {
+    // L'utente non ha ancora creato server, quindi può accedere normalmente a add_server.php per crearne uno
+    // (oppure puoi lasciare libero accesso a quella pagina)
+} else {
+    // L'utente ha almeno un server, ma controlla se ce n'è uno pronto
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND status IN ('running', 'installed', 'ready')");
+    $stmt->execute([$userId]);
+    $readyCount = (int)$stmt->fetchColumn();
+
+    if ($readyCount === 0) {
+        // Ha server ma nessuno pronto, blocca accesso
+        header("Location: install_wait.php");
+        exit;
+    }
 }
 
 $sql = "SELECT c.id AS container_id, c.cpu_cores, c.ram_mb, c.assigned_server_id,
