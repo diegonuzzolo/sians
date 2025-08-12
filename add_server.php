@@ -67,17 +67,17 @@ function proxmoxLogin() {
         'csrf' => $json['data']['CSRFPreventionToken']
     ];
 }
+define('PROXMOX_STORAGE', 'local-lvm'); // usa il tuo storage LVM corretto
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
-     $postData = [
+    $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,  // esempio: 'local-lvm'
-        'ostemplate' => PROXMOX_TEMPLATE, // es. 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst'
+        'storage' => PROXMOX_STORAGE,
+        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
         'memory' => $ramMb,
         'cores' => $cpu,
-        // Qui aggiungiamo storage con volume size per rootfs:
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb . 'G',
+        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,  // Senza "G"
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
         'password' => 'MinecraftStrongPass123!',
     ];
