@@ -7,7 +7,8 @@ if ($serverId <= 0) die("Server ID non valido");
 
 // Recupera informazioni server e container dal DB
 $stmt = $pdo->prepare("SELECT s.id AS server_id, s.name AS server_name, s.status AS server_status, 
-                              c.proxmox_containerId AS vmid, c.private_ip AS container_ip
+                              c.proxmox_containerId AS vmid, c.private_ip AS container_ip,
+                              s.cpu_cores, s.ram_mb
                        FROM servers s
                        JOIN containers c ON c.id = s.container_id
                        WHERE s.id = ?");
@@ -17,9 +18,9 @@ if (!$server) die("Server non trovato");
 
 $vmid = $server['vmid'];
 $containerIp = $server['container_ip'];
-$serverStatus = $server['server_status'];
 $serverName = htmlspecialchars($server['server_name']);
-
+$cpuCores = $server['cpu_cores'] ?? 2;
+$ramMb = $server['ram_mb'] ?? 4096;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -43,9 +44,12 @@ $serverName = htmlspecialchars($server['server_name']);
 const serverId = <?= json_encode($serverId) ?>;
 const vmid = <?= json_encode($vmid) ?>;
 const containerIp = <?= json_encode($containerIp) ?>;
+const serverName = <?= json_encode($serverName) ?>;
+const cpuCores = <?= json_encode($cpuCores) ?>;
+const ramMb = <?= json_encode($ramMb) ?>;
 const statusMessage = document.getElementById('statusMessage');
 
-// Funzione per controllare lo stato del container tramite API Proxmox
+// Controlla stato container
 async function getContainerStatus() {
     try {
         const resp = await fetch('check_container_status.php?vmid=' + vmid);
@@ -58,19 +62,20 @@ async function getContainerStatus() {
     }
 }
 
-// Funzione per avviare container tramite API Proxmox
+// Avvia container se spento
 async function startContainer() {
     try {
         const resp = await fetch('start_container.php?vmid=' + vmid);
         if (!resp.ok) throw new Error("Errore avvio container");
-        return true;
+        const data = await resp.json();
+        return data.success;
     } catch (e) {
         console.error(e);
         return false;
     }
 }
 
-// Funzione per avviare installazione server Bedrock
+// Esegue installazione server Bedrock
 async function installServer() {
     try {
         const resp = await fetch('install_server.php', {
@@ -79,9 +84,9 @@ async function installServer() {
             body: JSON.stringify({
                 server_id: serverId,
                 container_id: vmid,
-                server_name: "<?= addslashes($serverName) ?>",
-                cpu: <?= $server['cpu_cores'] ?? 2 ?>,
-                ram: <?= ($server['ram_mb'] ?? 4096) ?>,
+                server_name: serverName,
+                cpu: cpuCores,
+                ram: ramMb,
                 ip: containerIp
             })
         });
@@ -93,7 +98,7 @@ async function installServer() {
     }
 }
 
-// Loop principale di controllo stato
+// Loop principale
 async function checkStatusLoop() {
     statusMessage.textContent = "Verifica stato container...";
     let containerStatus = await getContainerStatus();
@@ -102,7 +107,7 @@ async function checkStatusLoop() {
         statusMessage.textContent = "Container fermo, avvio in corso...";
         const started = await startContainer();
         if (!started) {
-            statusMessage.textContent = "Errore nell'avvio del container, riprovo...";
+            statusMessage.textContent = "Errore avvio container, riprovo tra 5s...";
             setTimeout(checkStatusLoop, 5000);
             return;
         }
@@ -113,13 +118,13 @@ async function checkStatusLoop() {
     statusMessage.textContent = "Avvio installazione server...";
     const installed = await installServer();
     if (!installed) {
-        statusMessage.textContent = "Errore durante l'installazione, riprovo tra 5s...";
+        statusMessage.textContent = "Errore installazione server, riprovo tra 5s...";
         setTimeout(checkStatusLoop, 5000);
         return;
     }
 
-    statusMessage.textContent = "Server in installazione... controllo stato...";
-    // Controlla lo stato finale installazione
+    statusMessage.textContent = "Server in installazione... controllo stato finale...";
+    // Poll finale per server pronto
     async function pollServerStatus() {
         try {
             const resp = await fetch('check_install_status.php?server_id=' + serverId);
