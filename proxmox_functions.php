@@ -7,7 +7,7 @@ require 'config/config.php';
 function proxmoxLogin()
 {
     $host = "https://192.168.1.251:8006";
-    $user = "root@pam";
+    $user = "diego@pam";
     $pass = "Lgu8330Serve6";
 
     $url = "$host/api2/json/access/ticket";
@@ -85,7 +85,8 @@ function createLxcContainer(
         'ostemplate' => $template,
         'password' => 'Lgu8330Serve6',
         'start' => 1,
-        'rootfs' => "local-lvm,64G"
+        'storage' => 'local-lvm',
+        'rootfs' => "local-lvm:64G"
     ];
 
     $ch = curl_init();
