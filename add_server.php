@@ -18,42 +18,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
-    // --- 2. Trova un VMID libero ---
-    $vmid = getNextFreeVmid($pdo);
-
-    // --- 3. Recupera il prossimo IP libero ---
-    $vmIp = getNextFreePrivateIp($pdo);
-
-    // --- 4. Inserisci nel DB ---
-    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
-    $containerId = $pdo->lastInsertId();
-
     try {
-        // --- 5. Crea il container ---
-        $hostname = "mc-$vmid";
-        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $hostname, $vmIp, $cores);
+        // --- 2. Trova un VMID libero ---
+        $vmid = getNextFreeVmidFromDb($pdo);
 
+        // --- 3. Recupera il prossimo IP libero ---
+        $vmIp = getNextFreePrivateIp($pdo);
+
+        // --- 4. Inserisci nel DB ---
+        $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+        $containerId = $pdo->lastInsertId();
+
+        // --- 5. Crea il container su Proxmox ---
+        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
         if (!$createResult['success']) {
-            throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
-        }
-        $copyResult = copySetupScriptToContainer($vmid);
-        if (!$copyResult['success']) {
-            echo $copyResult['message'];
-            exit;
+            throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        // Esegui lo script in background nel container
-        $sshKey = '/var/www/.ssh/id_proxmox';
-        $proxmoxHost = '192.168.1.251';
-        $remoteScript = '/root/setup_server.sh';
+        // --- 6. Copia ed esegui setup_server.sh ---
+        pushAndRunSetupScript($vmIp, $vmid);
 
-        exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$proxmoxHost " .
-            escapeshellarg("pct exec $vmid -- bash $remoteScript > /dev/null 2>&1 &"));
-
-
-
-        echo "Container creato con successo! VMID: $vmid IP: $vmIp. Script lanciato in background.";
+        // --- 7. Aggiorna lo status nel DB ---
+        $stmt = $pdo->prepare("UPDATE containers SET status = 'created' WHERE id = ?");
+        $stmt->execute([$containerId]);
 
         // --- 8. Redirect alla dashboard ---
         header("Location: dashboard.php");
@@ -62,6 +50,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         $error = $e->getMessage();
     }
+}
+
+// --- Funzione per copia ed esecuzione script ---
+function pushAndRunSetupScript(string $vmIp, int $containerId) {
+    $localScript = '/root/setup_server.sh';
+    $remoteScript = '/root/setup_server.sh';
+    $sshKey = '/var/www/.ssh/id_proxmox';
+
+    $scpCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript 2>&1";
+    $scpOutput = shell_exec($scpCmd);
+    if ($scpOutput !== null && trim($scpOutput) !== '') {
+        throw new Exception("Errore copia verso nodo Proxmox: $scpOutput");
+    }
+
+    $chmodCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'chmod +x $remoteScript' 2>&1";
+    $chmodOutput = shell_exec($chmodCmd);
+    if ($chmodOutput !== null && trim($chmodOutput) !== '') {
+        throw new Exception("Errore chmod script su nodo Proxmox: $chmodOutput");
+    }
+
+    $runCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'pct exec $containerId -- bash $remoteScript $containerId > /dev/null 2>&1 &' 2>&1";
+    $runOutput = shell_exec($runCmd);
+    if ($runOutput !== null && trim($runOutput) !== '') {
+        throw new Exception("Errore esecuzione setup_server.sh nel container: $runOutput");
+    }
+
+    return true;
+}
+
+// --- Funzione per ottenere prossimo VMID libero dal DB ---
+function getNextFreeVmidFromDb(PDO $pdo): int {
+    $nextVmid = 100;
+    do {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
+        $stmt->execute([$nextVmid]);
+        if ($stmt->fetchColumn() == 0)
+            break;
+        $nextVmid++;
+    } while (true);
+    return $nextVmid;
 }
 
 ?>
