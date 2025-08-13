@@ -53,10 +53,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
 
-// Avvia polling per tutti i server
-<?php foreach ($servers as $server): ?>
-    updateServerStatus(<?= $server['id'] ?>);
-<?php endforeach; ?>
+
 </script>
 
 <style>
