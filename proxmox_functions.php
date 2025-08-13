@@ -1,198 +1,133 @@
 <?php
-require 'config/config.php';
+require_once 'config/config.php';
 
-/**
- * Login su Proxmox API
- */
-function proxmoxLogin() {
+function proxmoxLogin(): array {
     $url = PROXMOX_API_URL . '/access/ticket';
-    $data = [
-        'username' => PROXMOX_USERNAME,
-        'password' => PROXMOX_PASSWORD
-    ];
-
+    $data = ['username'=>PROXMOX_USERNAME,'password'=>PROXMOX_PASSWORD];
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if (!$response) {
-        throw new Exception("Errore login Proxmox: " . curl_error($ch));
-    }
+    $resp = curl_exec($ch);
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
-        throw new Exception("Login Proxmox fallito: " . $response);
+    $json = json_decode($resp,true);
+    if(!isset($json['data']['ticket'],$json['data']['CSRFPreventionToken'])){
+        throw new Exception('Login Proxmox fallito: '.$resp);
     }
-
-    return [
-        'ticket' => $json['data']['ticket'],
-        'csrf' => $json['data']['CSRFPreventionToken']
-    ];
+    return ['ticket'=>$json['data']['ticket'], 'csrf'=>$json['data']['CSRFPreventionToken']];
 }
 
-/**
- * Crea un container LXC
- */
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
-    $swapMb = intval($ramMb * 1.5);
-
+function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth): array {
+    $swapMb = intval($ramMb*1.5);
     $postData = [
-        'vmid' => $vmid,
-        'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,
-        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-        'memory' => $ramMb,
-        'swap' => $swapMb,
-        'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'Lgu8330Serve6',
-        'onboot' => 1
+        'vmid'=>$vmid,
+        'hostname'=>"mcserver-$vmid",
+        'storage'=>PROXMOX_STORAGE,
+        'ostemplate'=>'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+        'memory'=>$ramMb,
+        'swap'=>$swapMb,
+        'cores'=>$cpu,
+        'rootfs'=>PROXMOX_STORAGE.':'.$storageGb,
+        'net0'=>"name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
+        'password'=>'Lgu8330Serve6',
+        'onboot'=>1
     ];
 
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
+    $url = PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/lxc";
     $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST,true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS,http_build_query($postData));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "CSRFPreventionToken: {$auth['csrf']}",
         "Cookie: PVEAuthCookie={$auth['ticket']}"
     ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if (!$response) throw new Exception("Errore creazione container: " . curl_error($ch));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER,false);
+    $resp = curl_exec($ch);
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    if (!isset($json['data'])) throw new Exception("Creazione container fallita: " . json_encode($json));
-
+    $json = json_decode($resp,true);
+    if(isset($json['errors']) || !isset($json['data'])){
+        throw new Exception('Errore creazione container: '.json_encode($json));
+    }
     return $json['data'];
 }
 
-/**
- * Avvia un container
- */
-function startContainer($vmid, $auth) {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if (!$response) throw new Exception("Errore avvio container: " . curl_error($ch));
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!isset($json['data'])) throw new Exception("Errore avvio container: " . json_encode($json));
-
-    return $json['data']; // Contiene upid per waitForTask
-}
-
-/**
- * Attende il completamento di un task Proxmox
- */
-function waitForTask($upid, $auth, $timeout = 60) {
-    $start = time();
-    do {
-        $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/tasks/$upid/status";
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+function waitForTask(?string $upid, array $auth, int $timeout=120, int $sleep=2): void {
+    if(!$upid) return;
+    $start=time();
+    while(true){
+        $url=PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/tasks/$upid/status";
+        $ch=curl_init($url);
+        curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+        curl_setopt($ch,CURLOPT_HTTPHEADER,[
             "CSRFPreventionToken: {$auth['csrf']}",
             "Cookie: PVEAuthCookie={$auth['ticket']}"
         ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-        $response = curl_exec($ch);
+        curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+        $resp=curl_exec($ch);
         curl_close($ch);
 
-        $json = json_decode($response, true);
-        $status = $json['data']['status'] ?? 'unknown';
-        if ($status === 'stopped' || $status === 'OK') return true;
-
-        sleep(2);
-    } while ((time() - $start) < $timeout);
-
-    throw new Exception("Timeout attesa task Proxmox $upid");
-}
-
-/**
- * Attende che il container sia in stato running
- */
-function waitForContainer(int $vmid, array $auth, int $timeout = 60, int $sleep = 2): void {
-    $start = time();
-    while (true) {
-        $status = getContainerStatus($vmid, $auth); // chiama /status/current via API
-        if ($status === 'stopped' || $status === 'running') return;
-        if (time() - $start > $timeout) throw new Exception("Timeout attesa container pronto");
+        $json=json_decode($resp,true);
+        $status=$json['data']['status']??'';
+        if($status==='stopped') return;
+        if(time()-$start>$timeout) throw new Exception("Timeout attesa task container");
         sleep($sleep);
     }
 }
 
 function getContainerStatus(int $vmid, array $auth): string {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    $url=PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/lxc/$vmid/status/current";
+    $ch=curl_init($url);
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+    curl_setopt($ch,CURLOPT_HTTPHEADER,[
         "CSRFPreventionToken: {$auth['csrf']}",
         "Cookie: PVEAuthCookie={$auth['ticket']}"
     ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $resp = curl_exec($ch);
+    curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+    $resp=curl_exec($ch);
     curl_close($ch);
 
-    $json = json_decode($resp, true);
-    return $json['data']['status'] ?? '';
+    $json=json_decode($resp,true);
+    return $json['data']['status']??'';
 }
 
-
-/**
- * Installa il server Bedrock all'interno del container
- */
-function installBedrockServer($privateIp, $ramMb, $pdo, $serverId) {
-    // Comandi da eseguire via SSH dentro il container
-    $sshUser = 'root';
-    $sshPass = 'Lgu8330Serve6';
-
-    $connection = ssh2_connect($privateIp, 22);
-    if (!$connection) throw new Exception("Impossibile connettersi al container $privateIp");
-
-    if (!ssh2_auth_password($connection, $sshUser, $sshPass)) {
-        throw new Exception("Autenticazione SSH fallita per $privateIp");
+function waitForContainer(int $vmid,array $auth,int $timeout=60,int $sleep=2): void {
+    $start=time();
+    while(true){
+        $status=getContainerStatus($vmid,$auth);
+        if(in_array($status,['stopped','running'])) return;
+        if(time()-$start>$timeout) throw new Exception("Timeout attesa container pronto");
+        sleep($sleep);
     }
-
-    // Comandi Bedrock server
-    $commands = [
-        "apt update && apt install -y wget unzip screen",
-        "mkdir -p /bedrock-server && cd /bedrock-server",
-        "wget -O bedrock.zip https://www.minecraft.net/en-us/download/server/bedrock/",
-        "unzip -o bedrock.zip && rm bedrock.zip",
-        "echo 'serverName=BedrockServer' > server.properties",
-        "screen -dmS bedrock java -Xmx{$ramMb}M -Xms{$ramMb}M -jar bedrock_server.jar"
-    ];
-
-    foreach ($commands as $cmd) {
-        $stream = ssh2_exec($connection, $cmd);
-        stream_set_blocking($stream, true);
-        stream_get_contents($stream);
-        fclose($stream);
-    }
-
-    // Aggiorna lo stato nel DB
-    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-    $stmt->execute(['ready', $serverId]);
 }
+
+function startContainer(int $vmid,array $auth): void {
+    $url=PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/lxc/$vmid/status/start";
+    $ch=curl_init($url);
+    curl_setopt($ch,CURLOPT_POST,true);
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+    curl_setopt($ch,CURLOPT_HTTPHEADER,[
+        "CSRFPreventionToken: {$auth['csrf']}",
+        "Cookie: PVEAuthCookie={$auth['ticket']}"
+    ]);
+    curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+    $resp=curl_exec($ch);
+    curl_close($ch);
+    $json=json_decode($resp,true);
+    if(!isset($json['data'])) throw new Exception("Errore avvio container: ".($resp??'null'));
+}
+
+function installBedrockServer(string $privateIp,int $ramMb, PDO $pdo,int $serverId): void {
+    // Qui va la logica di installazione Bedrock
+    // esempio: ssh -> wget server ufficiale -> unzip -> genera start.sh
+    $pdo->prepare("UPDATE servers SET status='installing' WHERE id=?")->execute([$serverId]);
+
+    // Puoi aggiungere qui la chiamata SSH per installare Bedrock
+}
+
 
 function calculateCpuCores(int $ramGb): int {
     if ($ramGb <= 2) return 2;
