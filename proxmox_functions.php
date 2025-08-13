@@ -4,7 +4,8 @@ require 'config/config.php';
 /**
  * Login a Proxmox e ritorna ticket e CSRF token
  */
-function proxmoxLogin(): array {
+function proxmoxLogin(): array
+{
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
         'username' => PROXMOX_USERNAME,
@@ -37,7 +38,8 @@ function proxmoxLogin(): array {
 /**
  * Crea un container LXC
  */
-function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
+function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array
+{
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
 
     $postData = [
@@ -48,8 +50,8 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'memory' => $ramMb,
         'swap' => 0,
         'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE.":$storageGb",
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=".CONTAINER_GATEWAY,
+        'rootfs' => PROXMOX_STORAGE . ":$storageGb",
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'password' => PROXMOX_PASSWORD,
         'onboot' => 1,
     ];
@@ -71,7 +73,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     $response = curl_exec($ch);
     if ($response === false) {
         curl_close($ch);
-        return ['error' => "Errore cURL: ".curl_error($ch)]; // restituisci array anche in errore
+        return ['error' => "Errore cURL: " . curl_error($ch)]; // restituisci array anche in errore
     }
 
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -79,7 +81,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     $json = json_decode($response, true);
     if (!is_array($json)) {
-        return ['error' => "Risposta Proxmox non valida: ".$response];
+        return ['error' => "Risposta Proxmox non valida: " . $response];
     }
     if ($httpCode >= 400) {
         return ['error' => $json['errors'][0] ?? $response];
@@ -92,7 +94,8 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 /**
  * Avvia un container LXC
  */
-function startContainer(int $vmid): array {
+function startContainer(int $vmid): array
+{
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
     $auth = proxmoxLogin();
 
@@ -131,7 +134,8 @@ function startContainer(int $vmid): array {
 /**
  * Recupera lo stato corrente di un container
  */
-function getContainerStatus(int $vmid): string {
+function getContainerStatus(int $vmid): string
+{
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
     $auth = proxmoxLogin();
 
@@ -157,7 +161,8 @@ function getContainerStatus(int $vmid): string {
 /**
  * Attende fino a che il container sia 'running' oppure scada il timeout
  */
-function waitForContainer(int $vmid, int $timeoutSec = 10, int $intervalSec = 1) {
+function waitForContainer(int $vmid, int $timeoutSec = 10, int $intervalSec = 1)
+{
     $elapsed = 0;
     while ($elapsed < $timeoutSec) {
         $status = getContainerStatus($vmid);
@@ -173,7 +178,8 @@ function waitForContainer(int $vmid, int $timeoutSec = 10, int $intervalSec = 1)
 /**
  * Installa Bedrock server su container via SSH
  */
-function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serverId) {
+function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serverId)
+{
     $cmds = [
         "apt update -y",
         "apt install -y wget unzip screen",
@@ -199,48 +205,64 @@ function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serv
 /**
  * Utility: calcola CPU in base alla RAM
  */
-function calculateCpuCores(int $ramGb): int {
-    if ($ramGb <= 2) return 2;
-    if ($ramGb <= 4) return 2;
-    if ($ramGb <= 6) return 3;
-    if ($ramGb <= 8) return 4;
-    if ($ramGb <= 16) return 6;
+function calculateCpuCores(int $ramGb): int
+{
+    if ($ramGb <= 2)
+        return 2;
+    if ($ramGb <= 4)
+        return 2;
+    if ($ramGb <= 6)
+        return 3;
+    if ($ramGb <= 8)
+        return 4;
+    if ($ramGb <= 16)
+        return 6;
     return 8;
 }
 
 /**
  * Utility: calcola prezzo
  */
-function calculatePrice(int $ramGb): float {
-    $priceTable = [2 => 6.5*0.85, 4 => 10*0.85, 6 => 15*0.85, 8 => 21.5*0.85, 16 => 35*0.85, 32 => 57.5*0.85];
-    if ($ramGb <= 2) return $priceTable[2];
-    if ($ramGb <= 4) return $priceTable[4];
-    if ($ramGb <= 6) return $priceTable[6];
-    if ($ramGb <= 8) return $priceTable[8];
-    if ($ramGb <= 16) return $priceTable[16];
+function calculatePrice(int $ramGb): float
+{
+    $priceTable = [2 => 6.5 * 0.85, 4 => 10 * 0.85, 6 => 15 * 0.85, 8 => 21.5 * 0.85, 16 => 35 * 0.85, 32 => 57.5 * 0.85];
+    if ($ramGb <= 2)
+        return $priceTable[2];
+    if ($ramGb <= 4)
+        return $priceTable[4];
+    if ($ramGb <= 6)
+        return $priceTable[6];
+    if ($ramGb <= 8)
+        return $priceTable[8];
+    if ($ramGb <= 16)
+        return $priceTable[16];
     return $priceTable[32];
 }
 
 /**
  * Trova prossimo IP privato libero
  */
-function getNextFreePrivateIp(PDO $pdo): string {
+function getNextFreePrivateIp(PDO $pdo): string
+{
     $baseIp = '192.168.1.';
-    $start = 101; $end = 254;
+    $start = 101;
+    $end = 254;
 
     $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip LIKE '192.168.1.%'");
     $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     $usedLastOctets = [];
-    foreach($usedIps as $ip) {
+    foreach ($usedIps as $ip) {
         $parts = explode('.', $ip);
-        if(count($parts) === 4) $usedLastOctets[] = (int)$parts[3];
+        if (count($parts) === 4)
+            $usedLastOctets[] = (int) $parts[3];
     }
 
-    for($i=$start;$i<=$end;$i++) {
-        if(!in_array($i,$usedLastOctets)) return $baseIp.$i;
+    for ($i = $start; $i <= $end; $i++) {
+        if (!in_array($i, $usedLastOctets))
+            return $baseIp . $i;
     }
 
-    return $baseIp.$start;
+    return $baseIp . $start;
 }
 ?>
