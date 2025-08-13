@@ -44,29 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $remoteTemp = '/root/setup_server.sh';
         // percorso temporaneo su Proxmox
         $containerId = $vmid; // VMID appena creato
+        // push diretto dal nodo Proxmox
+        $push = shell_exec("pct push $vmid $localScript $remoteScript -perms 0755 2>&1");
+        if (strpos($push, 'Error') !== false)
+            throw new Exception("Errore push script: $push");
 
-        // --- 1. Copia script sul nodo Proxmox ---
-        $copyCmd = "sudo -u www-data scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
-        exec($copyCmd, $output, $status);
-        if ($status !== 0) {
-            die("Errore copia verso nodo Proxmox: " . implode("\n", $output));
-        }
-
-        // --- 2. Push dentro il container ---
-        $pushCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct push $containerId $remoteTemp /root/setup_server.sh\" 2>&1";
-        exec($pushCmd, $output, $status);
-        if ($status !== 0) {
-            die("Errore push dentro container: " . implode("\n", $output));
-        }
-
-        // --- 3. Imposta permessi ed esegui in background nel container ---
-        $execCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct exec $containerId -- chmod +x /root/setup_server.sh && pct exec $containerId -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
-        exec($execCmd, $output, $status);
-        if ($status !== 0) {
-            die("Errore esecuzione script nel container: " . implode("\n", $output));
-        }
+        // esegui setup in background
+        shell_exec("pct exec $vmid -- bash $remoteScript $containerId > /dev/null 2>&1 &");
 
         echo "Script copiato ed eseguito nel container $containerId con successo!";
 
