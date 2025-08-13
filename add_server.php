@@ -1,12 +1,13 @@
 <?php
 require 'auth_check.php';
 require 'config/config.php';
-require_once 'proxmox_functions.php'; // proxmoxLogin(), createLxcContainer(), startContainer(), waitForTask()
+require_once 'proxmox_functions.php'; // Contiene proxmoxLogin(), createLxcContainer(), startContainer(), waitForTask()
 
 $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
 $error = null;
 
+// --- Token anti-doppio submit ---
 if (!isset($_SESSION['form_token'])) {
     $_SESSION['form_token'] = bin2hex(random_bytes(32));
 }
@@ -16,14 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']) {
         $error = "Richiesta duplicata o token non valido.";
     } else {
-        unset($_SESSION['form_token']);
-
+        unset($_SESSION['form_token']); // Invalida il token subito
         $serverName = trim($_POST['server_name'] ?? '');
         $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
         $ramGb = min($ramGb, 20);
 
-        if (!$serverName)
-            $error = "Nome server non valido.";
+        if (!$serverName) $error = "Nome server non valido.";
 
         if (!$error) {
             try {
@@ -32,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // VMID e IP
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $vmid = max(101, (int) $stmt->fetchColumn() + 1);
+                $vmid = max(101, (int)$stmt->fetchColumn() + 1);
                 $privateIp = getNextFreePrivateIp($pdo);
                 $storageGb = 64;
 
@@ -40,39 +39,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth = proxmoxLogin();
 
                 // 1️⃣ Crea container
-                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
+                $result = createLxcContainer($vmid, $cpuCores, $ramGb*1024, $storageGb, $privateIp, $auth);
 
-                // 2️⃣ Attendi completamento task container
-                waitForTask($result['upid'] ?? null, $auth);
-                // Ora può partire installazione Bedrock
-                installBedrockServer($privateIp, $ramGb * 1024, $pdo, $serverId);
-                // 3️⃣ Avvia container
-                startContainer($vmid, $auth);
-
-                // 4️⃣ Salva nel DB
+                // 2️⃣ Salva container nel DB (senza installare ancora Bedrock)
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $privateIp]);
+                $stmt->execute([$vmid, $cpuCores, $ramGb*1024, $userId, $storageGb, $privateIp]);
                 $containerId = $pdo->lastInsertId();
 
+                // 3️⃣ Salva server nel DB con status not_installed
                 $status = 'not_installed';
                 $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
-                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
+                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb*1024, $price]);
                 $serverId = $pdo->lastInsertId();
 
                 $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
                 $stmt3->execute([$serverId, $containerId]);
 
+                // 4️⃣ Rigenera token per la prossima volta
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));
 
+                // 5️⃣ Reindirizza a install_wait.php, dove partirà l’installazione
                 header("Location: install_wait.php?server_id=" . $serverId);
                 exit;
 
             } catch (Exception $e) {
-                $error = "Errore creazione server: " . $e->getMessage();
+                $error = "Errore nella creazione del server: " . $e->getMessage();
             }
         }
     }
 }
+
 ?>
 
 <!-- HTML rimane praticamente invariato -->
