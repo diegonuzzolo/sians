@@ -6,12 +6,14 @@ $serverId = intval($_GET['server_id'] ?? 0);
 if ($serverId <= 0) die("Server ID non valido");
 
 // Recupera informazioni server e container dal DB
-$stmt = $pdo->prepare("SELECT s.id AS server_id, s.name AS server_name, s.status AS server_status, 
-                              c.proxmox_containerId AS vmid, c.private_ip AS container_ip,
-                              s.cpu_cores, s.ram_mb
-                       FROM servers s
-                       JOIN containers c ON c.id = s.container_id
-                       WHERE s.id = ?");
+$stmt = $pdo->prepare("
+    SELECT s.id AS server_id, s.name AS server_name, s.status AS server_status, 
+           c.proxmox_containerId AS vmid, c.private_ip AS container_ip,
+           s.cpu_cores, s.ram_mb
+    FROM servers s
+    JOIN containers c ON c.id = s.container_id
+    WHERE s.id = ?
+");
 $stmt->execute([$serverId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$server) die("Server non trovato");
@@ -49,31 +51,23 @@ const cpuCores = <?= json_encode($cpuCores) ?>;
 const ramMb = <?= json_encode($ramMb) ?>;
 const statusMessage = document.getElementById('statusMessage');
 
-// --- Polling reale dello stato del container ---
+// --- Funzioni ---
 async function getContainerStatus() {
     try {
         const resp = await fetch('check_container_status.php?vmid=' + vmid);
         const data = await resp.json();
         return data.status; // running / stopped / unknown
-    } catch (e) {
-        console.error(e);
-        return 'unknown';
-    }
+    } catch (e) { console.error(e); return 'unknown'; }
 }
 
-// --- Avvio container ---
 async function startContainer() {
     try {
         const resp = await fetch('start_container.php?vmid=' + vmid);
         const data = await resp.json();
         return data.success;
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
+    } catch (e) { console.error(e); return false; }
 }
 
-// --- Attesa SSH pronta ---
 async function waitForSSH(ip, retries = 20, delay = 5000) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -87,7 +81,6 @@ async function waitForSSH(ip, retries = 20, delay = 5000) {
     return false;
 }
 
-// --- Avvio installazione server Bedrock ---
 async function installServer() {
     try {
         const resp = await fetch('install_server.php', {
@@ -107,15 +100,15 @@ async function installServer() {
     } catch (e) { console.error(e); return false; }
 }
 
-// --- Ciclo principale con attesa creazione container ---
+// --- Loop principale ---
 async function mainLoop() {
     statusMessage.textContent = "Verifica stato container...";
 
     let containerStatus = await getContainerStatus();
     let retries = 0;
 
-    // --- Attendere creazione completa container ---
-    while(containerStatus === 'unknown' && retries < 40) { // max 40 tentativi (~120s)
+    // Attendere creazione completa del container
+    while(containerStatus === 'unknown' && retries < 40) { // max ~120s
         statusMessage.textContent = "Container in creazione... attesa...";
         await new Promise(r => setTimeout(r, 3000));
         containerStatus = await getContainerStatus();
@@ -127,7 +120,7 @@ async function mainLoop() {
         return;
     }
 
-    // --- Avvio container se non running ---
+    // Avvia container solo se non è già running
     if(containerStatus !== 'running') {
         statusMessage.textContent = "Container pronto, avvio in corso...";
         const started = await startContainer();
@@ -139,7 +132,7 @@ async function mainLoop() {
         statusMessage.textContent = "Container avviato, attesa SSH...";
     }
 
-    // --- Attesa SSH ---
+    // Attesa SSH pronta
     const sshReady = await waitForSSH(containerIp);
     if(!sshReady) {
         statusMessage.textContent = "SSH non disponibile, riprovo tra 10s...";
@@ -147,7 +140,7 @@ async function mainLoop() {
         return;
     }
 
-    // --- Avvio installazione Bedrock ---
+    // Avvio installazione Bedrock
     statusMessage.textContent = "Avvio installazione server...";
     const installed = await installServer();
     if(!installed) {
@@ -156,7 +149,7 @@ async function mainLoop() {
         return;
     }
 
-    // --- Polling finale fino a status ready ---
+    // Polling finale fino a status ready
     async function pollServerStatus() {
         try {
             const resp = await fetch('check_install_status.php?server_id=' + serverId);
