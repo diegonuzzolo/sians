@@ -152,8 +152,7 @@ function getNextAvailableVmid(array $auth): int {
 /**
  * Attende fino a che il container sia 'running' oppure scada il timeout
  */
-function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): array {
-    $startTime = time();
+function waitForContainerRunning(int $vmid, array $auth, int $timeout = 10): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
 
     $context = stream_context_create([
@@ -166,16 +165,13 @@ function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): arr
         'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
     ]);
 
+    $startTime = time();
     while (true) {
         $resp = file_get_contents($url, false, $context);
         $json = json_decode($resp, true);
 
-        if (is_array($json) && isset($json['data']['status'])) {
-            if ($json['data']['status'] === 'running') {
-                return ['success' => true, 'message' => "Container $vmid avviato correttamente"];
-            }
-        } else {
-            return ['success' => false, 'message' => "Errore lettura stato container: $resp"];
+        if (isset($json['data']['status']) && $json['data']['status'] === 'running') {
+            return ['success' => true, 'message' => "Container $vmid avviato correttamente"];
         }
 
         if (time() - $startTime > $timeout) {
@@ -185,6 +181,7 @@ function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): arr
         sleep(2);
     }
 }
+
 
 
 /**

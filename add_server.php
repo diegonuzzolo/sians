@@ -52,18 +52,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$result['success'])
                     die("Errore creazione server: " . $result['message']);
 
-                // 2️⃣ Avvia container
+                // Avvio container
                 $startResult = startLxcContainer($vmid, $auth);
                 if (!$startResult['success'])
                     die("Errore avvio container: " . $startResult['message']);
 
-                // 5️⃣ Attendi che sia effettivamente in esecuzione
+                // Attesa container in running
                 $runningResult = waitForContainerRunning($vmid, $auth);
                 if (!$runningResult['success'])
                     die("Errore attesa container: " . $runningResult['message']);
 
-                // ✅ Tutto ok
-                echo "Server creato e avviato con successo! VMID: $vmid";
+                // Container pronto
+                echo "Server creato e avviato con successo!";
 
 
                 // 4️⃣ Salva container nel DB
