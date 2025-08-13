@@ -37,34 +37,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$createResult['success']) {
             throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
         }
+        $copyResult = copySetupScriptToContainer($vmid);
+        if (!$copyResult['success']) {
+            echo $copyResult['message'];
+            exit;
+        }
 
-        // --- 6. Attendi 5 secondi per essere sicuri che il container sia pronto ---
-        sleep(5);
-
-        // --- 7. Copia ed esegui setup_server.sh nel container ---
-        $localScript = '/root/setup_server.sh';
+        // Eseguire lo script in background nel container
+        $sshKey = '/var/www/.ssh/id_proxmox';
+        $proxmoxHost = '192.168.1.251';
         $remoteScript = '/root/setup_server.sh';
-        $sshKey = '/root/.ssh/id_proxmox';
 
-        // Copia lo script
-        $copyCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript";
-        exec($copyCmd, $output, $returnVar);
-        if ($returnVar !== 0)
-            throw new Exception("Errore copia script: " . implode("\n", $output));
+        exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$proxmoxHost " .
+            escapeshellarg("pct exec $vmid -- bash $remoteScript > /dev/null 2>&1 &"));
 
-        // Rendi eseguibile
-        $chmodCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'chmod +x $remoteScript'";
-        $cmd = "sshpass -f /var/www/.sshpass_pw scp -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript";
-        echo $cmd;
-        $output = [];
-        $return_var = 0;
-        exec($cmd, $output, $return_var);
-        var_dump($output, $return_var);
-
-
-        // Esegui in background passando il containerId
-        $execCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'nohup bash $remoteScript $containerId > /root/setup_server.log 2>&1 &'";
-        exec($execCmd);
 
         echo "Container creato con successo! VMID: $vmid IP: $vmIp. Script lanciato in background.";
 

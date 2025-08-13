@@ -173,3 +173,38 @@ function waitForContainer(int $vmid, int $timeout = 10, int $interval = 2): bool
     }
     return false; // timeout
 }
+
+
+/**
+ * Copia lo script setup_server.sh all'interno del container LXC tramite il nodo Proxmox.
+ *
+ * @param int $vmid ID del container LXC su Proxmox
+ * @param string $localPath Percorso del file setup_server.sh sul webserver
+ * @param string $remotePath Percorso dove scrivere lo script nel container (es. /root/setup_server.sh)
+ * @return array ['success' => bool, 'message' => string]
+ */
+function copySetupScriptToContainer(int $vmid, string $localPath = '/root/setup_server.sh', string $remotePath = '/root/setup_server.sh'): array {
+    $proxmoxHost = '192.168.1.251';
+    $sshKey = '/var/www/.ssh/id_proxmox';
+
+    // Comando pct push dal nodo Proxmox
+    $cmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$proxmoxHost " .
+           escapeshellarg("pct push $vmid $localPath $remotePath");
+
+    exec($cmd, $output, $returnVar);
+
+    if ($returnVar !== 0) {
+        return ['success' => false, 'message' => "Errore copia script: " . implode("\n", $output)];
+    }
+
+    // Imposta permessi eseguibili sul container
+    $cmdPerm = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$proxmoxHost " .
+               escapeshellarg("pct exec $vmid -- chmod +x $remotePath");
+    exec($cmdPerm, $outputPerm, $returnVarPerm);
+
+    if ($returnVarPerm !== 0) {
+        return ['success' => false, 'message' => "Errore chmod script: " . implode("\n", $outputPerm)];
+    }
+
+    return ['success' => true, 'message' => "Script copiato con successo nel container $vmid"];
+}
