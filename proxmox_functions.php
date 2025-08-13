@@ -28,17 +28,17 @@ function createLxcContainer(
         return ['success' => false, 'message' => 'IP container non fornito'];
     }
 
-    $netConfig = "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254";
+        $hostname = $hostname ?: "mcserver-$vmid";
 
     $postData = [
         'vmid' => $vmid,
         'hostname' => $hostname,
-        'memory' => $ramGb * 1024, // MB
+        'memory' => $ramGb * 1024,
         'rootfs' => $storageGb . 'G',
-        'cores' => $cores,
-        'net0' => $netConfig,
+        'cores' => 2,
+        'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
         'ostemplate' => $template,
-        'password' => 'Lgu8330Serve6', // password temporanea root
+        'password' => 'Lgu8330Serve6',
         'start' => 1
     ];
 
