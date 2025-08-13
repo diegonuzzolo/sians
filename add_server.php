@@ -63,7 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
                 // 2️⃣ Attendi container running (timeout 10 sec)
-                waitForContainer($vmid, 10, 1);
 
                 // 3️⃣ Avvia container
 
