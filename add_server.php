@@ -56,7 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $remoteScript = '/root/setup_server.sh';
 
         shell_exec("sshpass -f /var/www/.sshpass_pw scp -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript");
-        shell_exec("sshpass -f /var/www/.sshpass_pw ssh -o StrictHostKeyChecking=no root@$vmIp 'bash $remoteScript $containerId > /dev/null 2>&1 &'");
+        $output = [];
+        $returnVar = 0;
+        exec("sshpass -f /var/www/.sshpass_pw scp -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript 2>&1", $output, $returnVar);
+        var_dump($output, $returnVar);
+
 
         // --- Redirect alla dashboard ---
         header("Location: dashboard.php");
