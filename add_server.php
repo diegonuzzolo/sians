@@ -80,18 +80,7 @@ function pushAndRunSetupScript(string $vmIp, int $containerId) {
     return true;
 }
 
-// --- Funzione per ottenere prossimo VMID libero dal DB ---
-function getNextFreeVmidFromDb(PDO $pdo): int {
-    $nextVmid = 100;
-    do {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
-        $stmt->execute([$nextVmid]);
-        if ($stmt->fetchColumn() == 0)
-            break;
-        $nextVmid++;
-    } while (true);
-    return $nextVmid;
-}
+
 
 ?>
 
