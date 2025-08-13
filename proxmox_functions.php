@@ -72,11 +72,13 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     curl_close($ch);
 
     $json = json_decode($response, true);
+
+    // Se non è array o non contiene 'data', genera eccezione
     if (!is_array($json) || !isset($json['data'])) {
         throw new Exception('Errore creazione container: ' . $response);
     }
 
-    return $json['data']; // assicurati di restituire sempre un array
+    return $json['data']; // sempre un array
 }
 
 /**
