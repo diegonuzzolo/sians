@@ -19,14 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     // --- 2. Trova un VMID libero ---
-    $nextVmid = 100;
-    do {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
-        $stmt->execute([$nextVmid]);
-        if ($stmt->fetchColumn() == 0) break;
-        $nextVmid++;
-    } while (true);
-    $vmid = $nextVmid;
+    $vmid = getNextFreeVmid($userId);
 
     // --- 3. Recupera il prossimo IP libero ---
     $vmIp = getNextFreePrivateIp($pdo);
