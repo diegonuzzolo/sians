@@ -49,7 +49,7 @@ const cpuCores = <?= json_encode($cpuCores) ?>;
 const ramMb = <?= json_encode($ramMb) ?>;
 const statusMessage = document.getElementById('statusMessage');
 
-// --- Funzione per controllare lo stato container su Proxmox ---
+// --- Polling reale dello stato del container ---
 async function getContainerStatus() {
     try {
         const resp = await fetch('check_container_status.php?vmid=' + vmid);
@@ -61,7 +61,7 @@ async function getContainerStatus() {
     }
 }
 
-// --- Funzione per avviare il container ---
+// --- Avvio container ---
 async function startContainer() {
     try {
         const resp = await fetch('start_container.php?vmid=' + vmid);
@@ -73,7 +73,7 @@ async function startContainer() {
     }
 }
 
-// --- Funzione per verificare se SSH è pronto ---
+// --- Attesa SSH pronta ---
 async function waitForSSH(ip, retries = 20, delay = 5000) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -87,7 +87,7 @@ async function waitForSSH(ip, retries = 20, delay = 5000) {
     return false;
 }
 
-// --- Funzione per avviare installazione Bedrock ---
+// --- Avvio installazione server Bedrock ---
 async function installServer() {
     try {
         const resp = await fetch('install_server.php', {
@@ -107,20 +107,27 @@ async function installServer() {
     } catch (e) { console.error(e); return false; }
 }
 
-// --- Ciclo principale ---
+// --- Ciclo principale con attesa creazione container ---
 async function mainLoop() {
     statusMessage.textContent = "Verifica stato container...";
-    let containerStatus = await getContainerStatus();
 
-    // Attendere che il container esista e sia pronto
+    let containerStatus = await getContainerStatus();
     let retries = 0;
-    while(containerStatus === 'unknown' && retries < 30) { // max 30 tentativi = ~90s
+
+    // --- Attendere creazione completa container ---
+    while(containerStatus === 'unknown' && retries < 40) { // max 40 tentativi (~120s)
         statusMessage.textContent = "Container in creazione... attesa...";
         await new Promise(r => setTimeout(r, 3000));
         containerStatus = await getContainerStatus();
         retries++;
     }
 
+    if(containerStatus === 'unknown') {
+        statusMessage.textContent = "Creazione container fallita o troppo lenta.";
+        return;
+    }
+
+    // --- Avvio container se non running ---
     if(containerStatus !== 'running') {
         statusMessage.textContent = "Container pronto, avvio in corso...";
         const started = await startContainer();
@@ -132,6 +139,7 @@ async function mainLoop() {
         statusMessage.textContent = "Container avviato, attesa SSH...";
     }
 
+    // --- Attesa SSH ---
     const sshReady = await waitForSSH(containerIp);
     if(!sshReady) {
         statusMessage.textContent = "SSH non disponibile, riprovo tra 10s...";
@@ -139,6 +147,7 @@ async function mainLoop() {
         return;
     }
 
+    // --- Avvio installazione Bedrock ---
     statusMessage.textContent = "Avvio installazione server...";
     const installed = await installServer();
     if(!installed) {
@@ -147,7 +156,7 @@ async function mainLoop() {
         return;
     }
 
-    // Poll finale fino a ready
+    // --- Polling finale fino a status ready ---
     async function pollServerStatus() {
         try {
             const resp = await fetch('check_install_status.php?server_id=' + serverId);
