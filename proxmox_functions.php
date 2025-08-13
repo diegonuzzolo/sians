@@ -40,7 +40,8 @@ function proxmoxLogin(): array
  */
 
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
+
 
     // Solo campi validi per Proxmox 8
     $postData = [
