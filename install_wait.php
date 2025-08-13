@@ -1,127 +1,133 @@
 <?php
-require 'config/config.php';
 require 'auth_check.php';
+require 'config/config.php';
+require_once 'proxmox_functions.php';
 
 $serverId = intval($_GET['server_id'] ?? 0);
-if ($serverId <= 0) die("Server ID non valido");
+if ($serverId <= 0) {
+    die("Server ID non valido");
+}
 
-// Recupera informazioni server e container dal DB
-$stmt = $pdo->prepare("
-    SELECT s.id AS server_id, s.name AS server_name, s.status AS server_status, 
-           c.proxmox_containerId AS vmid, c.private_ip AS container_ip,
-           s.cpu_cores, s.ram_mb
-    FROM servers s
-    JOIN containers c ON c.id = s.container_id
-    WHERE s.id = ?
-");
+$stmt = $pdo->prepare("SELECT s.*, c.proxmox_containerId AS vmid, c.private_ip
+                       FROM servers s
+                       JOIN containers c ON c.id = s.container_id
+                       WHERE s.id = ?");
 $stmt->execute([$serverId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$server) die("Server non trovato");
 
-$containerIp = $server['container_ip'];
-$serverName = htmlspecialchars($server['server_name']);
-$cpuCores = $server['cpu_cores'] ?? 2;
-$ramMb = $server['ram_mb'] ?? 4096;
+if (!$server) {
+    die("Server non trovato");
+}
+
+$vmid = (int)$server['vmid'];
+$containerIp = $server['private_ip'];
+$sshUser = 'root';
+$sshPass = 'Lgu8330Serve6';
 ?>
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Installazione in corso...</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<title>Installazione Server Minecraft</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 <style>
-  body { background-color: #111; color: #fff; }
+body { background-color: #111; color: #fff; }
+.progress { height: 30px; }
+.progress-bar { transition: width 0.5s ease-in-out; }
 </style>
 </head>
 <body class="d-flex flex-column justify-content-center align-items-center vh-100">
 <div class="text-center">
-    <h2>Installazione del server <?= $serverName ?> in corso...</h2>
-    <p>Attendi qualche istante, ti reindirizzeremo automaticamente appena tutto è pronto.</p>
-    <div class="spinner-border text-info" role="status"><span class="visually-hidden">Loading...</span></div>
+    <h2>Installazione del server in corso...</h2>
+    <p>Attendi, il sistema gestirà automaticamente container e installazione.</p>
+
+    <div class="progress w-75 mt-4">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+    </div>
     <div id="statusMessage" class="mt-3"></div>
 </div>
 
 <script>
 const serverId = <?= json_encode($serverId) ?>;
-const containerIp = <?= json_encode($containerIp) ?>;
-const serverName = <?= json_encode($serverName) ?>;
-const cpuCores = <?= json_encode($cpuCores) ?>;
-const ramMb = <?= json_encode($ramMb) ?>;
 const statusMessage = document.getElementById('statusMessage');
+const progressBar = document.getElementById('progressBar');
 
-// --- Funzioni ---
-async function waitForSSH(ip, retries = 20, delay = 5000) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const resp = await fetch(`check_ssh.php?ip=${ip}`);
-            const data = await resp.json();
-            if (data.sshReady) return true;
-        } catch (e) { console.error(e); }
-        statusMessage.textContent = `Attesa SSH... tentativo ${i+1}/${retries}`;
-        await new Promise(r => setTimeout(r, delay));
-    }
-    return false;
+const steps = [
+    { label: 'Creazione container', value: 20 },
+    { label: 'Avvio container', value: 40 },
+    { label: 'Connessione SSH', value: 60 },
+    { label: 'Installazione Bedrock', value: 90 },
+    { label: 'Completato', value: 100 }
+];
+
+const maxRetries = 20;
+const retryDelay = 3000;
+
+let currentProgress = 0;
+
+function setProgress(target) {
+    if (currentProgress >= target) return;
+    currentProgress++;
+    progressBar.style.width = currentProgress + '%';
+    progressBar.textContent = currentProgress + '%';
+    setTimeout(() => setProgress(target), 50);
 }
 
-async function installServer() {
+async function updateStep(stepLabel) {
+    const step = steps.find(s => s.label === stepLabel);
+    if (step) {
+        statusMessage.textContent = step.label;
+        setProgress(step.value);
+    }
+}
+
+async function waitForContainerAndInstall(retries = 0) {
     try {
-        const resp = await fetch('install_server.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                server_id: serverId,
-                server_name: serverName,
-                cpu: cpuCores,
-                ram: ramMb,
-                ip: containerIp
-            })
-        });
+        await updateStep('Creazione container');
+
+        const resp = await fetch(`install_wait_status.php?server_id=${serverId}`);
         const data = await resp.json();
-        return data.success;
-    } catch (e) { console.error(e); return false; }
-}
 
-// --- Loop principale ---
-async function mainLoop() {
-    statusMessage.textContent = "Attesa SSH del container...";
+        if (data.container_status !== 'running') {
+            await updateStep('Avvio container');
+            await fetch(`install_wait_start.php?server_id=${serverId}`);
+            setTimeout(() => waitForContainerAndInstall(retries), 2000);
+            return;
+        }
 
-    const sshReady = await waitForSSH(containerIp);
-    if(!sshReady) {
-        statusMessage.textContent = "SSH non disponibile, riprovo tra 10s...";
-        setTimeout(mainLoop, 10000);
-        return;
-    }
+        await updateStep('Connessione SSH');
 
-    statusMessage.textContent = "SSH pronto, avvio installazione server...";
-    const installed = await installServer();
-    if(!installed) {
-        statusMessage.textContent = "Errore installazione server, riprovo tra 10s...";
-        setTimeout(mainLoop, 10000);
-        return;
-    }
+        const sshResp = await fetch(`install_server.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ server_id: serverId })
+        });
+        const sshData = await sshResp.json();
 
-    // Polling finale fino a status ready
-    async function pollServerStatus() {
-        try {
-            const resp = await fetch('check_install_status.php?server_id=' + serverId);
-            const data = await resp.json();
-            if(data.status === 'ready') {
-                statusMessage.textContent = "Server pronto! Reindirizzamento...";
-                setTimeout(()=>window.location.href="dashboard.php",1500);
+        if (sshData.success) {
+            await updateStep('Completato');
+            setTimeout(() => window.location.href = "dashboard.php", 1500);
+        } else {
+            if (retries < maxRetries) {
+                statusMessage.textContent = `Tentativo SSH fallito, riprovo... (${retries + 1}/${maxRetries})`;
+                setTimeout(() => waitForContainerAndInstall(retries + 1), retryDelay);
             } else {
-                statusMessage.textContent = "Stato attuale: " + data.status;
-                setTimeout(pollServerStatus, 3000);
+                statusMessage.textContent = "Errore: impossibile connettersi al container via SSH.";
             }
-        } catch(e) {
-            statusMessage.textContent = "Errore controllo stato server, riprovo...";
-            setTimeout(pollServerStatus, 5000);
+        }
+
+    } catch (e) {
+        if (retries < maxRetries) {
+            statusMessage.textContent = `Errore comunicazione, riprovo... (${retries + 1}/${maxRetries})`;
+            setTimeout(() => waitForContainerAndInstall(retries + 1), retryDelay);
+        } else {
+            statusMessage.textContent = "Errore irreversibile: " + e.message;
         }
     }
-
-    pollServerStatus();
 }
 
-mainLoop();
+waitForContainerAndInstall();
 </script>
 </body>
 </html>

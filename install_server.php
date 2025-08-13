@@ -1,65 +1,71 @@
 <?php
-require 'config/config.php';
 require 'auth_check.php';
-
-$data = json_decode(file_get_contents('php://input'), true);
-
-$serverId = intval($data['server_id'] ?? 0);
-$vmid = intval($data['container_id'] ?? 0);
-$serverName = trim($data['server_name'] ?? 'BedrockServer');
-$cpuCores = intval($data['cpu'] ?? 2);
-$ramMb = intval($data['ram'] ?? 4096);
-$ip = $data['ip'] ?? null;
+require 'config/config.php';
+require_once 'proxmox_functions.php';
 
 header('Content-Type: application/json');
 
-if ($serverId <= 0 || $vmid <= 0 || !$ip) {
-    echo json_encode(['success'=>false,'error'=>'Parametri non validi']);
+$input = json_decode(file_get_contents('php://input'), true);
+$serverId = intval($input['server_id'] ?? 0);
+
+if ($serverId <= 0) {
+    echo json_encode(['success' => false, 'error' => 'Server ID non valido']);
     exit;
 }
 
-// Funzione per eseguire comandi nel container via SSH
-function execContainerCommand($ip, $cmd) {
-    $sshUser = 'root';
-    $fullCmd = "ssh -o StrictHostKeyChecking=no {$sshUser}@{$ip} \"$cmd\" 2>&1";
-    exec($fullCmd, $output, $retCode);
-    return ['output'=>implode("\n",$output), 'code'=>$retCode];
+// Recupera dati server e container
+$stmt = $pdo->prepare("SELECT s.*, c.proxmox_containerId AS vmid, c.private_ip
+                       FROM servers s
+                       JOIN containers c ON c.id = s.container_id
+                       WHERE s.id = ?");
+$stmt->execute([$serverId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$server) {
+    echo json_encode(['success' => false, 'error' => 'Server non trovato']);
+    exit;
 }
 
-// Aggiorna status server nel DB
-function updateServerStatus(PDO $pdo, $serverId, $status) {
-    $stmt = $pdo->prepare("UPDATE servers SET status = ?, updated_at = NOW() WHERE id = ?");
-    $stmt->execute([$status, $serverId]);
-}
+$vmid = (int)$server['vmid'];
+$containerIp = $server['private_ip'];
+$sshUser = 'root';
+$sshPass = 'Lgu8330Serve6';
 
 try {
-    updateServerStatus($pdo, $serverId, 'installing');
+    $auth = proxmoxLogin();
+    $status = getContainerStatus($vmid, $auth);
 
-    // 1. Aggiorna pacchetti e installa dipendenze
-    $cmd = "apt update && apt install -y wget unzip screen";
-    $res = execContainerCommand($ip, $cmd);
-    if ($res['code'] !== 0) throw new Exception("Errore eseguendo: $cmd\nOutput: " . $res['output']);
+    if ($status !== 'running') {
+        startContainer($vmid, $auth);
+        // Attendere che il container sia pronto
+        sleep(5);
+    }
 
-    // 2. Scarica Bedrock server ufficiale
-    $cmd = "mkdir -p /bedrock && cd /bedrock && wget -q https://www.minecraft.net/content/dam/minecraft/edition/bedrock/server/bedrock-server-1.20.23.02.zip -O bedrock.zip && unzip -o bedrock.zip && rm bedrock.zip";
-    $res = execContainerCommand($ip, $cmd);
-    if ($res['code'] !== 0) throw new Exception("Errore scaricando server Bedrock\nOutput: " . $res['output']);
+    // Comando shell da eseguire via SSH
+    $cmd = <<<CMD
+apt update && apt install -y wget unzip screen && \
+wget -O /tmp/bedrock-server.zip https://minecraft.azureedge.net/bin-linux/bedrock-server-1.20.30.23.zip && \
+unzip -o /tmp/bedrock-server.zip -d /opt/bedrock && \
+rm /tmp/bedrock-server.zip
+CMD;
 
-    // 3. Genera start.sh
-    $startScript = "#!/bin/bash\ncd /bedrock\nLD_LIBRARY_PATH=. ./bedrock_server";
-    $cmd = "echo " . escapeshellarg($startScript) . " > /bedrock/start.sh && chmod +x /bedrock/start.sh";
-    $res = execContainerCommand($ip, $cmd);
+    // Usa sshpass per passare la password al client ssh
+    $escapedCmd = escapeshellarg($cmd);
+    $sshCmd = "sshpass -p " . escapeshellarg($sshPass) . 
+              " ssh -o StrictHostKeyChecking=no $sshUser@$containerIp $escapedCmd";
 
-    // 4. Genera stop.sh
-    $stopScript = "#!/bin/bash\npkill -f bedrock_server";
-    $cmd = "echo " . escapeshellarg($stopScript) . " > /bedrock/stop.sh && chmod +x /bedrock/stop.sh";
-    $res = execContainerCommand($ip, $cmd);
+    exec($sshCmd, $outputLines, $returnVar);
 
-    updateServerStatus($pdo, $serverId, 'installed');
+    if ($returnVar !== 0) {
+        throw new Exception("Errore eseguendo comandi sul container: " . implode("\n", $outputLines));
+    }
 
-    echo json_encode(['success'=>true]);
+    // Aggiorna stato server
+    $stmt = $pdo->prepare("UPDATE servers SET status = 'installed', updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$serverId]);
 
-} catch(Exception $e) {
-    updateServerStatus($pdo, $serverId, 'error');
-    echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
+    echo json_encode(['success' => true, 'output' => implode("\n", $outputLines)]);
+
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
