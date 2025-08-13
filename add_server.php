@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $storageGb = intval($_POST['storage_gb'] ?? 10);
     $cpuCores = calculateCpuCores($ramGb);
     // assegnazione vmid, insert DB, creazione container ecc.
-    
+    $error = '';
     try {
         $auth = proxmoxLogin();
     } catch(Exception $e) {
