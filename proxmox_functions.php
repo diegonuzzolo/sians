@@ -86,7 +86,13 @@ function createLxcContainer(
 
     // Qui catturiamo ogni messaggio utile
     $msg = $data['message'] ?? $data['errors'] ?? $data ?? 'Errore sconosciuto';
-    return ['success' => false, 'message' => is_array($msg) ? json_encode($msg) : $msg];
+    return [
+    'success' => false,
+    'message' => (is_array($msg) || is_object($msg))
+        ? json_encode($msg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        : (string)$msg
+];
+
 }
 
 

@@ -36,16 +36,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, server_name, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
+    try {
+        $vmid = getNextFreeVmid($pdo);
+        $ip = getNextFreePrivateIp($pdo);
 
-    $vmid = getNextFreeVmid($pdo);
-$ip = getNextFreePrivateIp($pdo);
+        // Chiami la funzione di creazione
+        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $hostname, $ip, $cores);
 
-// Poi passi $vmid e $ip a createLxcContainer()
-$result = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $ip, $cores);
+        if (!$createResult || !isset($createResult['success']) || !$createResult['success']) {
+            throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
+        }
 
-    if (!$createResult['success']) {
-        die("Errore creazione container: " . $createResult['message']);
+        echo "Container creato con successo! VMID: $vmid IP: $ip";
+
+    } catch (Exception $e) {
+        echo "Errore creazione container: " . $e->getMessage();
     }
+
 
     // --- 6. Copia setup_server.sh nel container e lancialo in background ---
     $localScript = '/root/setup_server.sh'; // percorso sul webserver
