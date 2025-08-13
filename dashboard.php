@@ -50,34 +50,8 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <script>
-function updateServerStatus(serverId) {
-    fetch('check_install_status.php?server_id=' + serverId)
-        .then(res => res.json())
-        .then(data => {
-            const statusEl = document.getElementById('status-' + serverId);
-            const progressEl = document.getElementById('progress-' + serverId);
 
-            if (data.status === 'ready') {
-                statusEl.textContent = 'Stato: pronto';
-                progressEl.style.width = '100%';
-                progressEl.textContent = 'Pronto!';
-            } else if (data.status === 'installing' || data.status === 'preparing') {
-                statusEl.textContent = 'Stato: ' + data.status;
-                // Simula avanzamento progress bar
-                let currentWidth = parseInt(progressEl.style.width) || 0;
-                currentWidth = Math.min(currentWidth + 10, 90);
-                progressEl.style.width = currentWidth + '%';
-                progressEl.textContent = currentWidth + '%';
-                setTimeout(() => updateServerStatus(serverId), 3000);
-            } else {
-                statusEl.textContent = 'Stato: ' + data.status;
-                setTimeout(() => updateServerStatus(serverId), 5000);
-            }
-        })
-        .catch(() => {
-            setTimeout(() => updateServerStatus(serverId), 5000);
-        });
-}
+
 
 // Avvia polling per tutti i server
 <?php foreach ($servers as $server): ?>
