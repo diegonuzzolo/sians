@@ -1,6 +1,8 @@
 <?php
-require 'config/config.php';
-require 'auth_check.php';
+header('Content-Type: application/json');
+require_once 'config/config.php';
+require_once 'auth_check.php';
+require_once 'proxmox_functions.php'; // dove hai definito proxmoxLogin()
 
 $data = json_decode(file_get_contents('php://input'), true);
 if (!$data || !isset($data['server_id'], $data['container_id'], $data['server_name'], $data['cpu'], $data['ram'], $data['ip'])) {
