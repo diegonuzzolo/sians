@@ -163,16 +163,18 @@ function getNextAvailableVmid(array $auth): int {
 function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serverId)
 {
     $cmds = [
-        "apt update -y",
-        "apt install -y wget unzip screen",
-        "mkdir -p /opt/minecraft-bedrock",
-        "cd /opt/minecraft-bedrock",
-        "wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock",
-        "unzip -o bedrock-server.zip",
-        "rm bedrock-server.zip"
-    ];
+    "apt update -y",
+    "apt install -y openssh-server wget unzip screen",
+    "systemctl enable --now ssh",
+    "mkdir -p /opt/minecraft-bedrock",
+    "cd /opt/minecraft-bedrock",
+    "wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock",
+    "unzip -o bedrock-server.zip",
+    "rm bedrock-server.zip"
+];
 
     $sshCommand = "sshpass -p '" . PROXMOX_PASSWORD . "' ssh -o StrictHostKeyChecking=no root@$privateIp '" . implode(' && ', $cmds) . "'";
+
 
     exec($sshCommand, $output, $ret);
     if ($ret !== 0) {
