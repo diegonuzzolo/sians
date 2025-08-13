@@ -20,7 +20,7 @@ function createLxcContainer(
     string $hostname = '',
     string $vmIp = '',
     int $cores = 2,
-    string $template = 'local:vztmpl/ubuntu-25-standard_25.0-1_amd64.tar.gz'
+    string $template = 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst'
 ): array {
     $hostname = $hostname ?: "mcserver-$vmid";
 
