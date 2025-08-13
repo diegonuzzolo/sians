@@ -148,7 +148,7 @@ function getNextFreePrivateIp(PDO $pdo): string {
     $start = 101;
     $end = 254;
 
-    $stmt = $pdo->query("SELECT ip_address FROM containers WHERE ip_address LIKE '192.168.1.%'");
+    $stmt = $pdo->query("SELECT ip FROM containers WHERE ip LIKE '192.168.1.%'");
     $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     $usedLastOctets = [];
