@@ -1,12 +1,9 @@
 <?php
 require 'config/config.php';
 
-
-
-
-
-
-
+/**
+ * Login a Proxmox via root@pam + password
+ */
 function proxmoxLogin()
 {
     $host = "https://192.168.1.251:8006";
@@ -40,9 +37,27 @@ function proxmoxLogin()
     return false;
 }
 
+/**
+ * Recupera il nome del nodo
+ */
+function getNodeName($login)
+{
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "{$login['host']}/api2/json/nodes");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Cookie: PVEAuthCookie={$login['ticket']}"
+    ]);
+    $res = curl_exec($ch);
+    curl_close($ch);
+    $json = json_decode($res, true);
+    return $json['data'][0]['node'] ?? 'pve';
+}
 
-
-
+/**
+ * Crea un container LXC
+ */
 function createLxcContainer(
     int $vmid,
     int $ramGb,
@@ -51,100 +66,61 @@ function createLxcContainer(
     string $vmIp,
     int $cores = 2,
     string $template = 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst'
-): array {
+) {
     $login = proxmoxLogin();
     if (!$login) {
         return ['success' => false, 'message' => 'Login Proxmox fallito'];
     }
 
-    $url = "{$login['host']}/api2/json/nodes/pve/lxc";
+    $node = getNodeName($login);
+
+    $url = "{$login['host']}/api2/json/nodes/$node/lxc";
 
     $params = [
-        'vmid'      => $vmid,
-        'hostname'  => $hostname,
-        'memory'    => $ramGb * 1024, // RAM in MB
+        'vmid' => $vmid,
+        'hostname' => $hostname,
+        'memory' => $ramGb * 1024,
+        'cores' => $cores,
+        'net0' => "name=eth0,bridge=vmbr0,ip={$vmIp}/24,gw=192.168.1.254",
+        'ostemplate' => $template,
+        'password' => 'Lgu8330Serve6',
+        'start' => 1,
         'storage' => 'local-lvm',
-        'rootfs'    => '64G',
-        'cores'     => $cores,
-        'net0'      => "name=eth0,bridge=vmbr0,ip={$vmIp}/24,gw=192.168.1.254",
-        'ostemplate'=> $template,
-        'password'  => 'Lgu8330Serve6', // password root container
-        'start'     => 1
+        'rootfs' => "local-lvm:{$storageGb}G"
     ];
-
-    return callProxmox($url, $params);
-}
-
-
-function callProxmox(string $url, array $params = []): array
-{
-    $login = proxmoxLogin();
-    if (!$login) {
-        return ['success' => false, 'message' => 'Login Proxmox fallito'];
-    }
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "CSRFPreventionToken: {$login['csrf']}",
         "Cookie: PVEAuthCookie={$login['ticket']}"
     ]);
 
-    $response = curl_exec($ch);
+    $res = curl_exec($ch);
     $err = curl_error($ch);
     curl_close($ch);
 
     if ($err) {
-        return ['success' => false, 'message' => $err];
+        return ['success' => false, 'message' => "cURL error: $err"];
     }
 
-    $data = json_decode($response, true);
-    if (isset($data['data'])) {
-        return ['success' => true, 'message' => json_encode($data['data'])];
-    } else {
-        $msg = $data['errors'] ?? 'Errore sconosciuto';
-        return ['success' => false, 'message' => json_encode($msg)];
+    $data = json_decode($res, true);
+    if (!isset($data['data'])) {
+        return ['success' => false, 'message' => "Proxmox error: " . $res];
     }
+
+    return ['success' => true, 'message' => $data['data']];
 }
 
-function startContainer(int $vmid): array
-{
-    $login = proxmoxLogin();
-    if (!$login) {
-        return ['success' => false, 'message' => 'Login Proxmox fallito'];
-    }
-
-    $url = "{$login['host']}/api2/json/nodes/pve/lxc/$vmid/status/start";
-    return callProxmox($url);
-}
-
-function stopContainer(int $vmid): array
-{
-    $login = proxmoxLogin();
-    if (!$login) {
-        return ['success' => false, 'message' => 'Login Proxmox fallito'];
-    }
-
-    $url = "{$login['host']}/api2/json/nodes/pve/lxc/$vmid/status/stop";
-    return callProxmox($url);
-}
-
-
-
-
-
-
-
-
-
+/**
+ * Trova il prossimo VMID disponibile
+ */
 function getNextFreeVmid(PDO $pdo, int $start = 101, int $end = 9999): int
 {
-    // Recupero VMID già usati nel DB
     $stmt = $pdo->query("SELECT proxmox_containerId FROM containers ORDER BY proxmox_containerId ASC");
     $usedVmidsDb = $stmt->fetchAll(PDO::FETCH_COLUMN);
     $usedVmidsDb = array_map('intval', $usedVmidsDb);
@@ -158,48 +134,8 @@ function getNextFreeVmid(PDO $pdo, int $start = 101, int $end = 9999): int
     throw new Exception("Nessun VMID libero disponibile tra $start e $end");
 }
 
-
-
-
-
 /**
- * Calcola CPU consigliate in base alla RAM
- */
-function calculateCpuCores(int $ramGb): int
-{
-    if ($ramGb <= 2)
-        return 2;
-    if ($ramGb <= 4)
-        return 2;
-    if ($ramGb <= 6)
-        return 3;
-    if ($ramGb <= 8)
-        return 4;
-    if ($ramGb <= 16)
-        return 6;
-    return 8;
-}
-
-/**
- * Calcola prezzo server in base alla RAM
- */
-function calculatePrice(int $ramGb): float
-{
-    if ($ramGb <= 2)
-        return 6.5 * 0.85;
-    if ($ramGb <= 4)
-        return 10 * 0.85;
-    if ($ramGb <= 6)
-        return 15 * 0.85;
-    if ($ramGb <= 8)
-        return 21.5 * 0.85;
-    if ($ramGb <= 16)
-        return 35 * 0.85;
-    return 57.5 * 0.85;
-}
-
-/**
- * Recupera prossimo IP privato disponibile (192.168.1.101 - 192.168.1.254)
+ * Trova il prossimo IP disponibile
  */
 function getNextFreePrivateIp(PDO $pdo): string
 {
@@ -222,6 +158,6 @@ function getNextFreePrivateIp(PDO $pdo): string
             return $baseIp . $i;
     }
 
-    return $baseIp . $start; // fallback
+    return $baseIp . $start;
 }
 ?>
