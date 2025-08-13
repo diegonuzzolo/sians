@@ -128,7 +128,8 @@ function getContainerStatus(int $vmid, array $auth): string {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
+        "Cookie: PVEAuthCookie={$auth['ticket']}",
+        "Accept-Encoding: identity"
     ]);
 
     $response = curl_exec($ch);
