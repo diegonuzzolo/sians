@@ -73,13 +73,14 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     $json = json_decode($response, true);
 
-    // Se non è array o non contiene 'data', genera eccezione
-    if (!is_array($json) || !isset($json['data'])) {
-        throw new Exception('Errore creazione container: ' . $response);
+    if (!is_array($json)) {
+        throw new Exception('Errore creazione container: risposta non valida. Risposta Proxmox: ' . $response);
     }
 
-    return $json['data']; // sempre un array
+    // Se la risposta è corretta ma non contiene 'data', restituiamo array vuoto
+    return $json['data'] ?? [];
 }
+
 
 /**
  * Avvia un container
