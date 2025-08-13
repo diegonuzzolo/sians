@@ -8,75 +8,79 @@ require 'config/config.php';
 require_once 'proxmox_functions.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Qui dentro metti tutta la logica di add_server
+    
+    $ramGb = intval($_POST['ram_gb'] ?? 2);
+    $storageGb = intval($_POST['storage_gb'] ?? 10);
+    $cpuCores = calculateCpuCores($ramGb);
+    // assegnazione vmid, insert DB, creazione container ecc.
+    
+    try {
+        $auth = proxmoxLogin();
+    } catch(Exception $e) {
+        die("Errore login Proxmox: " . $e->getMessage());
+    }
+    
+    $vmid = getNextAvailableVmid($auth);
+    $privateIp = getNextFreePrivateIp($pdo);
+    
+    // 1️⃣ Inserisci record container
+    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, private_ip, ram_mb) VALUES (?, ?, ?)");
+    $stmt->execute([$vmid, $privateIp, $ramGb * 1024]);
+    $containerId = $pdo->lastInsertId();
+    
+    // 2️⃣ Inserisci record server con container_id
+    $stmt = $pdo->prepare("INSERT INTO servers (user_id, name, status, container_id) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$userId, "Server $vmid", 'creating', $containerId]);
+    $serverId = $pdo->lastInsertId();
 
-$ramGb = intval($_POST['ram_gb'] ?? 2);
-$storageGb = intval($_POST['storage_gb'] ?? 10);
-$cpuCores = calculateCpuCores($ramGb);
-
-try {
-    $auth = proxmoxLogin();
-} catch(Exception $e) {
-    die("Errore login Proxmox: " . $e->getMessage());
+    // 3️⃣ Crea e avvia il container
+    $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
+    if (!$result['success']) die("Errore creazione container: " . $result['message']);
+    
+    $result = startLxcContainer($vmid, $auth);
+    if (!$result['success']) die("Errore avvio container: " . $result['message']);
+    
+    // 4️⃣ Aggiorna stato server a "preparing"
+    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+    $stmt->execute(['preparing', $serverId]);
+    
+    // 5️⃣ Scrivi lo script prepareBedrockServer.sh direttamente sul container
+    $scriptContent = <<<BASH
+    #!/bin/bash
+    set -e
+    apt update -y
+    apt install -y wget unzip screen
+    mkdir -p /opt/minecraft-bedrock
+    cd /opt/minecraft-bedrock
+    wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock
+    unzip -o bedrock-server.zip
+    rm bedrock-server.zip
+    echo "ready" > /opt/minecraft-bedrock/.status
+    BASH;
+    
+    // Salva temporaneamente sul web server
+    $tmpFile = "/tmp/prepareBedrockServer_$vmid.sh";
+    file_put_contents($tmpFile, $scriptContent);
+    
+    // Copia nello LXC e assegna permessi
+    exec("pct push $vmid $tmpFile /root/prepareBedrockServer.sh --mode 755");
+    
+    // Esegui lo script in background
+    exec("pct exec $vmid -- nohup /root/prepareBedrockServer.sh > /root/prepareBedrockServer.log 2>&1 &");
+    
+    // 6️⃣ Reindirizza a install_wait.php
+    header("Location: install_wait.php?server_id=$serverId");
+    exit;
+    
 }
-
-$vmid = getNextAvailableVmid($auth);
-$privateIp = getNextFreePrivateIp($pdo);
-
-// 1️⃣ Inserisci record container
-$stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, private_ip, ram_mb) VALUES (?, ?, ?)");
-$stmt->execute([$vmid, $privateIp, $ramGb * 1024]);
-$containerId = $pdo->lastInsertId();
-
-// 2️⃣ Inserisci record server con container_id
-$stmt = $pdo->prepare("INSERT INTO servers (user_id, name, status, container_id) VALUES (?, ?, ?, ?)");
-$stmt->execute([$userId, "Server $vmid", 'creating', $containerId]);
-$serverId = $pdo->lastInsertId();
-
-// 3️⃣ Crea e avvia il container
-$result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
-if (!$result['success']) die("Errore creazione container: " . $result['message']);
-
-$result = startLxcContainer($vmid, $auth);
-if (!$result['success']) die("Errore avvio container: " . $result['message']);
-
-// 4️⃣ Aggiorna stato server a "preparing"
-$stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-$stmt->execute(['preparing', $serverId]);
-
-// 5️⃣ Scrivi lo script prepareBedrockServer.sh direttamente sul container
-$scriptContent = <<<BASH
-#!/bin/bash
-set -e
-apt update -y
-apt install -y wget unzip screen
-mkdir -p /opt/minecraft-bedrock
-cd /opt/minecraft-bedrock
-wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock
-unzip -o bedrock-server.zip
-rm bedrock-server.zip
-echo "ready" > /opt/minecraft-bedrock/.status
-BASH;
-
-// Salva temporaneamente sul web server
-$tmpFile = "/tmp/prepareBedrockServer_$vmid.sh";
-file_put_contents($tmpFile, $scriptContent);
-
-// Copia nello LXC e assegna permessi
-exec("pct push $vmid $tmpFile /root/prepareBedrockServer.sh --mode 755");
-
-// Esegui lo script in background
-exec("pct exec $vmid -- nohup /root/prepareBedrockServer.sh > /root/prepareBedrockServer.log 2>&1 &");
-
-// 6️⃣ Reindirizza a install_wait.php
-header("Location: install_wait.php?server_id=$serverId");
-exit;
-
-?>
+    ?>
 
 
 <?php include "includes/header.php"; ?>
 <div class="container my-5" style="max-width: 480px;">
-        <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server</h2>
+    <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server</h2>
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
