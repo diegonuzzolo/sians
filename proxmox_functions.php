@@ -111,35 +111,55 @@ function startContainer(int $vmid, array $auth): void {
     }
 }
 
+
 /**
- * Attende che il container sia running
+ * Restituisce lo stato corrente di un container LXC su Proxmox.
+ *
+ * @param int $vmid ID del container
+ * @param array $auth Array con 'ticket' e 'csrf' ottenuti da proxmoxLogin()
+ * @return string Stato del container ('running', 'stopped', ecc.)
+ * @throws Exception se la chiamata API fallisce
  */
-function waitForContainer(int $vmid, array $auth, int $timeoutSec = 120, int $intervalSec = 2): void {
-    $start = time();
-    while (true) {
-        $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}",
-        ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $response = curl_exec($ch);
+function getContainerStatus(int $vmid, array $auth): string {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "CSRFPreventionToken: {$auth['csrf']}",
+        "Cookie: PVEAuthCookie={$auth['ticket']}"
+    ]);
+
+    $response = curl_exec($ch);
+    if ($response === false) {
+        $err = curl_error($ch);
         curl_close($ch);
-
-        $json = json_decode($response, true);
-        if (isset($json['data']['status']) && $json['data']['status'] === 'running') {
-            break;
-        }
-
-        if (time() - $start > $timeoutSec) {
-            throw new Exception("Timeout attesa container $vmid");
-        }
-
-        sleep($intervalSec);
+        throw new Exception("Errore CURL getContainerStatus: $err");
     }
+    curl_close($ch);
+
+    $json = json_decode($response, true);
+    if (!isset($json['data']['status'])) {
+        throw new Exception("Impossibile leggere lo stato del container: $response");
+    }
+
+    return $json['data']['status']; // es. 'running', 'stopped', 'paused', ecc.
 }
+
+function waitForContainer(int $vmid, array $auth, int $timeout = 10, int $interval = 1) {
+    $start = time();
+    while (time() - $start < $timeout) {
+        $status = getContainerStatus($vmid, $auth); // funzione che chiama Proxmox API /status/current
+        if ($status === 'running') {
+            return true;
+        }
+        sleep($interval);
+    }
+    throw new Exception("Timeout attesa container $vmid");
+}
+
+
 
 /**
  * Installa Bedrock Server nel container tramite SSH
