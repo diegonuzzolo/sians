@@ -86,7 +86,7 @@ function createLxcContainer(
         'password' => 'Lgu8330Serve6',
         'start' => 1,
         'storage' => 'local-lvm',
-        'rootfs' => "local-lvm:{$storageGb}G"
+        'rootfs' => "local-lvm:64G"
     ];
 
     $ch = curl_init();
