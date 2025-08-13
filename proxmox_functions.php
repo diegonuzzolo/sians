@@ -1,18 +1,6 @@
 <?php
 require 'config/config.php';
 
-/**
- * Crea un container LXC su Proxmox.
- *
- * @param int $vmid
- * @param int $ramGb
- * @param int $storageGb
- * @param string $hostname
- * @param string $vmIp
- * @param int $cores
- * @param string $template
- * @return array ['success' => true|false, 'message' => string]
- */
 function createLxcContainer(
     int $vmid,
     int $ramGb,
@@ -28,14 +16,12 @@ function createLxcContainer(
         return ['success' => false, 'message' => 'IP container non fornito'];
     }
 
-        $hostname = $hostname ?: "mcserver-$vmid";
-
     $postData = [
         'vmid' => $vmid,
         'hostname' => $hostname,
         'memory' => $ramGb * 1024,
         'rootfs' => $storageGb . 'G',
-        'cores' => 2,
+        'cores' => $cores,
         'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
         'ostemplate' => $template,
         'password' => 'Lgu8330Serve6',
@@ -54,22 +40,38 @@ function createLxcContainer(
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
+    // Debug verbose curl
+    $verbose = fopen('/var/www/html/debug_curl.log', 'a+');
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
+    curl_setopt($ch, CURLOPT_STDERR, $verbose);
+
     $response = curl_exec($ch);
     $err = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    fclose($verbose);
+
+    // Salvo sempre risposta grezza per debug
+    file_put_contents('/var/www/html/debug_proxmox.log',
+        "=== " . date('Y-m-d H:i:s') . " ===\nHTTP $httpCode\nPOST:\n" . print_r($postData, true) . "\nRESPONSE:\n$response\nERROR:\n$err\n\n",
+        FILE_APPEND
+    );
 
     if ($err) {
         return ['success' => false, 'message' => "Curl error: $err"];
     }
 
     $data = json_decode($response, true);
+
     if (isset($data['data']['upid'])) {
         return ['success' => true, 'message' => "Container $vmid creato con UPID " . $data['data']['upid']];
-    } else {
-        $msg = $data['errors'] ?? $data['data'] ?? 'Errore sconosciuto';
-        return ['success' => false, 'message' => json_encode($msg)];
     }
+
+    // Qui catturiamo ogni messaggio utile
+    $msg = $data['message'] ?? $data['errors'] ?? $data ?? 'Errore sconosciuto';
+    return ['success' => false, 'message' => is_array($msg) ? json_encode($msg) : $msg];
 }
+
 
 /**
  * Avvia un container LXC
