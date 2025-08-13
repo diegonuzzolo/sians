@@ -37,8 +37,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
 
-    // --- 5. Crea container su Proxmox ---
-    $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
+    $vmid = getNextFreeVmid($pdo);
+$ip = getNextFreePrivateIp($pdo);
+
+// Poi passi $vmid e $ip a createLxcContainer()
+$result = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $ip, $cores);
+
     if (!$createResult['success']) {
         die("Errore creazione container: " . $createResult['message']);
     }

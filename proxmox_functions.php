@@ -1,6 +1,22 @@
 <?php
 require 'config/config.php';
 
+function getNextFreeVmid(PDO $pdo, int $start = 101, int $end = 9999): int {
+    // Recupero VMID già usati nel DB
+    $stmt = $pdo->query("SELECT vmid FROM containers ORDER BY vmid ASC");
+    $usedVmidsDb = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $usedVmidsDb = array_map('intval', $usedVmidsDb);
+
+    for ($vmid = $start; $vmid <= $end; $vmid++) {
+        if (!in_array($vmid, $usedVmidsDb)) {
+            return $vmid;
+        }
+    }
+
+    throw new Exception("Nessun VMID libero disponibile tra $start e $end");
+}
+
+
 function createLxcContainer(
     int $vmid,
     int $ramGb,
