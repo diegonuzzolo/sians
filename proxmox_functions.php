@@ -244,48 +244,63 @@ function waitForTask(?string $upid, array $auth, int $timeout = 60, int $interva
     }
 }
 
-function installBedrockServer(string $containerIp, int $ramMb, string $username = 'root', string $password = 'Lgu8330Serve6') {
-    if (!function_exists('ssh2_connect')) {
-        throw new Exception("Estensione SSH2 non installata su PHP");
+/**
+ * installBedrockServer
+ * Installa un server Bedrock su un container dato, aggiornando lo stato in DB.
+ *
+ * @param string $containerIp IP privato del container
+ * @param int $ramMb RAM in MB
+ * @param PDO $pdo Connessione PDO al DB
+ * @param int $serverId ID del server nel DB
+ * @throws Exception
+ */
+function installBedrockServer(string $containerIp, int $ramMb, PDO $pdo, int $serverId) {
+    $username = 'root';
+    $password = 'Lgu8330Serve6';
+    
+    // Connessione SSH al container
+    $retry = 0;
+    do {
+        $connection = @ssh2_connect($containerIp, 22);
+        if ($connection) break;
+        sleep(2);
+        $retry++;
+    } while ($retry < 10);
+
+    if (!$connection) throw new Exception("Impossibile connettersi al container $containerIp via SSH");
+
+    if (!@ssh2_auth_password($connection, $username, $password)) {
+        throw new Exception("Autenticazione SSH fallita per $containerIp");
     }
 
-    $connection = ssh2_connect($containerIp, 22);
-    if (!$connection) throw new Exception("Impossibile connettersi al container $containerIp");
+    // Funzione interna per aggiornare lo stato
+    $updateStatus = function($status) use ($pdo, $serverId) {
+        $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $serverId]);
+    };
 
-    if (!ssh2_auth_password($connection, $username, $password)) {
-        throw new Exception("Autenticazione SSH fallita per $username@$containerIp");
-    }
+    $updateStatus('downloading_bedrock');
 
+    // Comandi da eseguire sul container
     $commands = [
-        // Aggiorna pacchetti e installa dipendenze
         "apt update && apt install -y wget unzip screen",
-
-        // Crea cartella server
-        "mkdir -p /bedrock-server && cd /bedrock-server",
-
-        // Scarica Bedrock Server (ultima versione Linux ufficiale)
-        "wget -O bedrock.zip https://minecraft.azureedge.net/bin-linux/bedrock-server.zip",
-
-        // Estrai e rimuovi zip
-        "unzip -o bedrock.zip && rm bedrock.zip",
-
-        // Genera start.sh
-        "echo -e '#!/bin/bash\ncd /bedrock-server\nLD_LIBRARY_PATH=. ./bedrock_server' > start.sh && chmod +x start.sh",
-
-        // Genera stop.sh
-        "echo -e '#!/bin/bash\nscreen -S bedrock -X quit' > stop.sh && chmod +x stop.sh",
-
-        // Crea screen session per eseguire server in background
-        "screen -dmS bedrock ./start.sh"
+        "mkdir -p /opt/minecraft && cd /opt/minecraft",
+        "wget -O bedrock-server.zip https://www.minecraft.net/content/dam/minecraft/edition/bedrock/latest/bedrock-server.zip",
+        "unzip -o bedrock-server.zip && rm bedrock-server.zip",
+        "echo \"eula=true\" > eula.txt",
+        "screen -dmS mcbedrock java -Xmx{$ramMb}M -Xms{$ramMb}M -jar bedrock_server.jar nogui"
     ];
 
     foreach ($commands as $cmd) {
         $stream = ssh2_exec($connection, $cmd);
         if (!$stream) throw new Exception("Errore eseguendo: $cmd");
-
-        // Legge output per errori (opzionale)
         stream_set_blocking($stream, true);
         $output = stream_get_contents($stream);
         fclose($stream);
     }
+
+    $updateStatus('configuring_server');
+    sleep(3); // Piccolo delay per assicurare avvio server
+
+    $updateStatus('ready');
 }
