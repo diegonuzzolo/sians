@@ -8,49 +8,54 @@ $PROXMOX_API_TOKEN = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 /**
  * Crea un container LXC
  */
-function createLxcContainer(int $vmid, int $ramGb, int $storageGb, string $hostname, string $ip, int $cores): array {
-    $hostname = $hostname ?: "mcserver-$vmid";
+function createLxcContainer(
+    int $vmid,
+    int $ramGb,
+    int $storageGb,
+    string $hostname,
+    string $vmIp,
+    int $cores = 2,
+    string $storage = 'local-lvm',
+    string $template = 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst'
+) {
+    $host = "https://192.168.1.251:8006";
+    $apiToken = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 
-    $postData = [
+    $url = "$host/api2/json/nodes/pve/lxc";
+
+    $params = [
         'vmid' => $vmid,
         'hostname' => $hostname,
-        'memory' => $ramGb * 1024, // MB
-        'rootfs' => $storageGb . 'G',
+        'memory' => $ramGb * 1024,
+        'rootfs' => "$storage:$storageGb", // esempio "local-lvm:8"
         'cores' => $cores,
-        'net0' => "name=eth0,bridge=vmbr0,ip=$ip/24,gw=192.168.1.254",
-        'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
+        'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
+        'ostemplate' => $template,
         'password' => 'Lgu8330Serve6',
         'start' => 1
     ];
 
-    $url = 'https://192.168.1.251:8006/api2/json/nodes/pve/lxc';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: PVEAPIToken=$apiToken"
+    ]);
 
-    $result = callProxmox($url, $postData);
-
-    if (!$result['success']) {
-        return ['success' => false, 'message' => $result['message']];
+    $res = curl_exec($ch);
+    if ($res === false) {
+        return ['success' => false, 'message' => curl_error($ch)];
     }
+    curl_close($ch);
 
-    // --- Attendi che il container sia “running” ---
-    $maxWait = 10; // secondi totali di attesa
-    $interval = 2; // ogni quanti secondi verificare
-    $elapsed = 0;
-
-    while ($elapsed < $maxWait) {
-        $statusResult = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/current");
-        if ($statusResult['success']) {
-            $statusData = json_decode($statusResult['message'], true);
-            if (isset($statusData['status']) && $statusData['status'] === 'running') {
-                return ['success' => true, 'message' => "Container $vmid pronto e running"];
-            }
-        }
-        sleep($interval);
-        $elapsed += $interval;
-    }
-
-    return ['success' => false, 'message' => "Timeout: container $vmid non è diventato running entro $maxWait secondi"];
+    $data = json_decode($res, true);
+    return isset($data['data'])
+        ? ['success' => true, 'message' => 'Container creato']
+        : ['success' => false, 'message' => $res];
 }
-
 
 
 /**
@@ -142,3 +147,29 @@ function getNextFreePrivateIp(PDO $pdo): string
 }
 
 
+
+
+
+/**
+ * Attende che un container LXC esista e sia pronto
+ *
+ * @param int $vmid
+ * @param int $timeout Timeout massimo in secondi
+ * @param int $interval Intervallo di controllo in secondi
+ * @return bool true se pronto, false se timeout
+ */
+function waitForContainer(int $vmid, int $timeout = 10, int $interval = 2): bool {
+    $elapsed = 0;
+    while ($elapsed < $timeout) {
+        $status = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/current");
+        if ($status['success'] && isset($status['message'])) {
+            $data = json_decode($status['message'], true);
+            if (isset($data['status']) && in_array($data['status'], ['running', 'stopped'])) {
+                return true;
+            }
+        }
+        sleep($interval);
+        $elapsed += $interval;
+    }
+    return false; // timeout
+}

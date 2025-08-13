@@ -44,7 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         echo "Container creato con successo! VMID: $vmid IP: $vmIp";
-        
+
+
+        // Attende che il container sia pronto prima di copiare lo script
+        if (!waitForContainer($vmid, 15, 3)) {
+            throw new Exception("Timeout: il container $vmid non è pronto");
+        }
+
         // --- Copia ed esegui setup_server.sh nel container ---
         $localScript = '/root/setup_server.sh';
         $remoteScript = '/root/setup_server.sh';
