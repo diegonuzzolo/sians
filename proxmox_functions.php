@@ -7,7 +7,7 @@ require 'config/config.php';
 function proxmoxLogin()
 {
     $host = "https://192.168.1.251:8006";
-    $user = "diego@pam";
+    $user = "root@pam";
     $pass = "Lgu8330Serve6";
 
     $url = "$host/api2/json/access/ticket";
