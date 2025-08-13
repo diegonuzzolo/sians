@@ -50,9 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 1️⃣ Crea container
                 $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
                 if (!$result['success']) {
-                    die("Errore creazione server: " . $result['message']);
+                    $msg = is_array($result['message']) ? implode("; ", $result['message']) : $result['message'];
+                    die("Errore creazione server: " . $msg);
                 }
-                
+
+
 
                 // 2️⃣ Attendi container running (timeout 10 sec)
                 waitForContainer($vmid, 10, 1);
