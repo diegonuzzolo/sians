@@ -210,3 +210,82 @@ function getNextFreePrivateIp(PDO $pdo): string
     }
     return $baseIp . '101';
 }
+
+function waitForTask(?string $upid, array $auth, int $timeout = 60, int $interval = 3): void {
+    if (!$upid) return;
+
+    $start = time();
+    while (true) {
+        $url = PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/tasks/{$upid}/status";
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}"
+        ]);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response) {
+            $json = json_decode($response, true);
+            if (isset($json['data']['status'])) {
+                $status = $json['data']['status'];
+                if ($status === 'stopped' || $status === 'OK') {
+                    return;
+                }
+            }
+        }
+
+        if (time() - $start > $timeout) {
+            throw new Exception("Timeout waiting for Proxmox task $upid");
+        }
+        sleep($interval);
+    }
+}
+
+function installBedrockServer(string $containerIp, int $ramMb, string $username = 'root', string $password = 'Lgu8330Serve6') {
+    if (!function_exists('ssh2_connect')) {
+        throw new Exception("Estensione SSH2 non installata su PHP");
+    }
+
+    $connection = ssh2_connect($containerIp, 22);
+    if (!$connection) throw new Exception("Impossibile connettersi al container $containerIp");
+
+    if (!ssh2_auth_password($connection, $username, $password)) {
+        throw new Exception("Autenticazione SSH fallita per $username@$containerIp");
+    }
+
+    $commands = [
+        // Aggiorna pacchetti e installa dipendenze
+        "apt update && apt install -y wget unzip screen",
+
+        // Crea cartella server
+        "mkdir -p /bedrock-server && cd /bedrock-server",
+
+        // Scarica Bedrock Server (ultima versione Linux ufficiale)
+        "wget -O bedrock.zip https://minecraft.azureedge.net/bin-linux/bedrock-server.zip",
+
+        // Estrai e rimuovi zip
+        "unzip -o bedrock.zip && rm bedrock.zip",
+
+        // Genera start.sh
+        "echo -e '#!/bin/bash\ncd /bedrock-server\nLD_LIBRARY_PATH=. ./bedrock_server' > start.sh && chmod +x start.sh",
+
+        // Genera stop.sh
+        "echo -e '#!/bin/bash\nscreen -S bedrock -X quit' > stop.sh && chmod +x stop.sh",
+
+        // Crea screen session per eseguire server in background
+        "screen -dmS bedrock ./start.sh"
+    ];
+
+    foreach ($commands as $cmd) {
+        $stream = ssh2_exec($connection, $cmd);
+        if (!$stream) throw new Exception("Errore eseguendo: $cmd");
+
+        // Legge output per errori (opzionale)
+        stream_set_blocking($stream, true);
+        $output = stream_get_contents($stream);
+        fclose($stream);
+    }
+}
