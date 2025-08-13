@@ -40,11 +40,9 @@ function proxmoxLogin(): array
  */
 
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
 
-
-    // Solo campi validi per Proxmox 8
-    $postData = [
+    $postData = http_build_query([
         'vmid'       => $vmid,
         'hostname'   => "mcserver-$vmid",
         'storage'    => PROXMOX_STORAGE,
@@ -54,36 +52,26 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'rootfs'     => PROXMOX_STORAGE . ":$storageGb",
         'net0'       => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'onboot'     => 1
-        // non mettere start o campi extra
-    ];
-
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => http_build_query($postData),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_ENCODING => '',
-        CURLOPT_HTTPHEADER => [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}"
-        ],
     ]);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $context = stream_context_create([
+        'http' => [
+            'method'  => 'POST',
+            'header'  => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
+                         "Cookie: PVEAuthCookie={$auth['ticket']}\r\n" .
+                         "Content-type: application/x-www-form-urlencoded\r\n",
+            'content' => $postData,
+            'ignore_errors' => true
+        ],
+        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+    ]);
 
+    $response = file_get_contents($url, false, $context);
     $json = json_decode($response, true);
-    if ($httpCode >= 400) {
-        $err = is_array($json['errors'] ?? null) ? implode("; ", $json['errors']) : ($json['errors'] ?? $response);
-        return ['success' => false, 'message' => $err];
-    }
 
-    if (!is_array($json) || !isset($json['data'])) {
-        return ['success' => false, 'message' => "Risposta non valida: $response"];
+    if (!is_array($json) || isset($json['errors'])) {
+        $msg = is_array($json['errors'] ?? null) ? implode("; ", $json['errors']) : ($response ?? "Risposta non valida");
+        return ['success' => false, 'message' => $msg];
     }
 
     return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
@@ -91,55 +79,32 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
 
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, // Importante
-        CURLOPT_ENCODING => '',                           // Accetta qualsiasi encoding
-        CURLOPT_HTTPHEADER => [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}"
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
+                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n",
+            'ignore_errors' => true
         ],
+        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
     ]);
 
-    $response = curl_exec($ch);
-    if ($response === false) {
-        $err = curl_error($ch);
-        curl_close($ch);
-        return ['success' => false, 'message' => "Errore cURL: $err"];
-    }
-    curl_close($ch);
-
+    $response = file_get_contents($url, false, $context);
     $json = json_decode($response, true);
+
     if (!is_array($json) || !isset($json['data'])) {
         return ['success' => false, 'message' => "Risposta Proxmox non valida: $response"];
     }
 
     $upid = $json['data'];
-
-    // Polling sul task fino a completamento
     $startTime = time();
+
+    // Polling task
     while (true) {
         $statusUrl = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/tasks/$upid/status";
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $statusUrl,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_HTTPHEADER => [
-                "CSRFPreventionToken: {$auth['csrf']}",
-                "Cookie: PVEAuthCookie={$auth['ticket']}"
-            ],
-        ]);
-        $statusResp = curl_exec($ch);
-        curl_close($ch);
-
+        $statusResp = file_get_contents($statusUrl, false, $context);
         $statusJson = json_decode($statusResp, true);
+
         if (!is_array($statusJson) || !isset($statusJson['data'])) {
             return ['success' => false, 'message' => "Errore lettura task: $statusResp"];
         }

@@ -48,23 +48,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Login Proxmox
 
                 // 1️⃣ Crea container
-
                 $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
                 if (!$result['success'])
                     die("Errore creazione server: " . $result['message']);
 
-                // 4️⃣ Avvia container
+                // 2️⃣ Avvia container
                 $startResult = startLxcContainer($vmid, $auth);
                 if (!$startResult['success'])
                     die("Errore avvio container: " . $startResult['message']);
 
                 // Tutto ok
                 echo "Server creato e avviato con successo! VMID: $vmid";
-
-
-                // 2️⃣ Attendi container running (timeout 10 sec)
-
-                // 3️⃣ Avvia container
 
 
                 // 4️⃣ Salva container nel DB
