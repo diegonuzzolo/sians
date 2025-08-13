@@ -69,7 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt3->execute([$serverId, $containerId]);
 
                 // 7️⃣ Installa Bedrock server
-                installBedrockServer($privateIp, $ramGb*1024, $pdo, $serverId);
 
                 // Rigenera token per la prossima volta
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));
