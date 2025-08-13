@@ -38,81 +38,88 @@ function proxmoxLogin(): array {
  * Crea un container LXC
  */
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $swapMb = intval($ramMb * 1.5);
+    $url = "https://{$auth['host']}/api2/json/nodes/{$auth['node']}/lxc";
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,
-        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+        'storage' => $auth['storage'],
+        'ostemplate' => $auth['template'],
         'memory' => $ramMb,
-        'swap' => $swapMb,
+        'swap' => 0,
         'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'Lgu8330Serve6',
+        'rootfs' => "{$auth['storage']}:{$storageGb}",
+        'net0' => "name=eth0,bridge=vmbr0,ip={$privateIp}/24,gw={$auth['gateway']}",
+        'password' => $auth['password'],
         'onboot' => 1,
     ];
 
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}",
-        "Accept-Encoding: identity" // evita chunked
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($postData),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTPHEADER => [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}",
+            "Accept-Encoding: identity"
+        ],
     ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
     if ($response === false) {
-        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
+        throw new Exception("Errore cURL: " . curl_error($ch));
     }
+
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $json = json_decode($response, true);
-
     if (!is_array($json)) {
-        throw new Exception('Errore creazione container: risposta non valida. Risposta Proxmox: ' . $response);
+        throw new Exception("Errore creazione container, risposta Proxmox non valida: " . $response);
+    }
+    if ($httpCode >= 400) {
+        throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
     }
 
     return $json['data'] ?? [];
 }
 
-
-
-/**
- * Avvia un container
- */
 function startContainer(int $vmid, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
+    $url = "https://{$auth['host']}/api2/json/nodes/{$auth['node']}/lxc/{$vmid}/status/start";
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([]));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}",
-        "Accept-Encoding: identity"
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTPHEADER => [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}",
+            "Accept-Encoding: identity"
+        ],
     ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
     if ($response === false) {
-        throw new Exception("Errore avvio container: " . curl_error($ch));
+        throw new Exception("Errore cURL avvio container: " . curl_error($ch));
     }
+
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $json = json_decode($response, true);
-    if (!$json || isset($json['errors'])) {
-        throw new Exception("Errore avvio container: " . json_encode($json));
+    if (!is_array($json)) {
+        throw new Exception("Errore avvio container, risposta Proxmox non valida: " . $response);
+    }
+    if ($httpCode >= 400) {
+        throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
     }
 
     return $json['data'] ?? [];
 }
-
 /**
  * Controlla lo stato del container
  */
