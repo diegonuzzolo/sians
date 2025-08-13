@@ -2,14 +2,13 @@
 require 'config/config.php';
 
 /**
- * Login su Proxmox e ritorna ticket e CSRF token
+ * Login su Proxmox API
  */
-function proxmoxLogin(): array
-{
+function proxmoxLogin() {
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
         'username' => PROXMOX_USERNAME,
-        'password' => PROXMOX_PASSWORD,
+        'password' => PROXMOX_PASSWORD
     ];
 
     $ch = curl_init($url);
@@ -19,14 +18,14 @@ function proxmoxLogin(): array
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL login: ' . curl_error($ch));
+    if (!$response) {
+        throw new Exception("Errore login Proxmox: " . curl_error($ch));
     }
     curl_close($ch);
 
     $json = json_decode($response, true);
     if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
-        throw new Exception('Login Proxmox fallito: ' . $response);
+        throw new Exception("Login Proxmox fallito: " . $response);
     }
 
     return [
@@ -36,111 +35,24 @@ function proxmoxLogin(): array
 }
 
 /**
- * Recupera lo stato corrente di un container LXC
+ * Crea un container LXC
  */
-function getContainerStatus(int $vmid, array $auth): string
-{
-    $node = PROXMOX_NODE;
-    $url = PROXMOX_API_URL . "/nodes/$node/lxc/$vmid/status/current";
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!isset($json['data']['status'])) {
-        throw new Exception('Risposta API non valida: ' . $response);
-    }
-
-    return $json['data']['status'];
-}
-
-/**
- * Avvia un container LXC tramite API Proxmox
- */
-function startContainer(int $vmid, array $auth): bool
-{
-    $node = PROXMOX_NODE;
-    $url = PROXMOX_API_URL . "/nodes/$node/lxc/$vmid/status/start";
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL startContainer: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    return isset($json['data']);
-}
-
-/**
- * Ferma un container LXC tramite API Proxmox
- */
-function stopContainer(int $vmid, array $auth): bool
-{
-    $node = PROXMOX_NODE;
-    $url = PROXMOX_API_URL . "/nodes/$node/lxc/$vmid/status/stop";
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL stopContainer: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    return isset($json['data']);
-}
-
-/**
- * Crea un container LXC tramite API Proxmox
- */
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
-{
+function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth) {
     $swapMb = intval($ramMb * 1.5);
+
     $postData = [
-    'vmid' => $vmid,
-    'hostname' => "mcserver-$vmid",
-    'storage' => PROXMOX_STORAGE,
-    'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
-    'memory' => $ramMb,
-    'swap' => $swapMb,
-    'cores' => $cpu,
-    'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
-    'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-    'password' => 'Lgu8330Serve6',
-    'onboot' => 1,  // semplice intero, non array
-];
-
-
-
+        'vmid' => $vmid,
+        'hostname' => "mcserver-$vmid",
+        'storage' => PROXMOX_STORAGE,
+        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+        'memory' => $ramMb,
+        'swap' => $swapMb,
+        'cores' => $cpu,
+        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
+        'password' => 'Lgu8330Serve6',
+        'onboot' => 1
+    ];
 
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
     $ch = curl_init($url);
@@ -152,71 +64,48 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
         "Cookie: PVEAuthCookie={$auth['ticket']}"
     ]);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
     $response = curl_exec($ch);
+    if (!$response) throw new Exception("Errore creazione container: " . curl_error($ch));
     curl_close($ch);
 
     $json = json_decode($response, true);
-    if (isset($json['errors']))
-        throw new Exception("Errore creazione container: " . json_encode($json['errors']));
-    return $json['data'] ?? true;
-}
-function calculateCpuCores(int $ramGb): int
-{
-    if ($ramGb <= 2)
-        return 2;
-    if ($ramGb <= 4)
-        return 2;
-    if ($ramGb <= 6)
-        return 3;
-    if ($ramGb <= 8)
-        return 4;
-    if ($ramGb <= 16)
-        return 6;
-    return 8;
+    if (!isset($json['data'])) throw new Exception("Creazione container fallita: " . json_encode($json));
+
+    return $json['data'];
 }
 
-// Funzione helper per prezzo
-function calculatePrice(int $ramGb): float
-{
-    $priceTable = [2 => 6.5 * 0.85, 4 => 10 * 0.85, 6 => 15 * 0.85, 8 => 21.5 * 0.85, 16 => 35 * 0.85, 32 => 57.5 * 0.85];
-    if ($ramGb <= 2)
-        return $priceTable[2];
-    if ($ramGb <= 4)
-        return $priceTable[4];
-    if ($ramGb <= 6)
-        return $priceTable[6];
-    if ($ramGb <= 8)
-        return $priceTable[8];
-    if ($ramGb <= 16)
-        return $priceTable[16];
-    return $priceTable[32];
+/**
+ * Avvia un container
+ */
+function startContainer($vmid, $auth) {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "CSRFPreventionToken: {$auth['csrf']}",
+        "Cookie: PVEAuthCookie={$auth['ticket']}"
+    ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $response = curl_exec($ch);
+    if (!$response) throw new Exception("Errore avvio container: " . curl_error($ch));
+    curl_close($ch);
+
+    $json = json_decode($response, true);
+    if (!isset($json['data'])) throw new Exception("Errore avvio container: " . json_encode($json));
+
+    return $json['data']; // Contiene upid per waitForTask
 }
 
-// Funzione helper per IP libero
-function getNextFreePrivateIp(PDO $pdo): string
-{
-    $baseIp = '192.168.1.';
-    $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip LIKE '192.168.1.%'");
-    $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    $usedLast = [];
-    foreach ($usedIps as $ip) {
-        $parts = explode('.', $ip);
-        if (count($parts) === 4)
-            $usedLast[] = (int) $parts[3];
-    }
-    for ($i = 101; $i <= 254; $i++) {
-        if (!in_array($i, $usedLast))
-            return $baseIp . $i;
-    }
-    return $baseIp . '101';
-}
-
-function waitForTask(?string $upid, array $auth, int $timeout = 60, int $interval = 3): void {
-    if (!$upid) return;
-
+/**
+ * Attende il completamento di un task Proxmox
+ */
+function waitForTask($upid, $auth, $timeout = 60) {
     $start = time();
-    while (true) {
-        $url = PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/tasks/{$upid}/status";
+    do {
+        $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/tasks/$upid/status";
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -224,130 +113,113 @@ function waitForTask(?string $upid, array $auth, int $timeout = 60, int $interva
             "Cookie: PVEAuthCookie={$auth['ticket']}"
         ]);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
         $response = curl_exec($ch);
         curl_close($ch);
 
-        if ($response) {
-            $json = json_decode($response, true);
-            if (isset($json['data']['status'])) {
-                $status = $json['data']['status'];
-                if ($status === 'stopped' || $status === 'OK') {
-                    return;
-                }
-            }
-        }
+        $json = json_decode($response, true);
+        $status = $json['data']['status'] ?? 'unknown';
+        if ($status === 'stopped' || $status === 'OK') return true;
 
-        if (time() - $start > $timeout) {
-            throw new Exception("Timeout waiting for Proxmox task $upid");
-        }
-        sleep($interval);
-    }
+        sleep(2);
+    } while ((time() - $start) < $timeout);
+
+    throw new Exception("Timeout attesa task Proxmox $upid");
 }
 
 /**
- * installBedrockServer
- * Installa un server Bedrock su un container dato, aggiornando lo stato in DB.
- *
- * @param string $containerIp IP privato del container
- * @param int $ramMb RAM in MB
- * @param PDO $pdo Connessione PDO al DB
- * @param int $serverId ID del server nel DB
- * @throws Exception
+ * Attende che il container sia in stato running
  */
-function installBedrockServer(string $containerIp, int $ramMb, PDO $pdo, int $serverId) {
-    $username = 'root';
-    $password = 'Lgu8330Serve6';
-    
-    // Connessione SSH al container
-    $retry = 0;
+function waitForContainer($vmid, $auth, $timeout = 60, $interval = 2) {
+    $start = time();
     do {
-        $connection = @ssh2_connect($containerIp, 22);
-        if ($connection) break;
-        sleep(2);
-        $retry++;
-    } while ($retry < 10);
+        $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}"
+        ]);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
-    if (!$connection) throw new Exception("Impossibile connettersi al container $containerIp via SSH");
+        $response = curl_exec($ch);
+        curl_close($ch);
 
-    if (!@ssh2_auth_password($connection, $username, $password)) {
-        throw new Exception("Autenticazione SSH fallita per $containerIp");
+        $json = json_decode($response, true);
+        $status = $json['data']['status'] ?? 'unknown';
+        if ($status === 'running') return true;
+
+        sleep($interval);
+    } while ((time() - $start) < $timeout);
+
+    throw new Exception("Timeout: container $vmid non è running");
+}
+
+/**
+ * Installa il server Bedrock all'interno del container
+ */
+function installBedrockServer($privateIp, $ramMb, $pdo, $serverId) {
+    // Comandi da eseguire via SSH dentro il container
+    $sshUser = 'root';
+    $sshPass = 'Lgu8330Serve6';
+
+    $connection = ssh2_connect($privateIp, 22);
+    if (!$connection) throw new Exception("Impossibile connettersi al container $privateIp");
+
+    if (!ssh2_auth_password($connection, $sshUser, $sshPass)) {
+        throw new Exception("Autenticazione SSH fallita per $privateIp");
     }
 
-    // Funzione interna per aggiornare lo stato
-    $updateStatus = function($status) use ($pdo, $serverId) {
-        $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $serverId]);
-    };
-
-    $updateStatus('downloading_bedrock');
-
-    // Comandi da eseguire sul container
+    // Comandi Bedrock server
     $commands = [
         "apt update && apt install -y wget unzip screen",
-        "mkdir -p /opt/minecraft && cd /opt/minecraft",
-        "wget -O bedrock-server.zip https://www.minecraft.net/content/dam/minecraft/edition/bedrock/latest/bedrock-server.zip",
-        "unzip -o bedrock-server.zip && rm bedrock-server.zip",
-        "echo \"eula=true\" > eula.txt",
-        "screen -dmS mcbedrock java -Xmx{$ramMb}M -Xms{$ramMb}M -jar bedrock_server.jar nogui"
+        "mkdir -p /bedrock-server && cd /bedrock-server",
+        "wget -O bedrock.zip https://www.minecraft.net/en-us/download/server/bedrock/",
+        "unzip -o bedrock.zip && rm bedrock.zip",
+        "echo 'serverName=BedrockServer' > server.properties",
+        "screen -dmS bedrock java -Xmx{$ramMb}M -Xms{$ramMb}M -jar bedrock_server.jar"
     ];
 
     foreach ($commands as $cmd) {
         $stream = ssh2_exec($connection, $cmd);
-        if (!$stream) throw new Exception("Errore eseguendo: $cmd");
         stream_set_blocking($stream, true);
-        $output = stream_get_contents($stream);
+        stream_get_contents($stream);
         fclose($stream);
     }
 
-    $updateStatus('configuring_server');
-    sleep(3); // Piccolo delay per assicurare avvio server
-
-    $updateStatus('ready');
+    // Aggiorna lo stato nel DB
+    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+    $stmt->execute(['ready', $serverId]);
 }
 
-/**
- * waitForContainer
- * Attende che un container LXC su Proxmox sia in stato "running"
- *
- * @param int $vmid ID del container
- * @param array $auth Array con ['ticket', 'csrf'] da proxmoxLogin()
- * @param int $timeout Timeout massimo in secondi
- * @param int $interval Intervallo tra i controlli in secondi
- * @throws Exception
- */
-function waitForContainer(int $vmid, array $auth, int $timeout = 60, int $interval = 2) {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
+function calculateCpuCores(int $ramGb): int {
+    if ($ramGb <= 2) return 2;
+    if ($ramGb <= 4) return 2;
+    if ($ramGb <= 6) return 3;
+    if ($ramGb <= 8) return 4;
+    if ($ramGb <= 16) return 6;
+    return 8;
+}
 
-    $elapsed = 0;
-    do {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}"
-        ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+// Calcola il prezzo del server in base alla RAM
+function calculatePrice(int $ramGb): float {
+    $multiplier = 0.85; // sconto fisso
+    if ($ramGb <= 2) return 6.5 * $multiplier;
+    if ($ramGb <= 4) return 10 * $multiplier;
+    if ($ramGb <= 6) return 15 * $multiplier;
+    if ($ramGb <= 8) return 21.5 * $multiplier;
+    if ($ramGb <= 16) return 35 * $multiplier;
+    return 57.5 * $multiplier;
+}
 
-        $response = curl_exec($ch);
-        if ($response === false) {
-            curl_close($ch);
-            throw new Exception("Errore CURL durante waitForContainer: " . curl_error($ch));
-        }
-        curl_close($ch);
+// Restituisce il prossimo IP privato libero (supponendo subnet 192.168.1.0/24)
+function getNextFreePrivateIp(PDO $pdo): string {
+    $usedIps = $pdo->query("SELECT private_ip FROM containers")->fetchAll(PDO::FETCH_COLUMN);
 
-        $json = json_decode($response, true);
-        if (!isset($json['data']['status'])) {
-            throw new Exception("Risposta Proxmox non valida in waitForContainer: " . $response);
-        }
+    for ($i = 100; $i < 254; $i++) {
+        $ip = "192.168.1.".$i;
+        if (!in_array($ip, $usedIps)) return $ip;
+    }
 
-        if ($json['data']['status'] === 'running') {
-            return true; // container pronto
-        }
-
-        sleep($interval);
-        $elapsed += $interval;
-
-    } while ($elapsed < $timeout);
-
-    throw new Exception("Timeout: il container $vmid non è diventato running dopo $timeout secondi");
+    throw new Exception("Nessun IP disponibile nella subnet privata.");
 }

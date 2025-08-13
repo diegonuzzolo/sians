@@ -21,33 +21,29 @@ $ramMb = $server['ram_mb'];
 
 $statusMessage = "Preparazione del container...";
 
-// Login Proxmox
-// Login Proxmox
 try {
     $auth = proxmoxLogin();
 
-    // 1️⃣ Avvia e attendi container pronto
-    $statusMessage = "Avvio container...";
-    waitForContainer($vmid, $auth, 60, 2); // timeout 60s, check ogni 2s
+    // Avvia container se non è running
+    waitForContainer($vmid, $auth, 60, 2);
+    startContainer($vmid, $auth);
 
-    // 2️⃣ Aggiorna stato server in DB
-    $statusMessage = "Container pronto, avvio installazione Bedrock...";
+    // Aggiorna stato a installing
     $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $stmt->execute(['installing', $serverId]);
 
-    // 3️⃣ Installa Bedrock
+    $statusMessage = "Container pronto, avvio installazione Bedrock...";
+
+    // Installazione server Bedrock
     installBedrockServer($privateIp, $ramMb, $pdo, $serverId);
 
-    // 4️⃣ Aggiorna stato server pronto
+    // Aggiorna stato a ready
     $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $stmt->execute(['ready', $serverId]);
 
 } catch(Exception $e) {
     $statusMessage = "Errore: " . $e->getMessage();
-    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-    $stmt->execute(['error', $serverId]);
 }
-
 ?>
 
 <!DOCTYPE html>
