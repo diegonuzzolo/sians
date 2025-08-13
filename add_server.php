@@ -12,70 +12,56 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // --- 1. Dati dal form ---
+    // 1. Parametri dal form
     $ramGb = intval($_POST['ram_gb'] ?? 2);
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
-    // --- 2. Trova un VMID libero ---
-    $nextVmid = 100;
-    do {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
-        $stmt->execute([$nextVmid]);
-        if ($stmt->fetchColumn() == 0)
-            break;
-        $nextVmid++;
-    } while (true);
-    $vmid = $nextVmid;
+    // 2. Prossimo VMID libero
+    $vmid = getNextFreeVmid($pdo);
 
-    // --- 3. Recupera il prossimo IP libero ---
+    // 3. Prossimo IP libero
     $vmIp = getNextFreePrivateIp($pdo);
 
-    // --- 4. Inserisci nel DB ---
+    // 4. Inserisci nel DB
     $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
+
     try {
-        $vmid = getNextFreeVmid($pdo);
-        // Genera hostname se non fornito dal form
-if (!isset($_POST['hostname']) || trim($_POST['hostname']) === '') {
-    $hostname = "mc-" . $vmid; // esempio mc-101
-} else {
-    // Pulisce il valore dal form
-    $hostname = preg_replace('/[^a-zA-Z0-9\-]/', '', strtolower(trim($_POST['hostname'])));
-}
+        // Hostname pulito
+        $hostname = preg_replace('/[^a-zA-Z0-9\-]/', '', strtolower($serverName));
 
-        $ip = getNextFreePrivateIp($pdo);
-
-        // Chiami la funzione di creazione
-        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $hostname, $ip, $cores);
+        // 5. Crea container
+        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $hostname, $vmIp, $cores);
 
         if (!$createResult || !isset($createResult['success']) || !$createResult['success']) {
             throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
         }
 
-        echo "Container creato con successo! VMID: $vmid IP: $ip";
+        // 6. Copia ed esegui setup_server.sh con pct push/exec
+        $localScript = '/root/setup_server.sh';
+        $remoteScript = '/root/setup_server.sh';
+
+        // Copia il file
+        shell_exec("pct push $vmid $localScript $remoteScript --perms 755");
+
+        // Esegui in background dentro il container
+        shell_exec("pct exec $vmid -- bash $remoteScript $containerId > /dev/null 2>&1 &");
+
+        echo "Container creato e script avviato! VMID: $vmid IP: $vmIp";
 
     } catch (Exception $e) {
         echo "Errore creazione container: " . $e->getMessage();
     }
 
-
-    // --- 6. Copia setup_server.sh nel container e lancialo in background ---
-    $localScript = '/root/setup_server.sh'; // percorso sul webserver
-    $remoteScript = '/root/setup_server.sh';
-
-    // copia ed esegui script passando server_id come argomento
-    shell_exec("sshpass -f /var/www/.sshpass_pw scp -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript");
-    shell_exec("sshpass -f /var/www/.sshpass_pw ssh -o StrictHostKeyChecking=no root@$vmIp 'bash $remoteScript $containerId > /dev/null 2>&1 &'");
-
-
-    // --- 7. Redirect alla dashboard ---
+    // 7. Redirect alla dashboard
     header("Location: dashboard.php");
     exit;
 }
 ?>
+
 
 
 
