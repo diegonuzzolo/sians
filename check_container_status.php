@@ -1,46 +1,31 @@
 <?php
 require 'auth_check.php';
 require 'config/config.php';
-require_once 'proxmox_functions.php'; // contiene proxmoxLogin() e funzioni API
+require_once 'proxmox_functions.php';
 
-$vmid = intval($_GET['vmid'] ?? 0);
-if ($vmid <= 0) {
-    http_response_code(400);
-    echo json_encode(['status' => 'invalid', 'error' => 'VMID non valido']);
-    exit;
-}
+$serverId = intval($_GET['server_id'] ?? 0);
+if ($serverId <= 0) die(json_encode(['status' => 'invalid']));
 
-try {
-    $auth = proxmoxLogin();
-    $node = PROXMOX_NODE;
+$stmt = $pdo->prepare("
+    SELECT s.id, s.status, c.proxmox_containerId
+    FROM servers s
+    JOIN containers c ON c.id = s.container_id
+    WHERE s.id = ?
+");
+$stmt->execute([$serverId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Richiesta API Proxmox per info container
-    $url = PROXMOX_API_URL . "/nodes/$node/lxc/$vmid/status/current";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+if (!$server) die(json_encode(['status' => 'notfound']));
 
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL: ' . curl_error($ch));
-    }
-    curl_close($ch);
+$vmid = $server['proxmox_containerId'];
+$status = $server['status'];
 
-    $json = json_decode($response, true);
-    if (!isset($json['data']['status'])) {
-        throw new Exception('Risposta API non valida: ' . $response);
-    }
+// Controlla file .status nel container
+$statusFile = "/opt/minecraft-bedrock/.status";
+$output = null;
+$return_var = null;
 
-    // Stato possibile: stopped, running, starting, etc.
-    $status = $json['data']['status'];
+exec("pct exec $vmid -- bash -c 'if [ -f $statusFile ]; then cat $statusFile; else echo \"{$status}\"; fi'", $output, $return_var);
+$containerStatus = $output[0] ?? $status;
 
-    echo json_encode(['status' => $status]);
-
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'error' => $e->getMessage()]);
-}
+echo json_encode(['status' => $containerStatus]);
