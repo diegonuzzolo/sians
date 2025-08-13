@@ -1,7 +1,6 @@
 <?php
 require 'auth_check.php';
 require 'config/config.php';
-require_once 'proxmox_functions.php';
 
 header('Content-Type: application/json');
 
@@ -13,7 +12,7 @@ if ($serverId <= 0) {
     exit;
 }
 
-// Recupera dati server e container
+// Recupera dati container
 $stmt = $pdo->prepare("SELECT s.*, c.proxmox_containerId AS vmid, c.private_ip
                        FROM servers s
                        JOIN containers c ON c.id = s.container_id
@@ -26,46 +25,70 @@ if (!$server) {
     exit;
 }
 
-$vmid = (int)$server['vmid'];
 $containerIp = $server['private_ip'];
-$sshUser = 'root';
-$sshPass = 'Lgu8330Serve6';
 
-try {
-    $auth = proxmoxLogin();
-    $status = getContainerStatus($vmid, $auth);
+// Funzione per connessione SSH
+function sshExecute($host, $user, $password, $command, &$output=null) {
+    $conn = ssh2_connect($host, 22);
+    if (!$conn) return ['success'=>false, 'error'=>'Connessione SSH fallita'];
 
-    if ($status !== 'running') {
-        startContainer($vmid, $auth);
-        // Attendere che il container sia pronto
-        sleep(5);
+    if (!ssh2_auth_password($conn, $user, $password)) {
+        return ['success'=>false, 'error'=>'Autenticazione SSH fallita'];
     }
 
-    // Comando shell da eseguire via SSH
-    $cmd = <<<CMD
-apt update && apt install -y wget unzip screen && \
-wget -O /tmp/bedrock-server.zip https://minecraft.azureedge.net/bin-linux/bedrock-server-1.20.30.23.zip && \
-unzip -o /tmp/bedrock-server.zip -d /opt/bedrock && \
-rm /tmp/bedrock-server.zip
-CMD;
+    $stream = ssh2_exec($conn, $command);
+    if (!$stream) return ['success'=>false, 'error'=>'Esecuzione comando fallita'];
 
-    // Usa sshpass per passare la password al client ssh
-    $escapedCmd = escapeshellarg($cmd);
-    $sshCmd = "sshpass -p " . escapeshellarg($sshPass) . 
-              " ssh -o StrictHostKeyChecking=no $sshUser@$containerIp $escapedCmd";
+    stream_set_blocking($stream, true);
+    $output = stream_get_contents($stream);
+    fclose($stream);
 
-    exec($sshCmd, $outputLines, $returnVar);
-
-    if ($returnVar !== 0) {
-        throw new Exception("Errore eseguendo comandi sul container: " . implode("\n", $outputLines));
-    }
-
-    // Aggiorna stato server
-    $stmt = $pdo->prepare("UPDATE servers SET status = 'installed', updated_at = NOW() WHERE id = ?");
-    $stmt->execute([$serverId]);
-
-    echo json_encode(['success' => true, 'output' => implode("\n", $outputLines)]);
-
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    return ['success'=>true, 'output'=>$output];
 }
+
+// Attendi che SSH sia disponibile (max 30 tentativi)
+$attempts = 0;
+$sshReady = false;
+while($attempts < 30) {
+    $res = sshExecute($containerIp, 'root', 'Lgu8330Serve6', 'echo ready');
+    if ($res['success']) {
+        $sshReady = true;
+        break;
+    }
+    $attempts++;
+    sleep(2);
+}
+
+if (!$sshReady) {
+    echo json_encode(['success'=>false, 'error'=>'SSH non raggiungibile nel container']);
+    exit;
+}
+
+// Comandi di installazione Bedrock
+$commands = [
+    'apt update && apt install -y wget unzip screen',
+    'mkdir -p /opt/minecraft-bedrock && cd /opt/minecraft-bedrock',
+    'wget -O bedrock-server.zip https://www.minecraft.net/content/dam/minecraft/edition-bedrock/bedrock-server-1.20.10.23.zip',
+    'unzip -o bedrock-server.zip -d /opt/minecraft-bedrock',
+    'chmod +x /opt/minecraft-bedrock/bedrock_server',
+    'echo -e "#!/bin/bash\ncd /opt/minecraft-bedrock\n./bedrock_server" > /opt/minecraft-bedrock/start.sh',
+    'chmod +x /opt/minecraft-bedrock/start.sh',
+    'echo -e "#!/bin/bash\npkill -f bedrock_server" > /opt/minecraft-bedrock/stop.sh',
+    'chmod +x /opt/minecraft-bedrock/stop.sh'
+];
+
+// Esegui comandi in sequenza
+foreach($commands as $cmd) {
+    $out = '';
+    $res = sshExecute($containerIp, 'root', 'Lgu8330Serve6', $cmd, $out);
+    if (!$res['success']) {
+        echo json_encode(['success'=>false, 'error'=>"Errore eseguendo: $cmd", 'output'=>$out]);
+        exit;
+    }
+}
+
+// Aggiorna DB
+$stmt = $pdo->prepare("UPDATE servers SET status='ready', updated_at=NOW() WHERE id=?");
+$stmt->execute([$serverId]);
+
+echo json_encode(['success'=>true, 'message'=>'Server Bedrock installato con successo']);

@@ -1,269 +1,58 @@
 <?php
-
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-require_once 'config/config.php';
-require_once 'auth_check.php';
+require 'auth_check.php';
+require 'config/config.php';
+require_once 'proxmox_functions.php'; // Contiene proxmoxLogin(), createLxcContainer(), startContainer()
 
 $userId = $_SESSION['user_id'] ?? 0;
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
-$stmt->execute([$userId]);
-$totalServers = (int) $stmt->fetchColumn();
-
-if ($totalServers === 0) {
-    // L'utente non ha ancora creato server, quindi può accedere normalmente a add_server.php per crearne uno
-    // (oppure puoi lasciare libero accesso a quella pagina)
-} else {
-    // L'utente ha almeno un server, ma controlla se ce n'è uno pronto
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND status IN ('running', 'installed', 'ready')");
-    $stmt->execute([$userId]);
-    $readyCount = (int) $stmt->fetchColumn();
-
-    if ($readyCount === 0) {
-        // Ha server ma nessuno pronto, blocca accesso
-        header("Location: install_wait.php");
-        exit;
-    }
-}
-
-$defaultRam = 4;
-$error = null;
-
-// --- Token anti-doppio submit ---
-if (!isset($_SESSION['form_token'])) {
-    $_SESSION['form_token'] = bin2hex(random_bytes(32));
-}
-$form_token = $_SESSION['form_token'];
-
-// Funzione per ottenere IP libero (la tua originale)
-function getNextFreePrivateIp(PDO $pdo): string
-{
-    $baseIp = '192.168.1.';
-    $start = 101;
-    $end = 254;
-
-    $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip LIKE '192.168.1.%'");
-    $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    $usedLastOctets = [];
-    foreach ($usedIps as $ip) {
-        $parts = explode('.', $ip);
-        if (count($parts) === 4) {
-            $usedLastOctets[] = (int) $parts[3];
-        }
-    }
-
-    for ($i = $start; $i <= $end; $i++) {
-        if (!in_array($i, $usedLastOctets)) {
-            return $baseIp . $i;
-        }
-    }
-
-    return $baseIp . $start;
-}
-
-function calculateCpuCores(int $ramGb): int
-{
-    if ($ramGb <= 2)
-        return 2;
-    if ($ramGb <= 4)
-        return 2;
-    if ($ramGb <= 6)
-        return 3;
-    if ($ramGb <= 8)
-        return 4;
-    if ($ramGb <= 16)
-        return 6;
-    return 8;
-}
-
-function calculatePrice(int $ramGb): float
-{
-    $priceTable = [
-        2 => 6.5 * 0.85,
-        4 => 10 * 0.85,
-        6 => 15 * 0.85,
-        8 => 21.5 * 0.85,
-        16 => 35 * 0.85,
-        32 => 57.5 * 0.85,
-    ];
-    if ($ramGb <= 2)
-        return $priceTable[2];
-    if ($ramGb <= 4)
-        return $priceTable[4];
-    if ($ramGb <= 6)
-        return $priceTable[6];
-    if ($ramGb <= 8)
-        return $priceTable[8];
-    if ($ramGb <= 16)
-        return $priceTable[16];
-    return $priceTable[32];
-}
-
-function proxmoxLogin()
-{
-    $url = PROXMOX_API_URL . '/access/ticket';
-    $data = [
-        'username' => PROXMOX_USERNAME,
-        'password' => PROXMOX_PASSWORD,
-    ];
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        $err = curl_error($ch);
-        error_log("CURL login error: $err");
-        throw new Exception('Errore CURL login: ' . $err);
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!isset($json['data']['ticket']) || !isset($json['data']['CSRFPreventionToken'])) {
-        error_log("Proxmox login fallito: $response");
-        throw new Exception('Login Proxmox fallito: ' . $response);
-    }
-    error_log("Proxmox login OK: ticket ricevuto");
-    return [
-        'ticket' => $json['data']['ticket'],
-        'csrf' => $json['data']['CSRFPreventionToken']
-    ];
-}
-
-
-function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
-{
-    $swapMb = intval($ramMb * 1.5);
-
-    $postData = [
-        'vmid' => $vmid,
-        'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,
-        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-        'memory' => $ramMb,
-        'swap' => $swapMb,
-        'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'Lgu8330Serve6',
-        'onboot' => 1,
-    ];
-
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}",
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (isset($json['errors']) || !isset($json['data'])) {
-        throw new Exception('Errore creazione container: ' . json_encode($json));
-    }
-
-    $containerData = $json['data'];
-
-    // --- Attendere qualche secondo prima di avviare ---
-    sleep(3);
-
-    // --- Avvio container tramite pct start ---
-    $cmd = "pct start $vmid 2>&1";
-    exec($cmd, $output, $returnVar);
-
-    if ($returnVar !== 0) {
-        throw new Exception("Errore avvio container con pct start: " . implode("\n", $output));
-    }
-
-    return $containerData;
-}
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    error_log('POST ricevuto: ' . print_r($_POST, true));
-    error_log('Token sessione: ' . ($_SESSION['form_token'] ?? 'manca'));
-    error_log('Token POST: ' . ($_POST['form_token'] ?? 'manca'));
+    $serverName = trim($_POST['server_name'] ?? '');
+    $ramGb = intval($_POST['ram_gb'] ?? 4);
+    $ramGb = min($ramGb, 20);
 
-    if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']) {
-        $error = "Richiesta duplicata o token non valido.";
-    } else {
-        // Invalida il token subito per prevenire doppio submit
-        unset($_SESSION['form_token']);
+    if (!$serverName) die("Nome server non valido.");
 
-        $serverName = trim($_POST['server_name'] ?? '');
-        $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
-        if ($ramGb > 20)
-            $ramGb = 20;
-
+    try {
         $cpuCores = calculateCpuCores($ramGb);
         $price = calculatePrice($ramGb);
 
-        if (empty($serverName)) {
-            $error = "Inserisci un nome valido per il server.";
-        } elseif ($ramGb < 2) {
-            $error = "Inserisci una quantità di RAM valida (minimo 2 GB).";
-        }
+        // VMID e IP
+        $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
+        $vmid = max(101, (int)$stmt->fetchColumn() + 1);
+        $privateIp = getNextFreePrivateIp($pdo);
+        $storageGb = 64;
 
-        if (!$error) {
-            try {
-                $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $maxVmid = (int) $stmt->fetchColumn();
-                $vmid = $maxVmid > 100 ? $maxVmid + 1 : 101;
+        // Login Proxmox
+        $auth = proxmoxLogin();
 
-                $nextIp = getNextFreePrivateIp($pdo);
-                $storageGb = 64;
+        // Crea container
+        $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
 
-                $auth = proxmoxLogin();
+        // Avvia container subito
+        startContainer($vmid, $auth);
 
-                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $nextIp, $auth);
+        // Salva nel DB
+        $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$vmid, $cpuCores, $ramGb*1024, $userId, $storageGb, $privateIp]);
+        $containerId = $pdo->lastInsertId();
 
-                if (!$result) {
-                    throw new Exception('Creazione container fallita senza errore specifico.');
-                }
+        $status = 'not_installed';
+        $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
+        $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb*1024, $price]);
+        $serverId = $pdo->lastInsertId();
 
-                $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $nextIp]);
-                $containerId = $pdo->lastInsertId();
+        $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
+        $stmt3->execute([$serverId, $containerId]);
 
-                $status = 'not_installed';
+        header("Location: install_wait.php?server_id=".$serverId);
+        exit;
 
-                $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
-                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
-                $serverId = $pdo->lastInsertId();
-
-                $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
-                $stmt3->execute([$serverId, $containerId]);
-
-                // Rigenera token per la prossima volta
-                $_SESSION['form_token'] = bin2hex(random_bytes(32));
-
-                // Reindirizza a install_wait passando anche container_id e IP
-                header("Location: install_wait.php?server_id={$serverId}&container_id={$containerId}&ip={$nextIp}");
-                exit;
-
-
-            } catch (Exception $e) {
-                $error = "Errore nella creazione del server: " . $e->getMessage();
-            }
-        }
+    } catch(Exception $e) {
+        die("Errore creazione server: ".$e->getMessage());
     }
 }
-
 ?>
+
 
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
