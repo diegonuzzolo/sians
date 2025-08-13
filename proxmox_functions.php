@@ -53,7 +53,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'rootfs'     => PROXMOX_STORAGE . ":$storageGb",
         'net0'       => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'onboot'     => 1,
-        'password'   => CONTAINER_ROOT_PASSWORD,  // Password root del container
+        'password'   => PROXMOX_PASSWORD,  // Password root del container
     ]);
 
     $context = stream_context_create([
