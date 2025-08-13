@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = createLxcContainer($vmid, $cpuCores, $ramGb*1024, $storageGb, $privateIp, $auth);
 
                 // 2️⃣ Attendi che il container sia pronto
-                waitForContainer($vmid, $auth, 10, 2);
+                waitForContainer($vmid, $auth, 11, 2);
 
                 // 3️⃣ Avvia container
                 startContainer($vmid, $auth);
