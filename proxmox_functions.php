@@ -1,6 +1,15 @@
 <?php
 require 'config/config.php';
 
+
+$host = PROXMOX_API_URL;
+$node = PROXMOX_NODE;
+$storage = PROXMOX_STORAGE;
+$template = PROXMOX_TEMPLATE;
+$gateway = CONTAINER_GATEWAY;
+$password = PROXMOX_PASSWORD;
+
+
 /**
  * Login a Proxmox e ritorna ticket e CSRF token
  */
