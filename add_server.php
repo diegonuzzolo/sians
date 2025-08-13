@@ -38,11 +38,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         waitForContainer($vmid);
 
         // --- 6. Copia ed esegui setup_server.sh ---
-        pushAndRunSetupScript($vmIp, $vmid);
+        $sshKey = "/var/www/.ssh/id_proxmox";
+        $nodeIp = "192.168.1.251"; // IP nodo Proxmox
+        $localScript = "/root/setup_server.sh"; // percorso sul webserver
+        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
+        $containerId = $vmid; // VMID appena creato
 
-        // --- 7. Aggiorna lo status nel DB ---
-        $stmt = $pdo->prepare("UPDATE containers SET status = 'created' WHERE id = ?");
-        $stmt->execute([$containerId]);
+        // --- 1. Copia script sul nodo Proxmox ---
+        $copyCmd = "sudo -u www-data scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
+        exec($copyCmd, $output, $status);
+        if ($status !== 0) {
+            die("Errore copia verso nodo Proxmox: " . implode("\n", $output));
+        }
+
+        // --- 2. Push dentro il container ---
+        $pushCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct push $containerId $remoteTemp /root/setup_server.sh\" 2>&1";
+        exec($pushCmd, $output, $status);
+        if ($status !== 0) {
+            die("Errore push dentro container: " . implode("\n", $output));
+        }
+
+        // --- 3. Imposta permessi ed esegui in background nel container ---
+        $execCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct exec $containerId -- chmod +x /root/setup_server.sh && pct exec $containerId -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
+        exec($execCmd, $output, $status);
+        if ($status !== 0) {
+            die("Errore esecuzione script nel container: " . implode("\n", $output));
+        }
+
+        echo "Script copiato ed eseguito nel container $containerId con successo!";
+
 
         // --- 8. Redirect alla dashboard ---
         header("Location: dashboard.php");
@@ -53,32 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// --- Funzione per copia ed esecuzione script ---
-function pushAndRunSetupScript(string $vmIp, int $containerId) {
-    $localScript = '/root/setup_server.sh';
-    $remoteScript = '/root/setup_server.sh';
-    $sshKey = '/var/www/.ssh/id_proxmox';
 
-    $scpCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript 2>&1";
-    $scpOutput = shell_exec($scpCmd);
-    if ($scpOutput !== null && trim($scpOutput) !== '') {
-        throw new Exception("Errore copia verso nodo Proxmox: $scpOutput");
-    }
-
-    $chmodCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'chmod +x $remoteScript' 2>&1";
-    $chmodOutput = shell_exec($chmodCmd);
-    if ($chmodOutput !== null && trim($chmodOutput) !== '') {
-        throw new Exception("Errore chmod script su nodo Proxmox: $chmodOutput");
-    }
-
-    $runCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'pct exec $containerId -- bash $remoteScript $containerId > /dev/null 2>&1 &' 2>&1";
-    $runOutput = shell_exec($runCmd);
-    if ($runOutput !== null && trim($runOutput) !== '') {
-        throw new Exception("Errore esecuzione setup_server.sh nel container: $runOutput");
-    }
-
-    return true;
-}
 
 
 
