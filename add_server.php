@@ -12,13 +12,12 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // --- 1. Dati dal form ---
     $ramGb = intval($_POST['ram_gb'] ?? 2);
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
-    // --- 2. Trova un VMID libero ---
+    // --- Trova un VMID libero ---
     $nextVmid = 100;
     do {
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
@@ -29,64 +28,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } while (true);
     $vmid = $nextVmid;
 
-    // --- 3. Recupera il prossimo IP libero ---
-    $nextVmid = 100;
-    do {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
-        $stmt->execute([$nextVmid]);
-        if ($stmt->fetchColumn() == 0)
-            break;
-        $nextVmid++;
-    } while (true);
-    $vmid = $nextVmid;
+    // --- Recupera il prossimo IP libero ---
+    $vmIp = getNextFreePrivateIp($pdo);
 
-    // --- 4. Inserisci nel DB ---
-    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+    // --- Genera hostname se non fornito dal form ---
+    if (!isset($_POST['hostname']) || trim($_POST['hostname']) === '') {
+        $hostname = "mc-" . $vmid;
+    } else {
+        $hostname = preg_replace('/[^a-zA-Z0-9\-]/', '', strtolower(trim($_POST['hostname'])));
+    }
+
+    // --- Inserisci nel DB ---
+    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, assigned_user_id, hostname, private_ip, status, cpu_cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $hostname, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
 
     try {
-        // --- 5. Crea il container ---
-        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
+        // --- Crea il container su Proxmox ---
+        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $hostname, $vmIp, $cores);
 
-        if (!$createResult || !isset($createResult['success']) || !$createResult['success']) {
-            throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
+        if (!$createResult['success']) {
+            throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        // --- 6. Avvia e aspetta il container ---
-        shell_exec("pct start $vmid");
+        echo "Container creato con successo! VMID: $vmid IP: $vmIp";
 
-        $maxWait = 30;
-        $started = false;
-        for ($i = 0; $i < $maxWait; $i++) {
-            $status = trim(shell_exec("pct status $vmid 2>/dev/null"));
-            if (strpos($status, 'status: running') !== false) {
-                $started = true;
-                break;
-            }
-            sleep(1);
-        }
-
-        if (!$started) {
-            throw new Exception("Timeout: il container $vmid non si è avviato entro $maxWait secondi");
-        }
-
-        // --- 7. Copia setup_server.sh nel container e rendilo eseguibile ---
+        // --- Copia ed esegui setup_server.sh nel container ---
         $localScript = '/root/setup_server.sh';
         $remoteScript = '/root/setup_server.sh';
-        shell_exec("pct push $vmid $localScript $remoteScript --perms 755");
 
-        // --- 8. Esegui lo script in background dentro il container ---
-        shell_exec("pct exec $vmid -- bash $remoteScript $containerId > /dev/null 2>&1 &");
+        shell_exec("sshpass -f /var/www/.sshpass_pw scp -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript");
+        shell_exec("sshpass -f /var/www/.sshpass_pw ssh -o StrictHostKeyChecking=no root@$vmIp 'bash $remoteScript $containerId > /dev/null 2>&1 &'");
 
-        // --- 9. Redirect alla dashboard ---
+        // --- Redirect alla dashboard ---
         header("Location: dashboard.php");
         exit;
 
     } catch (Exception $e) {
-        $error = $e->getMessage();
+        echo "Errore creazione container: " . $e->getMessage();
     }
 }
+
 ?>
 
 
