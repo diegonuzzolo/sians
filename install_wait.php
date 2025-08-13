@@ -26,7 +26,7 @@ try {
     $auth = proxmoxLogin();
 
     // Avvia container se non è running
-    waitForContainer($vmid, $auth, 120, 2);
+    waitForContainer($vmid, 120, 2);
 
     $statusMessage = "Container pronto, avvio installazione Bedrock...";
     $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");

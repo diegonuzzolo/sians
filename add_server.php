@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth = proxmoxLogin();
 
                 // 1️⃣ Crea container
-                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
+                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp);
 
                 // 2️⃣ Attendi che il container sia pronto
                 // Attendi 10 secondi

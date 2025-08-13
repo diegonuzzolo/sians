@@ -1,66 +1,28 @@
 <?php
 require 'config/config.php';
 
-
-$host = PROXMOX_API_URL;
-$node = PROXMOX_NODE;
-$storage = PROXMOX_STORAGE;
-$template = PROXMOX_TEMPLATE;
-$gateway = CONTAINER_GATEWAY;
-$password = PROXMOX_PASSWORD;
-
-
 /**
- * Login a Proxmox e ritorna ticket e CSRF token
+ * Crea un container LXC usando le costanti di config.php
  */
-function proxmoxLogin(): array {
-    $url = PROXMOX_API_URL . '/access/ticket';
-    $data = [
-        'username' => PROXMOX_USERNAME,
-        'password' => PROXMOX_PASSWORD,
-    ];
+function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp): array {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('CURL login error: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!isset($json['data']['ticket'], $json['data']['CSRFPreventionToken'])) {
-        throw new Exception('Login Proxmox fallito: ' . $response);
-    }
-
-    return [
-        'ticket' => $json['data']['ticket'],
-        'csrf' => $json['data']['CSRFPreventionToken']
-    ];
-}
-
-/**
- * Crea un container LXC
- */
-function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = "https://{$auth['host']}/api2/json/nodes/{$auth['node']}/lxc";
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
-        'storage' => $auth['storage'],
-        'ostemplate' => $auth['template'],
+        'storage' => PROXMOX_STORAGE,
+        'ostemplate' => PROXMOX_TEMPLATE,
         'memory' => $ramMb,
         'swap' => 0,
         'cores' => $cpu,
-        'rootfs' => "{$auth['storage']}:{$storageGb}",
-        'net0' => "name=eth0,bridge=vmbr0,ip={$privateIp}/24,gw={$auth['gateway']}",
-        'password' => $auth['password'],
+        'rootfs' => PROXMOX_STORAGE . ":$storageGb",
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
+        'password' => PROXMOX_PASSWORD,
         'onboot' => 1,
     ];
+
+    // Login per ottenere ticket e CSRF
+    $auth = proxmoxLogin();
 
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -85,18 +47,18 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     curl_close($ch);
 
     $json = json_decode($response, true);
-    if (!is_array($json)) {
-        throw new Exception("Errore creazione container, risposta Proxmox non valida: " . $response);
-    }
-    if ($httpCode >= 400) {
-        throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
-    }
+    if (!is_array($json)) throw new Exception("Risposta Proxmox non valida: $response");
+    if ($httpCode >= 400) throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
 
     return $json['data'] ?? [];
 }
 
-function startContainer(int $vmid, array $auth): array {
-    $url = "https://{$auth['host']}/api2/json/nodes/{$auth['node']}/lxc/{$vmid}/status/start";
+/**
+ * Avvia container usando le costanti di config.php
+ */
+function startContainer(int $vmid): array {
+    $auth = proxmoxLogin();
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
 
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -112,27 +74,23 @@ function startContainer(int $vmid, array $auth): array {
     ]);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception("Errore cURL avvio container: " . curl_error($ch));
-    }
+    if ($response === false) throw new Exception("Errore cURL avvio container: " . curl_error($ch));
 
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $json = json_decode($response, true);
-    if (!is_array($json)) {
-        throw new Exception("Errore avvio container, risposta Proxmox non valida: " . $response);
-    }
-    if ($httpCode >= 400) {
-        throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
-    }
+    if (!is_array($json)) throw new Exception("Risposta Proxmox non valida: $response");
+    if ($httpCode >= 400) throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
 
     return $json['data'] ?? [];
 }
+
 /**
- * Controlla lo stato del container
+ * Ottieni stato container
  */
-function getContainerStatus(int $vmid, array $auth): string {
+function getContainerStatus(int $vmid): string {
+    $auth = proxmoxLogin();
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
 
     $ch = curl_init($url);
@@ -145,30 +103,27 @@ function getContainerStatus(int $vmid, array $auth): string {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception("Errore getContainerStatus: " . curl_error($ch));
-    }
-    curl_close($ch);
+    if ($response === false) throw new Exception("Errore getContainerStatus: " . curl_error($ch));
 
+    curl_close($ch);
     $json = json_decode($response, true);
     return $json['data']['status'] ?? 'unknown';
 }
 
 /**
- * Attende un numero di secondi (semplice)
+ * Attende container pronto (semplice, 10 sec di default)
  */
-function waitForContainer(int $vmid, array $auth, int $timeoutSec = 10, int $intervalSec = 1) {
+function waitForContainer(int $vmid, int $timeoutSec = 10, int $intervalSec = 1) {
     $elapsed = 0;
     while ($elapsed < $timeoutSec) {
-        $status = getContainerStatus($vmid, $auth);
-        if ($status === 'running') {
-            return true;
-        }
+        $status = getContainerStatus($vmid);
+        if ($status === 'running') return true;
         sleep($intervalSec);
         $elapsed += $intervalSec;
     }
     throw new Exception("Timeout attesa container $vmid");
 }
+
 
 /**
  * Installa Bedrock server (semplice esempio)
