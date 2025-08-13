@@ -12,63 +12,71 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
+    // --- 1. Dati dal form ---
     $ramGb = intval($_POST['ram_gb'] ?? 2);
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
-    // --- Trova prossimo VMID libero ---
-    $vmid = getNextFreeVmid($pdo);
+    try {
+        // --- 2. Trova un VMID libero ---
+        $vmid = getNextFreeVmid($pdo);
 
-    // --- Recupera prossimo IP libero ---
-    $vmIp = getNextFreePrivateIp($pdo);
+        // --- 3. Recupera il prossimo IP libero ---
+        $vmIp = getNextFreePrivateIp($pdo);
 
-    // --- Inserisci record container nel DB ---
-    $stmt = $pdo->prepare("
-        INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
-    $containerId = $pdo->lastInsertId();
-$vmid = getNextFreeVmid($pdo);
+        // --- 4. Inserisci nel DB ---
+        $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+        $containerId = $pdo->lastInsertId();
 
-try {
-    $createResult = createLxcContainer($vmid, $ramGb*1024, $storageGb, $serverName, $cores);
-    
-    if (!$createResult['success']) {
-        throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
+        // --- 5. Crea il container su Proxmox ---
+        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
+        if (!$createResult['success']) {
+            throw new Exception("Errore creazione container: " . $createResult['message']);
+        }
+        waitForContainer($vmid);
+
+        // --- 6. Copia ed esegui setup_server.sh ---
+        $sshKey = "/var/www/.ssh/id_proxmox";
+        $nodeIp = "192.168.1.251"; // IP nodo Proxmox
+        $localScript = "/root/setup_server.sh"; // percorso sul webserver
+        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
+        $containerId = $vmid; // VMID appena creato
+
+        // --- 1. Copia script sul nodo Proxmox ---
+        $copyCmd = "sudo -u www-data scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
+        exec($copyCmd, $output, $status);
+        if ($status !== 0) {
+            die("Errore copia verso nodo Proxmox: " . implode("\n", $output));
+        }
+
+        // --- 2. Push dentro il container ---
+        $pushCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct push $containerId $remoteTemp /root/setup_server.sh\" 2>&1";
+        exec($pushCmd, $output, $status);
+        if ($status !== 0) {
+            die("Errore push dentro container: " . implode("\n", $output));
+        }
+
+        // --- 3. Imposta permessi ed esegui in background nel container ---
+        $execCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct exec $containerId -- chmod +x /root/setup_server.sh && pct exec $containerId -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
+        exec($execCmd, $output, $status);
+        if ($status !== 0) {
+            die("Errore esecuzione script nel container: " . implode("\n", $output));
+        }
+
+        echo "Script copiato ed eseguito nel container $containerId con successo!";
+
+
+        // --- 8. Redirect alla dashboard ---
+        header("Location: dashboard.php");
+        exit;
+
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
-
-    // Attendi che il container sia disponibile
-    $attempts = 0;
-    do {
-        $status = callProxmox("nodes/pve/lxc/$vmid/status/current")['data']['status'] ?? null;
-        sleep(1);
-        $attempts++;
-    } while ($status === null && $attempts < 10);
-
-    if ($status === null) throw new Exception("Container creato ma non risponde ancora");
-
-    // Inserisci record nel DB SOLO DOPO creazione reale
-    $stmt = $pdo->prepare("
-        INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
-    $containerId = $pdo->lastInsertId();
-
-    // pct push ed exec
-    shell_exec("pct push $vmid /root/setup_server.sh /root/setup_server.sh -perms 0755");
-    shell_exec("pct exec $vmid -- bash /root/setup_server.sh $containerId > /dev/null 2>&1 &");
-
-} catch (Exception $e) {
-    echo "Errore: " . $e->getMessage();
-}
-
-
-    // --- Redirect alla dashboard ---
-    header("Location: dashboard.php");
-    exit;
 }
 
 
