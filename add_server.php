@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$createResult['success']) {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
+        waitForContainer($vmid);
 
         // --- 6. Copia ed esegui setup_server.sh ---
         pushAndRunSetupScript($vmIp, $vmid);
