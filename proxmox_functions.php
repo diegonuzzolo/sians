@@ -130,30 +130,32 @@ function waitForTask($upid, $auth, $timeout = 60) {
 /**
  * Attende che il container sia in stato running
  */
-function waitForContainer($vmid, $auth, $timeout = 60, $interval = 2) {
+function waitForContainer(int $vmid, array $auth, int $timeout = 60, int $sleep = 2): void {
     $start = time();
-    do {
-        $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}"
-        ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        $json = json_decode($response, true);
-        $status = $json['data']['status'] ?? 'unknown';
-        if ($status === 'running') return true;
-
-        sleep($interval);
-    } while ((time() - $start) < $timeout);
-
-    throw new Exception("Timeout: container $vmid non è running");
+    while (true) {
+        $status = getContainerStatus($vmid, $auth); // chiama /status/current via API
+        if ($status === 'stopped' || $status === 'running') return;
+        if (time() - $start > $timeout) throw new Exception("Timeout attesa container pronto");
+        sleep($sleep);
+    }
 }
+
+function getContainerStatus(int $vmid, array $auth): string {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "CSRFPreventionToken: {$auth['csrf']}",
+        "Cookie: PVEAuthCookie={$auth['ticket']}"
+    ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $resp = curl_exec($ch);
+    curl_close($ch);
+
+    $json = json_decode($resp, true);
+    return $json['data']['status'] ?? '';
+}
+
 
 /**
  * Installa il server Bedrock all'interno del container
