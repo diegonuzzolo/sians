@@ -9,7 +9,7 @@ require_once 'auth_check.php';
 $userId = $_SESSION['user_id'] ?? 0;
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ?");
 $stmt->execute([$userId]);
-$totalServers = (int)$stmt->fetchColumn();
+$totalServers = (int) $stmt->fetchColumn();
 
 if ($totalServers === 0) {
     // L'utente non ha ancora creato server, quindi può accedere normalmente a add_server.php per crearne uno
@@ -18,7 +18,7 @@ if ($totalServers === 0) {
     // L'utente ha almeno un server, ma controlla se ce n'è uno pronto
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND status IN ('running', 'installed', 'ready')");
     $stmt->execute([$userId]);
-    $readyCount = (int)$stmt->fetchColumn();
+    $readyCount = (int) $stmt->fetchColumn();
 
     if ($readyCount === 0) {
         // Ha server ma nessuno pronto, blocca accesso
@@ -245,8 +245,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Rigenera token per la prossima volta
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));
 
-                header("Location: install_wait.php?server_id=" . $serverId);
+                // Reindirizza a install_wait passando anche container_id e IP
+                header("Location: install_wait.php?server_id={$serverId}&container_id={$containerId}&ip={$nextIp}");
                 exit;
+
 
             } catch (Exception $e) {
                 $error = "Errore nella creazione del server: " . $e->getMessage();
