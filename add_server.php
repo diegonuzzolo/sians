@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // --- 2. Trova un VMID libero ---
     $nextVmid = 100;
     do {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_vmid = ?");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
         $stmt->execute([$nextVmid]);
         if ($stmt->fetchColumn() == 0)
             break;
@@ -33,14 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vmIp = getNextFreePrivateIp($pdo);
 
     // --- 4. Inserisci nel DB ---
-    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_vmid, ram_gb, storage_gb, user_id, server_name, ip_address, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, server_name, ip_address, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
 
     // --- 5. Crea container su Proxmox ---
     $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
     if (!$createResult['success']) {
-        die("Errore creazione container: " . $createResult['message']);
+        die("Errore creazione container: " . $createResult['message']); 
     }
 
     // --- 6. Copia setup_server.sh nel container e lancialo in background ---
