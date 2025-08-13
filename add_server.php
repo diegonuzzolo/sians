@@ -13,7 +13,7 @@ if (!isset($_SESSION['form_token'])) {
 $form_token = $_SESSION['form_token'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if(!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']){
+    if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']) {
         $error = "Richiesta duplicata o token non valido.";
     } else {
         unset($_SESSION['form_token']);
@@ -22,7 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
         $ramGb = min($ramGb, 20);
 
-        if (!$serverName) $error = "Nome server non valido.";
+        if (!$serverName)
+            $error = "Nome server non valido.";
 
         if (!$error) {
             try {
@@ -31,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // VMID e IP
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $vmid = max(101, (int)$stmt->fetchColumn() + 1);
+                $vmid = max(101, (int) $stmt->fetchColumn() + 1);
                 $privateIp = getNextFreePrivateIp($pdo);
                 $storageGb = 64;
 
@@ -43,18 +44,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // 2️⃣ Attendi completamento task container
                 waitForTask($result['upid'] ?? null, $auth);
-
+                // Ora può partire installazione Bedrock
+                installBedrockServer($privateIp, $ramGb * 1024, $pdo, $serverId);
                 // 3️⃣ Avvia container
                 startContainer($vmid, $auth);
 
                 // 4️⃣ Salva nel DB
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$vmid, $cpuCores, $ramGb*1024, $userId, $storageGb, $privateIp]);
+                $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $privateIp]);
                 $containerId = $pdo->lastInsertId();
 
                 $status = 'not_installed';
                 $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
-                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb*1024, $price]);
+                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb * 1024, $price]);
                 $serverId = $pdo->lastInsertId();
 
                 $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
@@ -62,11 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));
 
-                header("Location: install_wait.php?server_id=".$serverId);
+                header("Location: install_wait.php?server_id=" . $serverId);
                 exit;
 
-            } catch(Exception $e) {
-                $error = "Errore creazione server: ".$e->getMessage();
+            } catch (Exception $e) {
+                $error = "Errore creazione server: " . $e->getMessage();
             }
         }
     }
@@ -133,51 +135,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <style>
-    .bg-bedrock { background-color: #003f54 !important; }
-    .text-bedrock { color: #00c8ff; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);}
-    .form-control-lg { border-radius: 12px; }
-    .form-range { cursor: pointer; }
-    .btn-success { background-color: #00c8ff; border: none; transition: background-color 0.3s ease; }
-    .btn-success:hover, .btn-success:focus { background-color: #0099cc; box-shadow: 0 0 12px #00c8ffaa; }
-    label { user-select: none; }
+    .bg-bedrock {
+        background-color: #003f54 !important;
+    }
+
+    .text-bedrock {
+        color: #00c8ff;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .form-control-lg {
+        border-radius: 12px;
+    }
+
+    .form-range {
+        cursor: pointer;
+    }
+
+    .btn-success {
+        background-color: #00c8ff;
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-success:hover,
+    .btn-success:focus {
+        background-color: #0099cc;
+        box-shadow: 0 0 12px #00c8ffaa;
+    }
+
+    label {
+        user-select: none;
+    }
 </style>
 
 <script>
-const form = document.getElementById('createServerForm');
-const submitBtn = document.getElementById('createServerBtn');
-const ramInput = document.getElementById('ram_gb');
-const ramDisplay = document.getElementById('ramDisplay');
-const cpuLabel = document.getElementById('cpuLabel');
-const cpuInput = document.getElementById('cpu_cores');
-const cpuProgress = document.getElementById('cpuProgress');
-const priceLabel = document.getElementById('priceLabel');
+    const form = document.getElementById('createServerForm');
+    const submitBtn = document.getElementById('createServerBtn');
+    const ramInput = document.getElementById('ram_gb');
+    const ramDisplay = document.getElementById('ramDisplay');
+    const cpuLabel = document.getElementById('cpuLabel');
+    const cpuInput = document.getElementById('cpu_cores');
+    const cpuProgress = document.getElementById('cpuProgress');
+    const priceLabel = document.getElementById('priceLabel');
 
-function updateCpuAndPrice() {
-    let ram = parseInt(ramInput.value) || 2;
-    ram = Math.min(ram, 20);
-    ramDisplay.textContent = ram + ' GB';
+    function updateCpuAndPrice() {
+        let ram = parseInt(ramInput.value) || 2;
+        ram = Math.min(ram, 20);
+        ramDisplay.textContent = ram + ' GB';
 
-    let cores = 2;
-    let price = 6.5*0.85;
-    if(ram<=2){ cores=2; price=6.5*0.85; }
-    else if(ram<=4){ cores=2; price=10*0.85; }
-    else if(ram<=6){ cores=3; price=15*0.85; }
-    else if(ram<=8){ cores=4; price=21.5*0.85; }
-    else if(ram<=16){ cores=6; price=35*0.85; }
-    else { cores=8; price=57.5*0.85; }
+        let cores = 2;
+        let price = 6.5 * 0.85;
+        if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
+        else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
+        else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
+        else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
+        else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
+        else { cores = 8; price = 57.5 * 0.85; }
 
-    cpuLabel.textContent = cores;
-    cpuInput.value = cores;
-    cpuProgress.style.width = (cores/8*100)+'%';
-    priceLabel.textContent = "€ "+price.toFixed(2);
-}
+        cpuLabel.textContent = cores;
+        cpuInput.value = cores;
+        cpuProgress.style.width = (cores / 8 * 100) + '%';
+        priceLabel.textContent = "€ " + price.toFixed(2);
+    }
 
-ramInput.addEventListener('input', updateCpuAndPrice);
-form.addEventListener('submit', ()=>{ submitBtn.disabled=true; submitBtn.innerText='Creazione in corso...'; });
-updateCpuAndPrice();
+    ramInput.addEventListener('input', updateCpuAndPrice);
+    form.addEventListener('submit', () => { submitBtn.disabled = true; submitBtn.innerText = 'Creazione in corso...'; });
+    updateCpuAndPrice();
 </script>
 
 <?php include("includes/footer.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

@@ -304,3 +304,50 @@ function installBedrockServer(string $containerIp, int $ramMb, PDO $pdo, int $se
 
     $updateStatus('ready');
 }
+
+/**
+ * waitForContainer
+ * Attende che un container LXC su Proxmox sia in stato "running"
+ *
+ * @param int $vmid ID del container
+ * @param array $auth Array con ['ticket', 'csrf'] da proxmoxLogin()
+ * @param int $timeout Timeout massimo in secondi
+ * @param int $interval Intervallo tra i controlli in secondi
+ * @throws Exception
+ */
+function waitForContainer(int $vmid, array $auth, int $timeout = 60, int $interval = 2) {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
+
+    $elapsed = 0;
+    do {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}"
+        ]);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+        $response = curl_exec($ch);
+        if ($response === false) {
+            curl_close($ch);
+            throw new Exception("Errore CURL durante waitForContainer: " . curl_error($ch));
+        }
+        curl_close($ch);
+
+        $json = json_decode($response, true);
+        if (!isset($json['data']['status'])) {
+            throw new Exception("Risposta Proxmox non valida in waitForContainer: " . $response);
+        }
+
+        if ($json['data']['status'] === 'running') {
+            return true; // container pronto
+        }
+
+        sleep($interval);
+        $elapsed += $interval;
+
+    } while ($elapsed < $timeout);
+
+    throw new Exception("Timeout: il container $vmid non è diventato running dopo $timeout secondi");
+}
