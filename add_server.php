@@ -2,243 +2,84 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+require 'auth_check.php';
 require 'config/config.php';
-$error = '';
-/**
- * Login su Proxmox
- */
-function proxmoxLogin(): array {
-    $url = PROXMOX_API_URL . '/access/ticket';
-    $data = [
-        'username' => PROXMOX_USERNAME,
-        'password' => PROXMOX_PASSWORD,
-    ];
+require_once 'proxmox_functions.php'; // proxmoxLogin, createLxcContainer, startContainer, waitForContainer, installBedrockServer
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+$userId = $_SESSION['user_id'] ?? 0;
+$defaultRam = 4;
+$error = null;
 
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL login: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!isset($json['data']['ticket'], $json['data']['CSRFPreventionToken'])) {
-        throw new Exception('Login Proxmox fallito: ' . $response);
-    }
-
-    return [
-        'ticket' => $json['data']['ticket'],
-        'csrf' => $json['data']['CSRFPreventionToken'],
-    ];
+// Token anti-doppio submit
+if (!isset($_SESSION['form_token'])) {
+    $_SESSION['form_token'] = bin2hex(random_bytes(32));
 }
+$form_token = $_SESSION['form_token'];
 
-/**
- * Crea un container LXC
- */
-function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $swapMb = intval($ramMb * 1.5);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['form_token']) || $_POST['form_token'] !== $_SESSION['form_token']) {
+        $error = "Richiesta duplicata o token non valido.";
+    } else {
+        unset($_SESSION['form_token']); // Invalida token subito
 
-    $postData = [
-        'vmid' => $vmid,
-        'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,
-        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-        'memory' => $ramMb,
-        'swap' => $swapMb,
-        'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'Lgu8330Serve6',
-        'onboot' => 1,
-    ];
+        $serverName = trim($_POST['server_name'] ?? '');
+        $ramGb = intval($_POST['ram_gb'] ?? $defaultRam);
+        $ramGb = min($ramGb, 20);
 
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
-    $ch = curl_init($url);
-
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}",
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!is_array($json)) {
-        throw new Exception('Risposta JSON non valida: ' . $response);
-    }
-
-    if (!isset($json['data'])) {
-        throw new Exception('Errore creazione container: ' . $response);
-    }
-
-    return (array)$json['data'];
-}
-
-/**
- * Avvia container
- */
-function startContainer(int $vmid, array $auth): void {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
-    $ch = curl_init($url);
-
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}",
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('Errore avvio container: ' . curl_error($ch));
-    }
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!isset($json['data'])) {
-        throw new Exception('Errore avvio container: ' . $response);
-    }
-}
-
-/**
- * Attende che il container sia running
- */
-function waitForContainer(int $vmid, array $auth, int $timeoutSec = 120, int $intervalSec = 2): void {
-    $start = time();
-    while (true) {
-        $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}",
-        ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        $json = json_decode($response, true);
-        if (isset($json['data']['status']) && $json['data']['status'] === 'running') {
-            break;
+        if (!$serverName) {
+            $error = "Inserisci un nome valido per il server.";
+        } elseif ($ramGb < 2) {
+            $error = "Inserisci almeno 2 GB di RAM.";
         }
 
-        if (time() - $start > $timeoutSec) {
-            throw new Exception("Timeout attesa container $vmid");
+        if (!$error) {
+            try {
+                // Calcolo CPU e prezzo
+                $cpuCores = calculateCpuCores($ramGb);
+                $price = calculatePrice($ramGb);
+
+                // VMID e IP
+                $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
+                $vmid = max(101, (int)$stmt->fetchColumn() + 1);
+                $privateIp = getNextFreePrivateIp($pdo);
+                $storageGb = 64;
+
+                // Login Proxmox
+                $auth = proxmoxLogin();
+
+                // 1️⃣ Crea container
+                $result = createLxcContainer($vmid, $cpuCores, $ramGb*1024, $storageGb, $privateIp, $auth);
+
+                // 2️⃣ Attendi che il container sia pronto
+                waitForContainer($vmid, $auth, 120, 2);
+
+                // 3️⃣ Avvia container
+                startContainer($vmid, $auth);
+
+                // 4️⃣ Salva container nel DB
+                $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$vmid, $cpuCores, $ramGb*1024, $userId, $storageGb, $privateIp]);
+                $containerId = $pdo->lastInsertId();
+
+                // 5️⃣ Crea entry server
+                $status = 'installing';
+                $stmt2 = $pdo->prepare("INSERT INTO servers (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, created_at, updated_at, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)");
+                $stmt2->execute([$serverName, $userId, $containerId, $vmid, $status, 'bedrock', $cpuCores, $ramGb*1024, $price]);
+                $serverId = $pdo->lastInsertId();
+
+                // 6️⃣ Aggiorna container con server ID
+                $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
+                $stmt3->execute([$serverId, $containerId]);
+
+                // 7️⃣ Reindirizza a install_wait per completare installazione Bedrock
+                header("Location: install_wait.php?server_id=".$serverId);
+                exit;
+
+            } catch(Exception $e) {
+                $error = "Errore creazione server: ".$e->getMessage();
+            }
         }
-
-        sleep($intervalSec);
     }
-}
-
-/**
- * Installa Bedrock Server nel container tramite SSH
- */
-function installBedrockServer(string $ip, int $ramMb, PDO $pdo, int $serverId): void {
-    $sshUser = 'root';
-    $sshPass = 'Lgu8330Serve6';
-
-    if (!function_exists('ssh2_connect')) {
-        throw new Exception("Estensione SSH2 mancante.");
-    }
-
-    $conn = ssh2_connect($ip, 22);
-    if (!$conn || !ssh2_auth_password($conn, $sshUser, $sshPass)) {
-        throw new Exception("Impossibile connettersi al container $ip via SSH.");
-    }
-
-    // Comandi per installare Bedrock
-    $commands = [
-        'apt update && apt install -y wget unzip screen',
-        'mkdir -p /bedrock',
-        'cd /bedrock',
-        'wget -O bedrock-server.zip https://minecraft.azureedge.net/bin-linux/bedrock-server-1.20.10.23.zip',
-        'unzip -o bedrock-server.zip',
-        'rm bedrock-server.zip',
-        'chmod +x bedrock_server'
-    ];
-
-    foreach ($commands as $cmd) {
-        $stream = ssh2_exec($conn, $cmd);
-        if (!$stream) throw new Exception("Errore eseguendo: $cmd");
-        stream_set_blocking($stream, true);
-        stream_get_contents($stream);
-        fclose($stream);
-    }
-
-    // Aggiorna status DB
-    $stmt = $pdo->prepare("UPDATE servers SET status = 'ready' WHERE id = ?");
-    $stmt->execute([$serverId]);
-}
-
-/**
- * Calcolo CPU cores
- */
-function calculateCpuCores(int $ramGb): int {
-    if ($ramGb <= 2) return 2;
-    if ($ramGb <= 4) return 2;
-    if ($ramGb <= 6) return 3;
-    if ($ramGb <= 8) return 4;
-    if ($ramGb <= 16) return 6;
-    return 8;
-}
-
-/**
- * Calcolo prezzo
- */
-function calculatePrice(int $ramGb): float {
-    $table = [
-        2 => 6.5*0.85,
-        4 => 10*0.85,
-        6 => 15*0.85,
-        8 => 21.5*0.85,
-        16 => 35*0.85,
-        32 => 57.5*0.85,
-    ];
-
-    if ($ramGb <= 2) return $table[2];
-    if ($ramGb <= 4) return $table[4];
-    if ($ramGb <= 6) return $table[6];
-    if ($ramGb <= 8) return $table[8];
-    if ($ramGb <= 16) return $table[16];
-    return $table[32];
-}
-
-/**
- * Ottiene prossimo IP libero
- */
-function getNextFreePrivateIp(PDO $pdo): string {
-    $baseIp = '192.168.1.';
-    $start = 101;
-    $end = 254;
-
-    $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip LIKE '192.168.1.%'");
-    $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    $usedLastOctets = [];
-    foreach ($usedIps as $ip) {
-        $parts = explode('.', $ip);
-        if (count($parts) === 4) $usedLastOctets[] = (int)$parts[3];
-    }
-
-    for ($i=$start; $i<=$end; $i++) {
-        if (!in_array($i, $usedLastOctets)) return $baseIp.$i;
-    }
-
-    return $baseIp.$start;
 }
 ?>
 
