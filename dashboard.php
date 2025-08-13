@@ -9,7 +9,7 @@ require 'config/config.php';
 $userId = $_SESSION['user_id'] ?? 0;
 
 // Recupera tutti i server dell’utente
-$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, c.private_ip, c.ram_mb
+$stmt = $pdo->prepare("SELECT s.id, s.name, s.status, c.ip, c.ram_gb
                        FROM servers s
                        JOIN containers c ON c.id = s.container_id
                        WHERE s.user_id = ?");
