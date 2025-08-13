@@ -39,6 +39,7 @@ function proxmoxLogin(): array
  * Crea un container LXC
  */
 
+
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
 
@@ -76,7 +77,8 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
 }
-function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
+
+function startLxcContainer(int $vmid, array $auth): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
 
     $context = stream_context_create([
@@ -92,36 +94,41 @@ function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
     $response = file_get_contents($url, false, $context);
     $json = json_decode($response, true);
 
-    if (!is_array($json) || !isset($json['data'])) {
-        return ['success' => false, 'message' => "Risposta Proxmox non valida: $response"];
+    if (!is_array($json) || !array_key_exists('data', $json)) {
+        return ['success' => false, 'message' => "Errore avvio container: $response"];
     }
 
-    $upid = $json['data'];
+    return ['success' => true, 'message' => "Container $vmid avviato"];
+}
+
+function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): array {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
+                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n",
+            'ignore_errors' => true
+        ],
+        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+    ]);
+
     $startTime = time();
-
-    // Polling task
     while (true) {
-        $statusUrl = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/tasks/$upid/status";
-        $statusResp = file_get_contents($statusUrl, false, $context);
-        $statusJson = json_decode($statusResp, true);
+        $resp = file_get_contents($url, false, $context);
+        $json = json_decode($resp, true);
 
-        if (!is_array($statusJson) || !isset($statusJson['data'])) {
-            return ['success' => false, 'message' => "Errore lettura task: $statusResp"];
-        }
-
-        $taskStatus = $statusJson['data']['status'] ?? null;
-        $exitStatus = $statusJson['data']['exitstatus'] ?? null;
-
-        if ($taskStatus === 'stopped') {
-            if ($exitStatus === 'OK') {
-                return ['success' => true, 'message' => "Container $vmid avviato correttamente"];
-            } else {
-                return ['success' => false, 'message' => "Errore avvio container, exitstatus=$exitStatus"];
+        if (isset($json['data']['status'])) {
+            if ($json['data']['status'] === 'running') {
+                return ['success' => true, 'message' => "Container $vmid in esecuzione"];
             }
+        } else {
+            return ['success' => false, 'message' => "Errore lettura stato container: $resp"];
         }
 
         if (time() - $startTime > $timeout) {
-            return ['success' => false, 'message' => "Timeout avvio container"];
+            return ['success' => false, 'message' => "Timeout attesa container"];
         }
 
         sleep(2);
@@ -145,41 +152,6 @@ function getNextAvailableVmid(array $auth): int {
     
     $json = json_decode($response, true);
     return (int)($json['data'] ?? 101);
-}
-
-
-
-/**
- * Attende fino a che il container sia 'running' oppure scada il timeout
- */
-function waitForContainerRunning(int $vmid, array $auth, int $timeout = 10): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
-
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
-                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n",
-            'ignore_errors' => true
-        ],
-        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
-    ]);
-
-    $startTime = time();
-    while (true) {
-        $resp = file_get_contents($url, false, $context);
-        $json = json_decode($resp, true);
-
-        if (isset($json['data']['status']) && $json['data']['status'] === 'running') {
-            return ['success' => true, 'message' => "Container $vmid avviato correttamente"];
-        }
-
-        if (time() - $startTime > $timeout) {
-            return ['success' => false, 'message' => "Timeout attesa container"];
-        }
-
-        sleep(2);
-    }
 }
 
 
