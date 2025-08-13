@@ -2,10 +2,9 @@
 require 'config/config.php';
 
 /**
- * Login a Proxmox e ritorna ticket e CSRF token
+ * Login a Proxmox
  */
-function proxmoxLogin(): array
-{
+function proxmoxLogin(): array {
     $url = PROXMOX_API_URL . '/access/ticket';
     $data = [
         'username' => PROXMOX_USERNAME,
@@ -19,9 +18,7 @@ function proxmoxLogin(): array
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception('CURL login error: ' . curl_error($ch));
-    }
+    if ($response === false) throw new Exception('CURL login error: '.curl_error($ch));
     curl_close($ch);
 
     $json = json_decode($response, true);
@@ -31,15 +28,13 @@ function proxmoxLogin(): array
 
     return [
         'ticket' => $json['data']['ticket'],
-        'csrf' => $json['data']['CSRFPreventionToken']
+        'csrf'   => $json['data']['CSRFPreventionToken']
     ];
 }
 
 /**
  * Crea un container LXC
  */
-
-
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
 
@@ -53,15 +48,15 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'rootfs'     => PROXMOX_STORAGE . ":$storageGb",
         'net0'       => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'onboot'     => 1,
-        'password'   => PROXMOX_PASSWORD,  // Password root del container
+        'password'   => PROXMOX_PASSWORD
     ]);
 
     $context = stream_context_create([
         'http' => [
-            'method'  => 'POST',
-            'header'  => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
-                         "Cookie: PVEAuthCookie={$auth['ticket']}\r\n" .
-                         "Content-type: application/x-www-form-urlencoded\r\n",
+            'method' => 'POST',
+            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
+                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n" .
+                        "Content-type: application/x-www-form-urlencoded\r\n",
             'content' => $postData,
             'ignore_errors' => true
         ],
@@ -79,7 +74,9 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
 }
 
-
+/**
+ * Avvia container
+ */
 function startLxcContainer(int $vmid, array $auth): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
 
@@ -103,6 +100,9 @@ function startLxcContainer(int $vmid, array $auth): array {
     return ['success' => true, 'message' => "Container $vmid avviato"];
 }
 
+/**
+ * Attendi container in running
+ */
 function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
 
@@ -121,12 +121,8 @@ function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): arr
         $resp = file_get_contents($url, false, $context);
         $json = json_decode($resp, true);
 
-        if (isset($json['data']['status'])) {
-            if ($json['data']['status'] === 'running') {
-                return ['success' => true, 'message' => "Container $vmid in esecuzione"];
-            }
-        } else {
-            return ['success' => false, 'message' => "Errore lettura stato container: $resp"];
+        if (isset($json['data']['status']) && $json['data']['status'] === 'running') {
+            return ['success' => true, 'message' => "Container $vmid in esecuzione"];
         }
 
         if (time() - $startTime > $timeout) {
@@ -137,7 +133,26 @@ function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): arr
     }
 }
 
+/**
+ * Avvia script Bedrock sul container
+ */
+function prepareBedrockServer(int $vmid, PDO $pdo, int $serverId): array {
+    $logFile = "/tmp/bedrock_install_$vmid.log";
+    file_put_contents($logFile, "");
 
+    $scriptPath = "/root/install_bedrock.sh";
+    $pid = shell_exec("pct exec $vmid -- bash $scriptPath > $logFile 2>&1 & echo $!");
+    file_put_contents("/tmp/bedrock_install_$vmid.pid", trim($pid));
+
+    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+    $stmt->execute(['installing', $serverId]);
+
+    return ['success' => true, 'message' => "Installazione Bedrock avviata", 'pid' => trim($pid)];
+}
+
+/**
+ * Recupera il prossimo VMID disponibile
+ */
 function getNextAvailableVmid(array $auth): int {
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -151,47 +166,11 @@ function getNextAvailableVmid(array $auth): int {
     ]);
     $response = curl_exec($ch);
     curl_close($ch);
-    
+
     $json = json_decode($response, true);
     return (int)($json['data'] ?? 101);
 }
 
-
-
-/**
- * Installa Bedrock server su container via SSH
- */
-function prepareBedrockScript(int $vmid) {
-    // Script di installazione Bedrock da lanciare manualmente
-    $script = <<<BASH
-#!/bin/bash
-apt update -y
-apt install -y wget unzip screen
-mkdir -p /opt/minecraft-bedrock
-cd /opt/minecraft-bedrock
-wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock
-unzip -o bedrock-server.zip
-rm bedrock-server.zip
-echo "Bedrock server installato!"
-BASH;
-
-    // Scrive lo script all’interno del container
-    $tmpFile = "/tmp/install_bedrock_$vmid.sh";
-    file_put_contents($tmpFile, $script);
-    chmod($tmpFile, 0755);
-
-    // Copia dentro il container
-    exec("pct push $vmid $tmpFile /root/install_bedrock.sh -perms 0755");
-
-    unlink($tmpFile); // Rimuove file temporaneo
-
-    return "/root/install_bedrock.sh";
-}
-
-
-/**
- * Utility: calcola CPU in base alla RAM
- */
 function calculateCpuCores(int $ramGb): int
 {
     if ($ramGb <= 2)
