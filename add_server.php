@@ -86,17 +86,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 4️⃣ Abilita SSH root e password direttamente nel container
                 $output = [];
                 $ret = 0;
-                exec("pct exec $vmid -- apt update -y && apt install -y openssh-server && " .
-                    "sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && " .
-                    "sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && " .
-                    "systemctl enable --now ssh", $output, $ret);
+                // Aggiorna pacchetti e installa openssh-server
+                exec("pct exec $vmid -- apt update -y && apt install -y openssh-server", $output, $ret);
                 if ($ret !== 0) {
-                    die("Errore abilitazione SSH nel container $vmid: " . implode("\n", $output));
+                    die("Errore installazione SSH nel container $vmid: " . implode("\n", $output));
+                }
+
+                // Configura SSH root login e avvia il servizio
+                exec("pct exec $vmid -- sh -c \"sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && " .
+                    "sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && " .
+                    "systemctl enable --now ssh\"", $output, $ret);
+                if ($ret !== 0) {
+                    die("Errore configurazione SSH nel container $vmid: " . implode("\n", $output));
                 }
 
 
+
                 // 7️⃣ Installa Bedrock server
-                installBedrockServer($privateIp, $ramGb*1024, $pdo, $serverId, $vmid);
+                installBedrockServer($privateIp, $ramGb * 1024, $pdo, $serverId, $vmid);
 
 
                 // Rigenera token per la prossima volta
