@@ -57,7 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$startResult['success'])
                     die("Errore avvio container: " . $startResult['message']);
 
-                // Tutto ok
+                // 5️⃣ Attendi che sia effettivamente in esecuzione
+                $runningResult = waitForContainerRunning($vmid, $auth);
+                if (!$runningResult['success'])
+                    die("Errore attesa container: " . $runningResult['message']);
+
+                // ✅ Tutto ok
                 echo "Server creato e avviato con successo! VMID: $vmid";
 
 
