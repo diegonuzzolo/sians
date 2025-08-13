@@ -8,7 +8,7 @@ $PROXMOX_API_TOKEN = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 /**
  * Crea un container LXC
  */
-function createLxcContainer(int $vmid, int $ramGb, int $storageGb, string $hostname = '', string $ip = '', int $cores = 2): array {
+function createLxcContainer(int $vmid, int $ramGb, int $storageGb, string $hostname, string $ip, int $cores): array {
     $hostname = $hostname ?: "mcserver-$vmid";
 
     $postData = [
