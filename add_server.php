@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $cpuCores = calculateCpuCores($ramGb);
                 $price = calculatePrice($ramGb);
 
+                $auth = proxmoxLogin();
                 // VMID e IP
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
                 $vmid = getNextAvailableVmid($auth);
@@ -45,7 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $storageGb = 64;
 
                 // Login Proxmox
-                $auth = proxmoxLogin();
 
                 // 1️⃣ Crea container
                 $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
