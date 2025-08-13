@@ -66,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo "Server creato e avviato con successo!";
 
 
+
                 // 4️⃣ Salva container nel DB
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$vmid, $cpuCores, $ramGb * 1024, $userId, $storageGb, $privateIp]);
@@ -81,8 +82,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
                 $stmt3->execute([$serverId, $containerId]);
 
+
+                // 4️⃣ Abilita SSH root e password direttamente nel container
+                $output = [];
+                $ret = 0;
+                exec("pct exec $vmid -- apt update -y && apt install -y openssh-server && " .
+                    "sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && " .
+                    "sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && " .
+                    "systemctl enable --now ssh", $output, $ret);
+                if ($ret !== 0) {
+                    die("Errore abilitazione SSH nel container $vmid: " . implode("\n", $output));
+                }
+
+
                 // 7️⃣ Installa Bedrock server
-                installBedrockServer($privateIp, $ramGb * 1024, $pdo, $serverId);
+                installBedrockServer($privateIp, $ramGb*1024, $pdo, $serverId, $vmid);
+
 
                 // Rigenera token per la prossima volta
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));

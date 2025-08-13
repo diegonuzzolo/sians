@@ -160,23 +160,17 @@ function getNextAvailableVmid(array $auth): int {
 /**
  * Installa Bedrock server su container via SSH
  */
-function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serverId)
+function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serverId, int $vmid)
 {
     $cmds = [
-    "apt update -y",
-    "apt install -y openssh-server wget unzip screen",
-    "systemctl enable --now ssh",
-    "mkdir -p /opt/minecraft-bedrock",
-    "cd /opt/minecraft-bedrock",
-    "wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock",
-    "unzip -o bedrock-server.zip",
-    "rm bedrock-server.zip"
-];
+        "mkdir -p /opt/minecraft-bedrock",
+        "cd /opt/minecraft-bedrock",
+        "wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock",
+        "unzip -o bedrock-server.zip",
+        "rm bedrock-server.zip"
+    ];
 
-    $sshCommand = "sshpass -p '" . PROXMOX_PASSWORD . "' ssh -o StrictHostKeyChecking=no root@$privateIp '" . implode(' && ', $cmds) . "'";
-
-
-    exec($sshCommand, $output, $ret);
+    exec("pct exec $vmid -- sh -c '" . implode(' && ', $cmds) . "'", $output, $ret);
     if ($ret !== 0) {
         throw new Exception("Errore installazione Bedrock server sul container $serverId: " . implode("\n", $output));
     }
@@ -185,6 +179,7 @@ function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serv
     $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $stmt->execute(['ready', $serverId]);
 }
+
 
 /**
  * Utility: calcola CPU in base alla RAM
