@@ -33,11 +33,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vmIp = getNextFreePrivateIp($pdo);
 
     // --- 4. Inserisci nel DB ---
-    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, server_name, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
     try {
         $vmid = getNextFreeVmid($pdo);
+        // Genera hostname se non fornito dal form
+if (!isset($_POST['hostname']) || trim($_POST['hostname']) === '') {
+    $hostname = "mc-" . $vmid; // esempio mc-101
+} else {
+    // Pulisce il valore dal form
+    $hostname = preg_replace('/[^a-zA-Z0-9\-]/', '', strtolower(trim($_POST['hostname'])));
+}
+
         $ip = getNextFreePrivateIp($pdo);
 
         // Chiami la funzione di creazione
