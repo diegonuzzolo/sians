@@ -40,12 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // VMID e IP
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $vmid = max(101, (int)$stmt->fetchColumn() + 1);
+                $vmid = max(101, (int) $stmt->fetchColumn() + 1);
                 $privateIp = getNextFreePrivateIp($pdo);
                 $storageGb = 64;
 
+                // Login Proxmox
+                $auth = proxmoxLogin();
+
                 // 1️⃣ Crea container
-                createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp);
+                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
 
                 // 2️⃣ Attendi container running (timeout 10 sec)
                 waitForContainer($vmid, 10, 1);
