@@ -4,7 +4,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require 'auth_check.php';
 require 'config/config.php';
-require_once 'proxmox_functions.php'; // proxmoxLogin, createLxcContainer, startContainer, waitForContainer, installBedrockServer
+require_once 'proxmox_functions.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 $defaultRam = 4;
@@ -40,22 +40,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // VMID e IP
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $vmid = max(101, (int) $stmt->fetchColumn() + 1);
+                $vmid = max(101, (int)$stmt->fetchColumn() + 1);
                 $privateIp = getNextFreePrivateIp($pdo);
                 $storageGb = 64;
 
-                // Login Proxmox
-                $auth = proxmoxLogin();
-
                 // 1️⃣ Crea container
-                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp);
+                createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp);
 
-                // 2️⃣ Attendi che il container sia pronto
-                // Attendi 10 secondi
-                sleep(10);
+                // 2️⃣ Attendi container running (timeout 10 sec)
+                waitForContainer($vmid, 10, 1);
 
                 // 3️⃣ Avvia container
-                startContainer($vmid, $auth);
+                startContainer($vmid);
 
                 // 4️⃣ Salva container nel DB
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
@@ -72,7 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt3 = $pdo->prepare("UPDATE containers SET assigned_server_id = ? WHERE id = ?");
                 $stmt3->execute([$serverId, $containerId]);
 
-                // 7️⃣ Reindirizza a install_wait per completare installazione Bedrock
+                // 7️⃣ Installa Bedrock server
+                installBedrockServer($privateIp, $ramGb * 1024, $pdo, $serverId);
+
+                // Rigenera token per la prossima volta
+                $_SESSION['form_token'] = bin2hex(random_bytes(32));
+
+                // 8️⃣ Reindirizza a install_wait
                 header("Location: install_wait.php?server_id=" . $serverId);
                 exit;
 
@@ -83,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 
 <!-- HTML e Bootstrap -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">

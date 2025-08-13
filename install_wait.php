@@ -1,7 +1,7 @@
 <?php
 require 'auth_check.php';
 require 'config/config.php';
-require_once 'proxmox_functions.php'; // proxmoxLogin, waitForContainer, installBedrockServer, startContainer
+require_once 'proxmox_functions.php';
 
 $serverId = intval($_GET['server_id'] ?? 0);
 if ($serverId <= 0) die("Server ID non valido.");
@@ -21,18 +21,16 @@ $ramMb = $server['ram_mb'];
 
 $statusMessage = "Preparazione del container...";
 
-// Login Proxmox
+// Login e verifica stato container
 try {
-    $auth = proxmoxLogin();
-
-    // Avvia container se non è running
-    waitForContainer($vmid, 120, 2);
+    // Attendi container running
+    waitForContainer($vmid, 10, 1);
 
     $statusMessage = "Container pronto, avvio installazione Bedrock...";
     $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
     $stmt->execute(['installing', $serverId]);
 
-    // Installazione server Bedrock
+    // Installa Bedrock server
     installBedrockServer($privateIp, $ramMb, $pdo, $serverId);
 
     $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
@@ -51,12 +49,14 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-dark text-white d-flex flex-column justify-content-center align-items-center vh-100">
-    <div class="text-center">
-        <h2>Creazione e installazione del server in corso...</h2>
-        <p>Attendi qualche istante, ti reindirizzeremo automaticamente appena tutto è pronto.</p>
-        <div class="spinner-border text-info" role="status"><span class="visually-hidden">Loading...</span></div>
-        <div id="statusMessage" class="mt-3"><?= htmlspecialchars($statusMessage) ?></div>
+<div class="text-center">
+    <h2>Creazione e installazione del server in corso...</h2>
+    <p>Attendi qualche istante, ti reindirizzeremo automaticamente appena tutto è pronto.</p>
+    <div class="spinner-border text-info" role="status">
+        <span class="visually-hidden">Loading...</span>
     </div>
+    <div id="statusMessage" class="mt-3"><?= htmlspecialchars($statusMessage) ?></div>
+</div>
 
 <script>
 function checkReady() {
@@ -78,7 +78,6 @@ function checkReady() {
             setTimeout(checkReady, 5000);
         });
 }
-
 checkReady();
 </script>
 </body>
