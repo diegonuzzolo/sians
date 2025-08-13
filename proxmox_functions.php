@@ -70,7 +70,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     $response = curl_exec($ch);
     if ($response === false) {
-        throw new Exception("Errore cURL: " . curl_error($ch));
+        return ['success' => false, 'error' => "Errore cURL: " . curl_error($ch)];
     }
 
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -78,16 +78,17 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     $json = json_decode($response, true);
     if (!is_array($json)) {
-        throw new Exception("Errore creazione container, risposta Proxmox non valida: " . $response);
+        return ['success' => false, 'error' => "Risposta non valida: $response"];
     }
+
     if ($httpCode >= 400) {
-        throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
+        return ['success' => false, 'error' => $json['errors'] ?? $response];
     }
 
-    // Garantire che venga sempre restituito un array
-    return $json['data'] ?? [];
+    return is_array($json['data'] ?? null)
+        ? $json['data']
+        : ['success' => true, 'message' => $json['data'] ?? ''];
 }
-
 
 
 /**
