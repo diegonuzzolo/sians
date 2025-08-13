@@ -2,219 +2,153 @@
 require 'config/config.php';
 
 /**
- * Login a Proxmox
+ * Crea un container LXC su Proxmox.
+ *
+ * @param int $vmid
+ * @param int $ramGb
+ * @param int $storageGb
+ * @param string $hostname
+ * @param string $vmIp
+ * @param int $cores
+ * @param string $template
+ * @return array ['success' => true|false, 'message' => string]
  */
-function proxmoxLogin(): array {
-    $url = PROXMOX_API_URL . '/access/ticket';
-    $data = [
-        'username' => PROXMOX_USERNAME,
-        'password' => PROXMOX_PASSWORD,
+function createLxcContainer(
+    int $vmid,
+    int $ramGb,
+    int $storageGb,
+    string $hostname = '',
+    string $vmIp = '',
+    int $cores = 2,
+    string $template = 'local:vztmpl/ubuntu-25-standard_25.0-1_amd64.tar.gz'
+): array {
+    $hostname = $hostname ?: "mcserver-$vmid";
+
+    if (!$vmIp) {
+        return ['success' => false, 'message' => 'IP container non fornito'];
+    }
+
+    $netConfig = "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254";
+
+    $postData = [
+        'vmid' => $vmid,
+        'hostname' => $hostname,
+        'memory' => $ramGb * 1024, // MB
+        'rootfs' => $storageGb . 'G',
+        'cores' => $cores,
+        'net0' => $netConfig,
+        'ostemplate' => $template,
+        'password' => 'Lgu8330Serve6', // password temporanea root
+        'start' => 1
     ];
 
-    $ch = curl_init($url);
+    $pveHost = 'https://192.168.1.251:8006/api2/json/nodes/pve/lxc';
+    $apiToken = 'root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79';
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $pveHost);
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: PVEAPIToken=$apiToken"]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     $response = curl_exec($ch);
-    if ($response === false) throw new Exception('CURL login error: '.curl_error($ch));
+    $err = curl_error($ch);
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    if (!isset($json['data']['ticket'], $json['data']['CSRFPreventionToken'])) {
-        throw new Exception('Login Proxmox fallito: ' . $response);
+    if ($err) {
+        return ['success' => false, 'message' => "Curl error: $err"];
     }
 
-    return [
-        'ticket' => $json['data']['ticket'],
-        'csrf'   => $json['data']['CSRFPreventionToken']
-    ];
-}
-
-/**
- * Crea un container LXC
- */
-function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
-
-    $postData = http_build_query([
-        'vmid'       => $vmid,
-        'hostname'   => "mcserver-$vmid",
-        'storage'    => PROXMOX_STORAGE,
-        'ostemplate' => PROXMOX_TEMPLATE,
-        'memory'     => $ramMb,
-        'cores'      => $cpu,
-        'rootfs'     => PROXMOX_STORAGE . ":$storageGb",
-        'net0'       => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
-        'onboot'     => 1,
-        'password'   => PROXMOX_PASSWORD
-    ]);
-
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'POST',
-            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
-                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n" .
-                        "Content-type: application/x-www-form-urlencoded\r\n",
-            'content' => $postData,
-            'ignore_errors' => true
-        ],
-        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
-    ]);
-
-    $response = file_get_contents($url, false, $context);
-    $json = json_decode($response, true);
-
-    if (!is_array($json) || isset($json['errors'])) {
-        $msg = is_array($json['errors'] ?? null) ? implode("; ", $json['errors']) : ($response ?? "Risposta non valida");
-        return ['success' => false, 'message' => $msg];
-    }
-
-    return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
-}
-
-/**
- * Avvia container
- */
-function startLxcContainer(int $vmid, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
-
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'POST',
-            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
-                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n",
-            'ignore_errors' => true
-        ],
-        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
-    ]);
-
-    $response = file_get_contents($url, false, $context);
-    $json = json_decode($response, true);
-
-    if (!is_array($json) || !array_key_exists('data', $json)) {
-        return ['success' => false, 'message' => "Errore avvio container: $response"];
-    }
-
-    return ['success' => true, 'message' => "Container $vmid avviato"];
-}
-
-/**
- * Attendi container in running
- */
-function waitForContainerRunning(int $vmid, array $auth, int $timeout = 60): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/current";
-
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'header' => "CSRFPreventionToken: {$auth['csrf']}\r\n" .
-                        "Cookie: PVEAuthCookie={$auth['ticket']}\r\n",
-            'ignore_errors' => true
-        ],
-        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
-    ]);
-
-    $startTime = time();
-    while (true) {
-        $resp = file_get_contents($url, false, $context);
-        $json = json_decode($resp, true);
-
-        if (isset($json['data']['status']) && $json['data']['status'] === 'running') {
-            return ['success' => true, 'message' => "Container $vmid in esecuzione"];
-        }
-
-        if (time() - $startTime > $timeout) {
-            return ['success' => false, 'message' => "Timeout attesa container"];
-        }
-
-        sleep(2);
+    $data = json_decode($response, true);
+    if (isset($data['data']['upid'])) {
+        return ['success' => true, 'message' => "Container $vmid creato con UPID " . $data['data']['upid']];
+    } else {
+        $msg = $data['errors'] ?? $data['data'] ?? 'Errore sconosciuto';
+        return ['success' => false, 'message' => json_encode($msg)];
     }
 }
 
 /**
- * Avvia script Bedrock sul container
+ * Avvia un container LXC
  */
-function prepareBedrockServer(int $vmid, PDO $pdo, int $serverId): array {
-    $logFile = "/tmp/bedrock_install_$vmid.log";
-    file_put_contents($logFile, "");
-
-    $scriptPath = "/root/install_bedrock.sh";
-    $pid = shell_exec("pct exec $vmid -- bash $scriptPath > $logFile 2>&1 & echo $!");
-    file_put_contents("/tmp/bedrock_install_$vmid.pid", trim($pid));
-
-    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-    $stmt->execute(['installing', $serverId]);
-
-    return ['success' => true, 'message' => "Installazione Bedrock avviata", 'pid' => trim($pid)];
+function startContainer(int $vmid): array {
+    $url = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/start";
+    return callProxmox($url);
 }
 
 /**
- * Recupera il prossimo VMID disponibile
+ * Ferma un container LXC
  */
-function getNextAvailableVmid(array $auth): int {
+function stopContainer(int $vmid): array {
+    $url = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop";
+    return callProxmox($url);
+}
+
+/**
+ * Funzione interna per chiamare Proxmox API
+ */
+function callProxmox(string $url): array {
+    $apiToken = 'root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79';
+
     $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => PROXMOX_API_URL . "/cluster/nextid",
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_HTTPHEADER => [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}"
-        ]
-    ]);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: PVEAPIToken=$apiToken"]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
     $response = curl_exec($ch);
+    $err = curl_error($ch);
     curl_close($ch);
 
-    $json = json_decode($response, true);
-    return (int)($json['data'] ?? 101);
+    if ($err) return ['success' => false, 'message' => $err];
+
+    $data = json_decode($response, true);
+    if (isset($data['data'])) {
+        return ['success' => true, 'message' => json_encode($data['data'])];
+    } else {
+        $msg = $data['errors'] ?? 'Errore sconosciuto';
+        return ['success' => false, 'message' => json_encode($msg)];
+    }
 }
 
-function calculateCpuCores(int $ramGb): int
-{
-    if ($ramGb <= 2)
-        return 2;
-    if ($ramGb <= 4)
-        return 2;
-    if ($ramGb <= 6)
-        return 3;
-    if ($ramGb <= 8)
-        return 4;
-    if ($ramGb <= 16)
-        return 6;
+/**
+ * Calcola CPU consigliate in base alla RAM
+ */
+function calculateCpuCores(int $ramGb): int {
+    if ($ramGb <= 2) return 2;
+    if ($ramGb <= 4) return 2;
+    if ($ramGb <= 6) return 3;
+    if ($ramGb <= 8) return 4;
+    if ($ramGb <= 16) return 6;
     return 8;
 }
 
 /**
- * Utility: calcola prezzo
+ * Calcola prezzo server in base alla RAM
  */
-function calculatePrice(int $ramGb): float
-{
-    $priceTable = [2 => 6.5 * 0.85, 4 => 10 * 0.85, 6 => 15 * 0.85, 8 => 21.5 * 0.85, 16 => 35 * 0.85, 32 => 57.5 * 0.85];
-    if ($ramGb <= 2)
-        return $priceTable[2];
-    if ($ramGb <= 4)
-        return $priceTable[4];
-    if ($ramGb <= 6)
-        return $priceTable[6];
-    if ($ramGb <= 8)
-        return $priceTable[8];
-    if ($ramGb <= 16)
-        return $priceTable[16];
-    return $priceTable[32];
+function calculatePrice(int $ramGb): float {
+    if ($ramGb <= 2) return 6.5*0.85;
+    if ($ramGb <= 4) return 10*0.85;
+    if ($ramGb <= 6) return 15*0.85;
+    if ($ramGb <= 8) return 21.5*0.85;
+    if ($ramGb <= 16) return 35*0.85;
+    return 57.5*0.85;
 }
 
 /**
- * Trova prossimo IP privato libero
+ * Recupera prossimo IP privato disponibile (192.168.1.101 - 192.168.1.254)
  */
-function getNextFreePrivateIp(PDO $pdo): string
-{
+function getNextFreePrivateIp(PDO $pdo): string {
     $baseIp = '192.168.1.';
     $start = 101;
     $end = 254;
 
-    $stmt = $pdo->query("SELECT private_ip FROM containers WHERE private_ip LIKE '192.168.1.%'");
+    $stmt = $pdo->query("SELECT ip_address FROM containers WHERE ip_address LIKE '192.168.1.%'");
     $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     $usedLastOctets = [];
@@ -229,6 +163,6 @@ function getNextFreePrivateIp(PDO $pdo): string
             return $baseIp . $i;
     }
 
-    return $baseIp . $start;
+    return $baseIp . $start; // fallback
 }
 ?>
