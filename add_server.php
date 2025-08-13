@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         echo "Container creato con successo! VMID: $vmid IP: $vmIp";
-
+        
         // --- Copia ed esegui setup_server.sh nel container ---
         $localScript = '/root/setup_server.sh';
         $remoteScript = '/root/setup_server.sh';
