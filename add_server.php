@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vmIp = getNextFreePrivateIp($pdo);
 
     // --- 4. Inserisci nel DB ---
-    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, assigned_user_id, hostname, ip, status, cpu_cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
     $containerId = $pdo->lastInsertId();
 
