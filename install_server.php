@@ -1,89 +1,65 @@
 <?php
-header('Content-Type: application/json');
-require_once 'config/config.php';
-require_once 'auth_check.php';
-require_once 'proxmox_functions.php'; // dove hai definito proxmoxLogin()
+require 'config/config.php';
+require 'auth_check.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
-if (!$data || !isset($data['server_id'], $data['container_id'], $data['server_name'], $data['cpu'], $data['ram'], $data['ip'])) {
-    echo json_encode(['success' => false, 'error' => 'Parametri mancanti']);
+
+$serverId = intval($data['server_id'] ?? 0);
+$vmid = intval($data['container_id'] ?? 0);
+$serverName = trim($data['server_name'] ?? 'BedrockServer');
+$cpuCores = intval($data['cpu'] ?? 2);
+$ramMb = intval($data['ram'] ?? 4096);
+$ip = $data['ip'] ?? null;
+
+header('Content-Type: application/json');
+
+if ($serverId <= 0 || $vmid <= 0 || !$ip) {
+    echo json_encode(['success'=>false,'error'=>'Parametri non validi']);
     exit;
 }
 
-$serverId = (int)$data['server_id'];
-$containerId = (int)$data['container_id'];
-$serverName = $data['server_name'];
-$cpu = (int)$data['cpu'];
-$ram = (int)$data['ram'];
-$ip = $data['ip'];
-
-// Recupera credenziali Proxmox
-$auth = proxmoxLogin();
-
-// --- Controllo stato container ---
-$ch = curl_init(PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$containerId/status/current");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "CSRFPreventionToken: {$auth['csrf']}",
-    "Cookie: PVEAuthCookie={$auth['ticket']}"
-]);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-$response = curl_exec($ch);
-curl_close($ch);
-$json = json_decode($response, true);
-
-if (!$json || !isset($json['data']['status'])) {
-    echo json_encode(['success' => false, 'error' => 'Impossibile ottenere stato container']);
-    exit;
+// Funzione per eseguire comandi nel container via SSH
+function execContainerCommand($ip, $cmd) {
+    $sshUser = 'root';
+    $fullCmd = "ssh -o StrictHostKeyChecking=no {$sshUser}@{$ip} \"$cmd\" 2>&1";
+    exec($fullCmd, $output, $retCode);
+    return ['output'=>implode("\n",$output), 'code'=>$retCode];
 }
 
-if ($json['data']['status'] !== 'running') {
-    // Avvia il container
-    $ch = curl_init(PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$containerId/status/start");
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $startResp = curl_exec($ch);
-    curl_close($ch);
-    sleep(15); // aspetta che SSH sia pronto
+// Aggiorna status server nel DB
+function updateServerStatus(PDO $pdo, $serverId, $status) {
+    $stmt = $pdo->prepare("UPDATE servers SET status = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$status, $serverId]);
 }
 
-// --- Comandi da eseguire nel container ---
-$commands = [
-    "export DEBIAN_FRONTEND=noninteractive",
-    "apt update -y",
-    "apt install -y wget unzip screen",
-    "mkdir -p /opt/minecraft-bedrock && cd /opt/minecraft-bedrock",
-    "wget -O bedrock-server.zip https://minecraft.azureedge.net/bin-linux/bedrock-server.zip",
-    "unzip -o bedrock-server.zip",
-    "rm bedrock-server.zip",
-    "echo -e \"#!/bin/bash\ncd /opt/minecraft-bedrock\nLD_LIBRARY_PATH=. ./bedrock_server\" > /opt/minecraft-bedrock/start.sh",
-    "chmod +x /opt/minecraft-bedrock/start.sh",
-    "echo -e \"#!/bin/bash\npkill -f bedrock_server\" > /opt/minecraft-bedrock/stop.sh",
-    "chmod +x /opt/minecraft-bedrock/stop.sh",
-    "echo \"eula=true\" > /opt/minecraft-bedrock/eula.txt"
-];
+try {
+    updateServerStatus($pdo, $serverId, 'installing');
 
-// --- Esecuzione comandi via SSH ---
-$sshUser = 'root';
-$sshHost = $ip;
-$sshCmd = implode(' && ', $commands);
+    // 1. Aggiorna pacchetti e installa dipendenze
+    $cmd = "apt update && apt install -y wget unzip screen";
+    $res = execContainerCommand($ip, $cmd);
+    if ($res['code'] !== 0) throw new Exception("Errore eseguendo: $cmd\nOutput: " . $res['output']);
 
-// Usa sshpass se necessario
-$cmd = "ssh -o StrictHostKeyChecking=no $sshUser@$sshHost '$sshCmd'";
-exec($cmd . " 2>&1", $output, $ret);
+    // 2. Scarica Bedrock server ufficiale
+    $cmd = "mkdir -p /bedrock && cd /bedrock && wget -q https://www.minecraft.net/content/dam/minecraft/edition/bedrock/server/bedrock-server-1.20.23.02.zip -O bedrock.zip && unzip -o bedrock.zip && rm bedrock.zip";
+    $res = execContainerCommand($ip, $cmd);
+    if ($res['code'] !== 0) throw new Exception("Errore scaricando server Bedrock\nOutput: " . $res['output']);
 
-if ($ret !== 0) {
-    echo json_encode(['success' => false, 'error' => 'Errore eseguendo: ' . implode("\n", $output)]);
-    exit;
+    // 3. Genera start.sh
+    $startScript = "#!/bin/bash\ncd /bedrock\nLD_LIBRARY_PATH=. ./bedrock_server";
+    $cmd = "echo " . escapeshellarg($startScript) . " > /bedrock/start.sh && chmod +x /bedrock/start.sh";
+    $res = execContainerCommand($ip, $cmd);
+
+    // 4. Genera stop.sh
+    $stopScript = "#!/bin/bash\npkill -f bedrock_server";
+    $cmd = "echo " . escapeshellarg($stopScript) . " > /bedrock/stop.sh && chmod +x /bedrock/stop.sh";
+    $res = execContainerCommand($ip, $cmd);
+
+    updateServerStatus($pdo, $serverId, 'installed');
+
+    echo json_encode(['success'=>true]);
+
+} catch(Exception $e) {
+    updateServerStatus($pdo, $serverId, 'error');
+    echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
 }
-
-// Aggiorna stato server a installing
-$stmt = $pdo->prepare("UPDATE servers SET status='installing', updated_at=NOW() WHERE id=?");
-$stmt->execute([$serverId]);
-
-echo json_encode(['success' => true]);
