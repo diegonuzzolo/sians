@@ -43,13 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Eseguire lo script in background nel container
+        // Esegui lo script in background nel container
         $sshKey = '/var/www/.ssh/id_proxmox';
         $proxmoxHost = '192.168.1.251';
         $remoteScript = '/root/setup_server.sh';
 
         exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$proxmoxHost " .
             escapeshellarg("pct exec $vmid -- bash $remoteScript > /dev/null 2>&1 &"));
+
 
 
         echo "Container creato con successo! VMID: $vmid IP: $vmIp. Script lanciato in background.";
