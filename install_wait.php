@@ -63,11 +63,13 @@ function checkReady() {
         .then(res => res.json())
         .then(data => {
             const el = document.getElementById('statusMessage');
-            if (data.status === 'ready') {
+
+            // Qui sostituisci il vecchio controllo con questo:
+            if (data.status === 'ready_to_install') {
+                el.textContent = "Container pronto, esegui lo script Bedrock manualmente.";
+            } else if (data.status === 'ready') {
                 el.textContent = "Server pronto! Reindirizzamento...";
                 setTimeout(() => window.location.href = "dashboard.php", 1500);
-            } else if (data.status === 'ready_to_install') {
-                el.textContent = "Container pronto, esegui lo script Bedrock manualmente.";
             } else {
                 el.textContent = "Stato attuale: " + data.status;
                 setTimeout(checkReady, 3000);
@@ -81,5 +83,6 @@ function checkReady() {
 }
 checkReady();
 </script>
+
 </body>
 </html>

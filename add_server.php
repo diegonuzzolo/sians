@@ -57,16 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$startResult['success'])
                     die("Errore avvio container: " . $startResult['message']);
 
-                // 3️⃣ Attendi container running
                 $runningResult = waitForContainerRunning($vmid, $auth);
                 if (!$runningResult['success'])
                     die("Errore: " . $runningResult['message']);
 
-                // 4️⃣ Prepara script Bedrock dentro container
-                $installScriptPath = prepareBedrockScript($vmid);
+                // Non più installBedrockServer($privateIp, $ramMb, $pdo, $serverId);
 
-                echo "Server creato e avviato! Per installare Bedrock esegui:\n";
-                echo "pct enter $vmid $installScriptPath\n";
+                // Aggiorna stato a ready_to_install
+                $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
+                $stmt->execute(['ready_to_install', $serverId]);
+
+                // Prepara lo script Bedrock dentro il container
+                $installScriptPath = prepareBedrockScript($vmid);
 
 
 
