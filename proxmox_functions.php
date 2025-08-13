@@ -38,20 +38,22 @@ function proxmoxLogin(): array
 /**
  * Crea un container LXC
  */
-function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
 
+function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
+
+    // Solo campi validi per Proxmox 8
     $postData = [
-        'vmid' => $vmid,
-        'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,
+        'vmid'       => $vmid,
+        'hostname'   => "mcserver-$vmid",
+        'storage'    => PROXMOX_STORAGE,
         'ostemplate' => PROXMOX_TEMPLATE,
-        'memory' => $ramMb,
-        'swap' => 0,
-        'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ":$storageGb",
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
-        'onboot' => 1,
+        'memory'     => $ramMb,
+        'cores'      => $cpu,
+        'rootfs'     => PROXMOX_STORAGE . ":$storageGb",
+        'net0'       => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
+        'onboot'     => 1
+        // non mettere start o campi extra
     ];
 
     $ch = curl_init();
@@ -70,29 +72,88 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     ]);
 
     $response = curl_exec($ch);
-    if ($response === false) {
-        return ['success' => false, 'message' => "Errore cURL: " . curl_error($ch)];
-    }
-
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $json = json_decode($response, true);
-    if (!is_array($json)) {
+    if ($httpCode >= 400) {
+        $err = is_array($json['errors'] ?? null) ? implode("; ", $json['errors']) : ($json['errors'] ?? $response);
+        return ['success' => false, 'message' => $err];
+    }
+
+    if (!is_array($json) || !isset($json['data'])) {
+        return ['success' => false, 'message' => "Risposta non valida: $response"];
+    }
+
+    return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
+}
+
+function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
+
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTPHEADER => [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}"
+        ],
+    ]);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $json = json_decode($response, true);
+    if (!is_array($json) || !isset($json['data'])) {
         return ['success' => false, 'message' => "Risposta Proxmox non valida: $response"];
     }
 
-    if ($httpCode >= 400) {
-        return ['success' => false, 'message' => $json['errors'] ?? $response];
-    }
+    $upid = $json['data'];
 
-    // Successo
-    return [
-        'success' => true,
-        'vmid' => $vmid,
-        'message' => "Container $vmid creato e avviato correttamente"
-    ];
+    // Polling sul task fino a completamento
+    $startTime = time();
+    while (true) {
+        $statusUrl = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/tasks/$upid/status";
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $statusUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => [
+                "CSRFPreventionToken: {$auth['csrf']}",
+                "Cookie: PVEAuthCookie={$auth['ticket']}"
+            ],
+        ]);
+        $statusResp = curl_exec($ch);
+        curl_close($ch);
+
+        $statusJson = json_decode($statusResp, true);
+        if (!is_array($statusJson) || !isset($statusJson['data'])) {
+            return ['success' => false, 'message' => "Errore lettura task: $statusResp"];
+        }
+
+        $taskStatus = $statusJson['data']['status'] ?? null;
+        $exitStatus = $statusJson['data']['exitstatus'] ?? null;
+
+        if ($taskStatus === 'stopped') {
+            if ($exitStatus === 'OK') {
+                return ['success' => true, 'message' => "Container $vmid avviato correttamente"];
+            } else {
+                return ['success' => false, 'message' => "Errore avvio container, exitstatus=$exitStatus"];
+            }
+        }
+
+        if (time() - $startTime > $timeout) {
+            return ['success' => false, 'message' => "Timeout avvio container"];
+        }
+
+        sleep(2);
+    }
 }
+
 function getNextAvailableVmid(array $auth): int {
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -116,42 +177,6 @@ function getNextAvailableVmid(array $auth): int {
 /**
  * Avvia un container LXC
  */
-function startContainer(int $vmid): array
-{
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
-    $auth = proxmoxLogin();
-
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_HTTPHEADER => [
-            "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}",
-            "Accept-Encoding: identity"
-        ],
-    ]);
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        throw new Exception("Errore cURL avvio container: " . curl_error($ch));
-    }
-
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (!is_array($json)) {
-        throw new Exception("Errore avvio container, risposta Proxmox non valida: " . $response);
-    }
-    if ($httpCode >= 400) {
-        throw new Exception("Errore API Proxmox ($httpCode): " . ($json['errors'][0] ?? $response));
-    }
-
-    return $json['data'] ?? [];
-}
 
 /**
  * Recupera lo stato corrente di un container

@@ -48,19 +48,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Login Proxmox
 
                 // 1️⃣ Crea container
-                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
-                if (!$result['success']) {
-                    $msg = is_array($result['message']) ? implode("; ", $result['message']) : $result['message'];
-                    die("Errore creazione server: " . $msg);
-                }
 
+                $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
+                if (!$result['success'])
+                    die("Errore creazione server: " . $result['message']);
+
+                // 4️⃣ Avvia container
+                $startResult = startLxcContainer($vmid, $auth);
+                if (!$startResult['success'])
+                    die("Errore avvio container: " . $startResult['message']);
+
+                // Tutto ok
+                echo "Server creato e avviato con successo! VMID: $vmid";
 
 
                 // 2️⃣ Attendi container running (timeout 10 sec)
                 waitForContainer($vmid, 10, 1);
 
                 // 3️⃣ Avvia container
-                startContainer($vmid);
+
 
                 // 4️⃣ Salva container nel DB
                 $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, cpu_cores, ram_mb, assigned_user_id, storage_gb, private_ip) VALUES (?, ?, ?, ?, ?, ?)");
