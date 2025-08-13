@@ -8,6 +8,7 @@ require 'config/config.php';
 require_once 'proxmox_functions.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
+$error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Qui dentro metti tutta la logica di add_server
     
@@ -15,7 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $storageGb = intval($_POST['storage_gb'] ?? 10);
     $cpuCores = calculateCpuCores($ramGb);
     // assegnazione vmid, insert DB, creazione container ecc.
-    $error = '';
     try {
         $auth = proxmoxLogin();
     } catch(Exception $e) {
