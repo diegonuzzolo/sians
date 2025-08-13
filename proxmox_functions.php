@@ -87,7 +87,6 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
 }
-
 function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
 
@@ -97,6 +96,8 @@ function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, // Importante
+        CURLOPT_ENCODING => '',                           // Accetta qualsiasi encoding
         CURLOPT_HTTPHEADER => [
             "CSRFPreventionToken: {$auth['csrf']}",
             "Cookie: PVEAuthCookie={$auth['ticket']}"
@@ -104,6 +105,11 @@ function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
     ]);
 
     $response = curl_exec($ch);
+    if ($response === false) {
+        $err = curl_error($ch);
+        curl_close($ch);
+        return ['success' => false, 'message' => "Errore cURL: $err"];
+    }
     curl_close($ch);
 
     $json = json_decode($response, true);
@@ -117,11 +123,13 @@ function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
     $startTime = time();
     while (true) {
         $statusUrl = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/tasks/$upid/status";
+
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $statusUrl,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_HTTPHEADER => [
                 "CSRFPreventionToken: {$auth['csrf']}",
                 "Cookie: PVEAuthCookie={$auth['ticket']}"
@@ -153,6 +161,7 @@ function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
         sleep(2);
     }
 }
+
 
 function getNextAvailableVmid(array $auth): int {
     $ch = curl_init();
