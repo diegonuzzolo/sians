@@ -39,8 +39,7 @@ function proxmoxLogin(): array
  * Crea un container LXC
  */
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
-
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
@@ -53,7 +52,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'password' => PROXMOX_PASSWORD,
         'onboot' => 1,
-        'start' => 1,
+        'start' => 1 // avvia subito dopo creazione
     ];
 
     $ch = curl_init();
@@ -63,16 +62,17 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         CURLOPT_POSTFIELDS => http_build_query($postData),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_ENCODING => '',
         CURLOPT_HTTPHEADER => [
             "CSRFPreventionToken: {$auth['csrf']}",
-            "Cookie: PVEAuthCookie={$auth['ticket']}",
-            "Accept-Encoding: identity"
+            "Cookie: PVEAuthCookie={$auth['ticket']}"
         ],
     ]);
 
     $response = curl_exec($ch);
     if ($response === false) {
-        return ['success' => false, 'error' => "Errore cURL: " . curl_error($ch)];
+        return ['success' => false, 'message' => "Errore cURL: " . curl_error($ch)];
     }
 
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -80,17 +80,21 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     $json = json_decode($response, true);
     if (!is_array($json)) {
-        return ['success' => false, 'error' => "Risposta non valida: $response"];
+        return ['success' => false, 'message' => "Risposta Proxmox non valida: $response"];
     }
 
     if ($httpCode >= 400) {
-        return ['success' => false, 'error' => $json['errors'] ?? $response];
+        return ['success' => false, 'message' => $json['errors'] ?? $response];
     }
 
-    return is_array($json['data'] ?? null)
-        ? $json['data']
-        : ['success' => true, 'message' => $json['data'] ?? ''];
+    // Successo
+    return [
+        'success' => true,
+        'vmid' => $vmid,
+        'message' => "Container $vmid creato e avviato correttamente"
+    ];
 }
+
 
 
 /**

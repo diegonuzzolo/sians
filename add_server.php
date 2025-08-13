@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$result['success']) {
                     die("Errore creazione server: " . $result['message']);
                 }
-
+                
 
                 // 2️⃣ Attendi container running (timeout 10 sec)
                 waitForContainer($vmid, 10, 1);
