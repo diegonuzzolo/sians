@@ -21,7 +21,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-dark text-white">
-
+<?php include_once("header/header.php"); ?>
 <div class="container my-5">
     <h2 class="mb-4 text-center text-bedrock">🖥️ I tuoi server</h2>
 
@@ -88,7 +88,7 @@ function updateServerStatus(serverId) {
 <style>
 .bg-bedrock { color: #00c8ff; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 </style>
-
+<?php include_once("header/header.php"); ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
