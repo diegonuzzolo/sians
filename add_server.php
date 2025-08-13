@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     // --- 2. Trova un VMID libero ---
-    $vmid = getNextFreeVmid($userId);
+    $vmid = getNextFreeVmid($pdo);
 
     // --- 3. Recupera il prossimo IP libero ---
     $vmIp = getNextFreePrivateIp($pdo);
