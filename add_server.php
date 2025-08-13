@@ -30,7 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vmid = $nextVmid;
 
     // --- 3. Recupera il prossimo IP libero ---
-    $vmIp = getNextFreePrivateIp($pdo);
+    $nextVmid = 100;
+    do {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM containers WHERE proxmox_containerId = ?");
+        $stmt->execute([$nextVmid]);
+        if ($stmt->fetchColumn() == 0)
+            break;
+        $nextVmid++;
+    } while (true);
+    $vmid = $nextVmid;
 
     // --- 4. Inserisci nel DB ---
     $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
