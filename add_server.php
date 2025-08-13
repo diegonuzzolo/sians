@@ -49,11 +49,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Copia lo script
         $copyCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript";
         exec($copyCmd, $output, $returnVar);
-        if ($returnVar !== 0) throw new Exception("Errore copia script: " . implode("\n", $output));
+        if ($returnVar !== 0)
+            throw new Exception("Errore copia script: " . implode("\n", $output));
 
         // Rendi eseguibile
         $chmodCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'chmod +x $remoteScript'";
-        exec($chmodCmd);
+        $cmd = "sshpass -f /var/www/.sshpass_pw scp -o StrictHostKeyChecking=no $localScript root@$vmIp:$remoteScript";
+        echo $cmd;
+        $output = [];
+        $return_var = 0;
+        exec($cmd, $output, $return_var);
+        var_dump($output, $return_var);
+
 
         // Esegui in background passando il containerId
         $execCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$vmIp 'nohup bash $remoteScript $containerId > /root/setup_server.log 2>&1 &'";
