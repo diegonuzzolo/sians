@@ -49,10 +49,10 @@ const cpuCores = <?= json_encode($cpuCores) ?>;
 const ramMb = <?= json_encode($ramMb) ?>;
 const statusMessage = document.getElementById('statusMessage');
 
+// --- Funzione per controllare lo stato container su Proxmox ---
 async function getContainerStatus() {
     try {
         const resp = await fetch('check_container_status.php?vmid=' + vmid);
-        if (!resp.ok) throw new Error("Errore rete container");
         const data = await resp.json();
         return data.status; // running / stopped / unknown
     } catch (e) {
@@ -61,10 +61,10 @@ async function getContainerStatus() {
     }
 }
 
+// --- Funzione per avviare il container ---
 async function startContainer() {
     try {
         const resp = await fetch('start_container.php?vmid=' + vmid);
-        if (!resp.ok) throw new Error("Errore avvio container");
         const data = await resp.json();
         return data.success;
     } catch (e) {
@@ -73,21 +73,21 @@ async function startContainer() {
     }
 }
 
+// --- Funzione per verificare se SSH è pronto ---
 async function waitForSSH(ip, retries = 20, delay = 5000) {
     for (let i = 0; i < retries; i++) {
         try {
             const resp = await fetch(`check_ssh.php?ip=${ip}`);
             const data = await resp.json();
             if (data.sshReady) return true;
-        } catch (e) {
-            console.error(e);
-        }
+        } catch (e) { console.error(e); }
         statusMessage.textContent = `Attesa SSH... tentativo ${i+1}/${retries}`;
         await new Promise(r => setTimeout(r, delay));
     }
     return false;
 }
 
+// --- Funzione per avviare installazione Bedrock ---
 async function installServer() {
     try {
         const resp = await fetch('install_server.php', {
@@ -104,55 +104,62 @@ async function installServer() {
         });
         const data = await resp.json();
         return data.success;
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
+    } catch (e) { console.error(e); return false; }
 }
 
-async function checkStatusLoop() {
+// --- Ciclo principale ---
+async function mainLoop() {
     statusMessage.textContent = "Verifica stato container...";
     let containerStatus = await getContainerStatus();
 
-    if (containerStatus !== 'running') {
-        statusMessage.textContent = "Container fermo, avvio in corso...";
+    // Attendere che il container esista e sia pronto
+    let retries = 0;
+    while(containerStatus === 'unknown' && retries < 30) { // max 30 tentativi = ~90s
+        statusMessage.textContent = "Container in creazione... attesa...";
+        await new Promise(r => setTimeout(r, 3000));
+        containerStatus = await getContainerStatus();
+        retries++;
+    }
+
+    if(containerStatus !== 'running') {
+        statusMessage.textContent = "Container pronto, avvio in corso...";
         const started = await startContainer();
-        if (!started) {
+        if(!started) {
             statusMessage.textContent = "Errore avvio container, riprovo tra 5s...";
-            setTimeout(checkStatusLoop, 5000);
+            setTimeout(mainLoop, 5000);
             return;
         }
         statusMessage.textContent = "Container avviato, attesa SSH...";
     }
 
     const sshReady = await waitForSSH(containerIp);
-    if (!sshReady) {
+    if(!sshReady) {
         statusMessage.textContent = "SSH non disponibile, riprovo tra 10s...";
-        setTimeout(checkStatusLoop, 10000);
+        setTimeout(mainLoop, 10000);
         return;
     }
 
     statusMessage.textContent = "Avvio installazione server...";
     const installed = await installServer();
-    if (!installed) {
+    if(!installed) {
         statusMessage.textContent = "Errore installazione server, riprovo tra 10s...";
-        setTimeout(checkStatusLoop, 10000);
+        setTimeout(mainLoop, 10000);
         return;
     }
 
-    statusMessage.textContent = "Server in installazione... controllo stato finale...";
+    // Poll finale fino a ready
     async function pollServerStatus() {
         try {
             const resp = await fetch('check_install_status.php?server_id=' + serverId);
             const data = await resp.json();
-            if (data.status === 'ready') {
+            if(data.status === 'ready') {
                 statusMessage.textContent = "Server pronto! Reindirizzamento...";
-                setTimeout(() => window.location.href = "dashboard.php", 1500);
+                setTimeout(()=>window.location.href="dashboard.php",1500);
             } else {
                 statusMessage.textContent = "Stato attuale: " + data.status;
                 setTimeout(pollServerStatus, 3000);
             }
-        } catch (e) {
+        } catch(e) {
             statusMessage.textContent = "Errore controllo stato server, riprovo...";
             setTimeout(pollServerStatus, 5000);
         }
@@ -161,7 +168,7 @@ async function checkStatusLoop() {
     pollServerStatus();
 }
 
-checkStatusLoop();
+mainLoop();
 </script>
 </body>
 </html>
