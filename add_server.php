@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php'; // proxmoxLogin, createLxcContainer, startContainer, waitForContainer, installBedrockServer
