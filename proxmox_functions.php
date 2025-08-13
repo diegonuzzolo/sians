@@ -77,9 +77,9 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         throw new Exception('Errore creazione container: risposta non valida. Risposta Proxmox: ' . $response);
     }
 
-    // Se la risposta è corretta ma non contiene 'data', restituiamo array vuoto
     return $json['data'] ?? [];
 }
+
 
 
 /**
