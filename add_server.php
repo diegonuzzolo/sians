@@ -12,78 +12,61 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // --- 1. Dati dal form ---
     $ramGb = intval($_POST['ram_gb'] ?? 2);
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     try {
-        // --- 2. Trova un VMID libero ---
+        // --- 1. Trova prossimo VMID libero ---
         $vmid = getNextFreeVmid($pdo);
 
-        // --- 3. Recupera il prossimo IP libero ---
+        // --- 2. Recupera prossimo IP libero ---
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- 4. Inserisci nel DB ---
-        $stmt = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+        // --- 3. Inserisci record container nel DB ---
+        $stmt = $pdo->prepare("
+            INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, assigned_user_id, hostname, ip, status, cpu_cores)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
         $containerId = $pdo->lastInsertId();
 
-        // --- 5. Crea il container su Proxmox ---
-        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
+        // --- 4. Crea container LXC ---
+        $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $cores);
+
         if (!$createResult['success']) {
-            throw new Exception("Errore creazione container: " . $createResult['message']);
+            throw new Exception("Errore creazione container: " . ($createResult['message'] ?? 'Errore sconosciuto'));
         }
+
+        echo "Container creato con successo! VMID: $vmid, IP: $vmIp<br>";
+
+        // --- 5. Breve attesa per sicurezza ---
         waitForContainer($vmid);
 
-        // --- 6. Copia ed esegui setup_server.sh ---
-        $sshKey = "/var/www/.ssh/id_proxmox";
-        $nodeIp = "192.168.1.251"; // IP nodo Proxmox
-        $localScript = "/root/setup_server.sh"; // percorso sul webserver
-        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
-        $containerId = $vmid; // VMID appena creato
+        // --- 6. Copia lo script setup_server.sh nel container usando sudo ---
+        $localScript = '/root/setup_server.sh';
+        $remoteScript = '/root/setup_server.sh';
+        $push = shell_exec("sudo pct push $vmid $localScript $remoteScript -perms 0755 2>&1");
+        if ($push === null) throw new Exception("Errore copia script nel container");
 
-        // --- 1. Copia script sul nodo Proxmox ---
-        $copyCmd = "sudo -u www-data scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
-        exec($copyCmd, $output, $status);
-        if ($status !== 0) {
-            die("Errore copia verso nodo Proxmox: " . implode("\n", $output));
-        }
+        // --- 7. Esegui setup_server.sh nel container in background ---
+        shell_exec("sudo pct exec $vmid -- bash $remoteScript $containerId > /dev/null 2>&1 &");
 
-        // --- 2. Push dentro il container ---
-        $pushCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct push $containerId $remoteTemp /root/setup_server.sh\" 2>&1";
-        exec($pushCmd, $output, $status);
-        if ($status !== 0) {
-            die("Errore push dentro container: " . implode("\n", $output));
-        }
-
-        // --- 3. Imposta permessi ed esegui in background nel container ---
-        $execCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct exec $containerId -- chmod +x /root/setup_server.sh && pct exec $containerId -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
-        exec($execCmd, $output, $status);
-        if ($status !== 0) {
-            die("Errore esecuzione script nel container: " . implode("\n", $output));
-        }
-
-        echo "Script copiato ed eseguito nel container $containerId con successo!";
-
-
-        // --- 8. Redirect alla dashboard ---
-        header("Location: dashboard.php");
-        exit;
+        echo "Setup script copiato ed eseguito nel container.";
 
     } catch (Exception $e) {
         $error = $e->getMessage();
     }
+
+    // --- 8. Redirect alla dashboard ---
+    header("Location: dashboard.php");
+    exit;
 }
 
-
-
-
-
 ?>
+
+
 
 
 <?php include "includes/header.php"; ?>
