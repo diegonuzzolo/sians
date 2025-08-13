@@ -38,8 +38,7 @@ function proxmoxLogin(): array {
  * Crea un container LXC
  */
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
-
+    $url = "https://".PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/lxc";
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
@@ -48,8 +47,8 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'memory' => $ramMb,
         'swap' => 0,
         'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ":$storageGb",
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
+        'rootfs' => PROXMOX_STORAGE.":$storageGb",
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=".CONTAINER_GATEWAY,
         'password' => PROXMOX_PASSWORD,
         'onboot' => 1,
     ];
@@ -71,7 +70,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     $response = curl_exec($ch);
     if ($response === false) {
         curl_close($ch);
-        throw new Exception("Errore cURL: " . curl_error($ch));
+        return ['error' => "Errore cURL: ".curl_error($ch)]; // restituisci array anche in errore
     }
 
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -79,16 +78,15 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     $json = json_decode($response, true);
     if (!is_array($json)) {
-        throw new Exception("Errore creazione container: risposta non valida Proxmox: " . $response);
+        return ['error' => "Risposta Proxmox non valida: ".$response];
     }
     if ($httpCode >= 400) {
-        $errMsg = $json['errors'][0] ?? $response;
-        throw new Exception("Errore API Proxmox ($httpCode): $errMsg");
+        return ['error' => $json['errors'][0] ?? $response];
     }
 
-    // Assicurati di restituire un array vuoto se non esiste 'data'
     return $json['data'] ?? [];
 }
+
 
 /**
  * Avvia un container LXC
