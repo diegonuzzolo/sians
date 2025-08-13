@@ -18,7 +18,7 @@ function createLxcContainer(int $vmid, int $ramGb, int $storageGb, string $hostn
         'rootfs' => $storageGb . 'G',
         'cores' => $cores,
         'net0' => "name=eth0,bridge=vmbr0,ip=$ip/24,gw=192.168.1.254",
-        'ostemplate' => 'local:vztmpl/ubuntu-25-standard_25.0-1_amd64.tar.gz',
+        'ostemplate' => 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst',
         'password' => 'Lgu8330Serve6',
         'start' => 1
     ];
