@@ -20,40 +20,46 @@ function proxmoxLogin(): array {
 }
 
 function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth): array {
-    $swapMb = intval($ramMb*1.5);
+    $swapMb = intval($ramMb * 1.5);
     $postData = [
-        'vmid'=>$vmid,
-        'hostname'=>"mcserver-$vmid",
-        'storage'=>PROXMOX_STORAGE,
-        'ostemplate'=>'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-        'memory'=>$ramMb,
-        'swap'=>$swapMb,
-        'cores'=>$cpu,
-        'rootfs'=>PROXMOX_STORAGE.':'.$storageGb,
-        'net0'=>"name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password'=>'Lgu8330Serve6',
-        'onboot'=>1
+        'vmid' => $vmid,
+        'hostname' => "mcserver-$vmid",
+        'storage' => PROXMOX_STORAGE,
+        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+        'memory' => $ramMb,
+        'swap' => $swapMb,
+        'cores' => $cpu,
+        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
+        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
+        'password' => 'Lgu8330Serve6',
+        'onboot' => 1,
     ];
 
-    $url = PROXMOX_API_URL."/nodes/".PROXMOX_NODE."/lxc";
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
     $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_POST,true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS,http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "CSRFPreventionToken: {$auth['csrf']}",
-        "Cookie: PVEAuthCookie={$auth['ticket']}"
+        "Cookie: PVEAuthCookie={$auth['ticket']}",
     ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER,false);
-    $resp = curl_exec($ch);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $response = curl_exec($ch);
+    if ($response === false) {
+        throw new Exception('Errore CURL createLxc: ' . curl_error($ch));
+    }
     curl_close($ch);
 
-    $json = json_decode($resp,true);
-    if(isset($json['errors']) || !isset($json['data'])){
-        throw new Exception('Errore creazione container: '.json_encode($json));
+    $json = json_decode($response, true);
+    if (!isset($json['data'])) {
+        throw new Exception('Errore creazione container: ' . $response);
     }
-    return $json['data'];
+
+    return $json['data']; // ORA restituisce un array come dichiarato
 }
+
 
 function waitForTask(?string $upid, array $auth, int $timeout=120, int $sleep=2): void {
     if(!$upid) return;
