@@ -1,5 +1,8 @@
 <?php
 require 'config/config.php';
+$PROXMOX_HOST = "https://192.168.1.251:8006";
+$PROXMOX_API_TOKEN = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
+
 
 /**
  * Login a Proxmox via root@pam + password
@@ -65,28 +68,24 @@ function createLxcContainer(
     string $hostname,
     string $vmIp,
     int $cores = 2,
+    string $storage = 'local-lvm',
     string $template = 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst'
 ) {
-    $login = proxmoxLogin();
-    if (!$login) {
-        return ['success' => false, 'message' => 'Login Proxmox fallito'];
-    }
+    $host = "https://192.168.1.251:8006";
+    $apiToken = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 
-    $node = getNodeName($login);
-
-    $url = "{$login['host']}/api2/json/nodes/$node/lxc";
+    $url = "$host/api2/json/nodes/pve/lxc";
 
     $params = [
         'vmid' => $vmid,
         'hostname' => $hostname,
         'memory' => $ramGb * 1024,
+        'rootfs' => "$storage:$storageGb", // esempio "local-lvm:8"
         'cores' => $cores,
-        'net0' => "name=eth0,bridge=vmbr0,ip={$vmIp}/24,gw=192.168.1.254",
+        'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
         'ostemplate' => $template,
         'password' => 'Lgu8330Serve6',
-        'start' => 1,
-        'storage' => 'local-lvm',
-        'rootfs' => "local-lvm:64G"
+        'start' => 1
     ];
 
     $ch = curl_init();
@@ -96,25 +95,21 @@ function createLxcContainer(
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "CSRFPreventionToken: {$login['csrf']}",
-        "Cookie: PVEAuthCookie={$login['ticket']}"
+        "Authorization: PVEAPIToken=$apiToken"
     ]);
 
     $res = curl_exec($ch);
-    $err = curl_error($ch);
+    if ($res === false) {
+        return ['success' => false, 'message' => curl_error($ch)];
+    }
     curl_close($ch);
 
-    if ($err) {
-        return ['success' => false, 'message' => "cURL error: $err"];
-    }
-
     $data = json_decode($res, true);
-    if (!isset($data['data'])) {
-        return ['success' => false, 'message' => "Proxmox error: " . $res];
-    }
-
-    return ['success' => true, 'message' => $data['data']];
+    return isset($data['data'])
+        ? ['success' => true, 'message' => 'Container creato']
+        : ['success' => false, 'message' => $res];
 }
+
 
 /**
  * Trova il prossimo VMID disponibile
@@ -134,8 +129,54 @@ function getNextFreeVmid(PDO $pdo, int $start = 101, int $end = 9999): int
     throw new Exception("Nessun VMID libero disponibile tra $start e $end");
 }
 
+
 /**
- * Trova il prossimo IP disponibile
+ * Funzione generica per chiamare Proxmox API con API Token
+ */
+function callProxmox(string $method, string $endpoint, array $params = []): array
+{
+    global $PROXMOX_HOST, $PROXMOX_API_TOKEN;
+
+    $url = rtrim($PROXMOX_HOST, "/") . "/api2/json" . $endpoint;
+
+    $ch = curl_init();
+
+    if (strtoupper($method) === "GET") {
+        if (!empty($params)) {
+            $url .= "?" . http_build_query($params);
+        }
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
+    } elseif (strtoupper($method) === "POST") {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+    }
+
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: PVEAPIToken=$PROXMOX_API_TOKEN"
+    ]);
+
+    $response = curl_exec($ch);
+    $err = curl_error($ch);
+    curl_close($ch);
+
+    if ($err) {
+        return ['success' => false, 'message' => $err];
+    }
+
+    $data = json_decode($response, true);
+    if (isset($data['data'])) {
+        return ['success' => true, 'data' => $data['data']];
+    } else {
+        return ['success' => false, 'message' => $response];
+    }
+}
+
+
+/**
+ * Recupera prossimo IP privato disponibile
  */
 function getNextFreePrivateIp(PDO $pdo): string
 {
@@ -146,18 +187,16 @@ function getNextFreePrivateIp(PDO $pdo): string
     $stmt = $pdo->query("SELECT ip FROM containers WHERE ip LIKE '192.168.1.%'");
     $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    $usedLastOctets = [];
-    foreach ($usedIps as $ip) {
+    $usedLastOctets = array_map(function ($ip) {
         $parts = explode('.', $ip);
-        if (count($parts) === 4)
-            $usedLastOctets[] = (int) $parts[3];
-    }
+        return (int) $parts[3];
+    }, $usedIps);
 
     for ($i = $start; $i <= $end; $i++) {
-        if (!in_array($i, $usedLastOctets))
+        if (!in_array($i, $usedLastOctets)) {
             return $baseIp . $i;
+        }
     }
 
     return $baseIp . $start;
 }
-?>
