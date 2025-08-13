@@ -49,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // 1️⃣ Crea container
                 $result = createLxcContainer($vmid, $cpuCores, $ramGb * 1024, $storageGb, $privateIp, $auth);
-                if (isset($result['error'])) {
-                    throw new Exception("Errore creazione container: " . $result['error']);
+                if (!$result['success']) {
+                    die("Errore creazione server: " . $result['message']);
                 }
 
 
