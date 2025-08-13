@@ -39,7 +39,8 @@ function proxmoxLogin(): array
  * Crea un container LXC
  */
 function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, string $privateIp, array $auth): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc";
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
+
     $postData = [
         'vmid' => $vmid,
         'hostname' => "mcserver-$vmid",
