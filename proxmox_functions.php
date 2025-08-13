@@ -27,7 +27,8 @@ function createLxcContainer(
     int $cores = 2,
     string $template = 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst'
 ): array {
-    $hostname = $hostname ?: "mcserver-$vmid";
+    $hostname = "mc-" . $vmid; // esempio: mc-102
+
 
     if (!$vmIp) {
         return ['success' => false, 'message' => 'IP container non fornito'];
