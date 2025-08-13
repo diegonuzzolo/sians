@@ -52,18 +52,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$result['success'])
                     die("Errore creazione server: " . $result['message']);
 
-                // Avvio container
+                // 2️⃣ Avvia container
                 $startResult = startLxcContainer($vmid, $auth);
                 if (!$startResult['success'])
                     die("Errore avvio container: " . $startResult['message']);
 
-                // Attesa container in running
+                // 3️⃣ Attendi container running
                 $runningResult = waitForContainerRunning($vmid, $auth);
                 if (!$runningResult['success'])
-                    die("Errore attesa container: " . $runningResult['message']);
+                    die("Errore: " . $runningResult['message']);
 
-                // Container pronto
-                echo "Server creato e avviato con successo!";
+                // 4️⃣ Prepara script Bedrock dentro container
+                $installScriptPath = prepareBedrockScript($vmid);
+
+                echo "Server creato e avviato! Per installare Bedrock esegui:\n";
+                echo "pct enter $vmid $installScriptPath\n";
 
 
 
@@ -86,25 +89,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // 4️⃣ Abilita SSH root e password direttamente nel container
                 $output = [];
                 $ret = 0;
-                // Aggiorna pacchetti e installa openssh-server
-                exec("pct exec $vmid -- apt update -y && apt install -y openssh-server", $output, $ret);
-                if ($ret !== 0) {
-                    die("Errore installazione SSH nel container $vmid: " . implode("\n", $output));
-                }
-
-                // Configura SSH root login e avvia il servizio
-                exec("pct exec $vmid -- sh -c \"sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && " .
-                    "sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && " .
-                    "systemctl enable --now ssh\"", $output, $ret);
-                if ($ret !== 0) {
-                    die("Errore configurazione SSH nel container $vmid: " . implode("\n", $output));
-                }
-
-
-
-                // 7️⃣ Installa Bedrock server
-                installBedrockServer($privateIp, $ramGb * 1024, $pdo, $serverId, $vmid);
-
 
                 // Rigenera token per la prossima volta
                 $_SESSION['form_token'] = bin2hex(random_bytes(32));

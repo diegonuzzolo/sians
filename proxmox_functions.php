@@ -53,7 +53,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'rootfs'     => PROXMOX_STORAGE . ":$storageGb",
         'net0'       => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'onboot'     => 1,
-        'password'   => PROXMOX_PASSWORD,
+        'password'   => CONTAINER_ROOT_PASSWORD,  // Password root del container
     ]);
 
     $context = stream_context_create([
@@ -78,6 +78,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
 
     return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
 }
+
 
 function startLxcContainer(int $vmid, array $auth): array {
     $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
@@ -160,24 +161,31 @@ function getNextAvailableVmid(array $auth): int {
 /**
  * Installa Bedrock server su container via SSH
  */
-function installBedrockServer(string $privateIp, int $ramMb, PDO $pdo, int $serverId, int $vmid)
-{
-    $cmds = [
-        "mkdir -p /opt/minecraft-bedrock",
-        "cd /opt/minecraft-bedrock",
-        "wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock",
-        "unzip -o bedrock-server.zip",
-        "rm bedrock-server.zip"
-    ];
+function prepareBedrockScript(int $vmid) {
+    // Script di installazione Bedrock da lanciare manualmente
+    $script = <<<BASH
+#!/bin/bash
+apt update -y
+apt install -y wget unzip screen
+mkdir -p /opt/minecraft-bedrock
+cd /opt/minecraft-bedrock
+wget -O bedrock-server.zip https://www.minecraft.net/en-us/download/server/bedrock
+unzip -o bedrock-server.zip
+rm bedrock-server.zip
+echo "Bedrock server installato!"
+BASH;
 
-    exec("pct exec $vmid -- sh -c '" . implode(' && ', $cmds) . "'", $output, $ret);
-    if ($ret !== 0) {
-        throw new Exception("Errore installazione Bedrock server sul container $serverId: " . implode("\n", $output));
-    }
+    // Scrive lo script all’interno del container
+    $tmpFile = "/tmp/install_bedrock_$vmid.sh";
+    file_put_contents($tmpFile, $script);
+    chmod($tmpFile, 0755);
 
-    // Aggiorna stato server a 'ready'
-    $stmt = $pdo->prepare("UPDATE servers SET status = ? WHERE id = ?");
-    $stmt->execute(['ready', $serverId]);
+    // Copia dentro il container
+    exec("pct push $vmid $tmpFile /root/install_bedrock.sh -perms 0755");
+
+    unlink($tmpFile); // Rimuove file temporaneo
+
+    return "/root/install_bedrock.sh";
 }
 
 
