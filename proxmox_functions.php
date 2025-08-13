@@ -4,59 +4,6 @@ $PROXMOX_HOST = "https://192.168.1.251:8006";
 $PROXMOX_API_TOKEN = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 
 
-/**
- * Login a Proxmox via root@pam + password
- */
-function proxmoxLogin()
-{
-    $host = "https://192.168.1.251:8006";
-    $user = "root@pam";
-    $pass = "Lgu8330Serve6";
-
-    $url = "$host/api2/json/access/ticket";
-    $data = [
-        'username' => $user,
-        'password' => $pass
-    ];
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    $json = json_decode($response, true);
-    if (isset($json['data'])) {
-        return [
-            'host' => $host,
-            'ticket' => $json['data']['ticket'],
-            'csrf' => $json['data']['CSRFPreventionToken']
-        ];
-    }
-    return false;
-}
-
-/**
- * Recupera il nome del nodo
- */
-function getNodeName($login)
-{
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "{$login['host']}/api2/json/nodes");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Cookie: PVEAuthCookie={$login['ticket']}"
-    ]);
-    $res = curl_exec($ch);
-    curl_close($ch);
-    $json = json_decode($res, true);
-    return $json['data'][0]['node'] ?? 'pve';
-}
 
 /**
  * Crea un container LXC
