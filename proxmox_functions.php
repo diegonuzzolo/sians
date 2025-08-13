@@ -94,6 +94,23 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'message' => "Container $vmid creato e avviato correttamente"
     ];
 }
+function getNextAvailableVmid(array $auth): int {
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => PROXMOX_API_URL . "/cluster/nextid",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_HTTPHEADER => [
+            "CSRFPreventionToken: {$auth['csrf']}",
+            "Cookie: PVEAuthCookie={$auth['ticket']}"
+        ]
+    ]);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    
+    $json = json_decode($response, true);
+    return (int)($json['data'] ?? 101);
+}
 
 
 

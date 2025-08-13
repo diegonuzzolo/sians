@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // VMID e IP
                 $stmt = $pdo->query("SELECT MAX(proxmox_containerId) AS max_vmid FROM containers");
-                $vmid = max(101, (int) $stmt->fetchColumn() + 1);
+                $vmid = getNextAvailableVmid($auth);
                 $privateIp = getNextFreePrivateIp($pdo);
                 $storageGb = 64;
 
