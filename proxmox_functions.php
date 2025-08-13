@@ -126,22 +126,18 @@ function createLxcContainer($vmid, $cpu, $ramMb, $storageGb, $privateIp, $auth)
 {
     $swapMb = intval($ramMb * 1.5);
     $postData = [
-        'vmid' => $vmid,
-        'hostname' => "mcserver-$vmid",
-        'storage' => PROXMOX_STORAGE,
-        'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
-        'memory' => $ramMb,
-        'swap' => $swapMb,
-        'cores' => $cpu,
-        'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
-        'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
-        'password' => 'Lgu8330Serve6',
-        'startup' => [
-            'enabled' => 1,       // equivalente di onboot
-            'order' => 1,         // ordine di avvio se più container
-            'up' => 10,           // tempo di attesa prima di avviare (opzionale)
-        ],
-    ];
+    'vmid' => $vmid,
+    'hostname' => "mcserver-$vmid",
+    'storage' => PROXMOX_STORAGE,
+    'ostemplate' => 'local:vztmpl/ubuntu-25.04-standard_25.04-1.1_amd64.tar.zst',
+    'memory' => $ramMb,
+    'swap' => $swapMb,
+    'cores' => $cpu,
+    'rootfs' => PROXMOX_STORAGE . ':' . $storageGb,
+    'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=192.168.1.254",
+    'password' => 'Lgu8330Serve6',
+    'onboot' => 1,  // semplice intero, non array
+];
 
 
 
