@@ -77,7 +77,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
     return ['success' => true, 'vmid' => $vmid, 'message' => "Container $vmid creato"];
 }
 function startLxcContainer(int $vmid, array $auth, int $timeout = 120): array {
-    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start?async=1";
+    $url = PROXMOX_API_URL . "/nodes/" . PROXMOX_NODE . "/lxc/$vmid/status/start";
 
     $context = stream_context_create([
         'http' => [
