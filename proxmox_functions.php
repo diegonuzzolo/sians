@@ -52,6 +52,7 @@ function createLxcContainer(int $vmid, int $cpu, int $ramMb, int $storageGb, str
         'net0' => "name=eth0,bridge=vmbr0,ip=$privateIp/24,gw=" . CONTAINER_GATEWAY,
         'password' => PROXMOX_PASSWORD,
         'onboot' => 1,
+        'start' => 1,
     ];
 
     $ch = curl_init();
