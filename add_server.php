@@ -41,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Attesa breve per assicurarsi che il container sia pronto
-        waitForContainer($vmid);
+        sleep(8);
+
 
         // --- 6. Copia ed esegui setup_server.sh ---
         $sshKey = "/var/www/.ssh/id_proxmox";
