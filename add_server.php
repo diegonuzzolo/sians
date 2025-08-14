@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Attesa breve per assicurarsi che il container sia pronto
-        sleep(8);
+        sleep(4);
 
         // --- 5b. Installa dipendenze base per Minecraft Bedrock ---
         $sshKey = "/var/www/.ssh/id_proxmox";
