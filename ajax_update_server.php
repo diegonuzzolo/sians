@@ -29,7 +29,7 @@ try {
     ];
 
     // Percorso dentro il container
-    $containerPath = "/root/minecraft_bedrock/";
+    $containerPath = "/root/minecraft_bedrock";
     if (!is_dir($containerPath)) {
         mkdir($containerPath, 0755, true);
     }
