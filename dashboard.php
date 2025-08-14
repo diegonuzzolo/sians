@@ -79,7 +79,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
 
                                 <!-- Esempio dentro il ciclo dei server -->
-                                <a href="delete_server.php?vmid=<?= $server['proxmox_containerId'] ?>" class="btn btn-danger"
+                                <a href="delete_server.php?vmid=<?= $proxmoxVmid ?>" class="btn btn-danger"
                                     onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
                                     Elimina
                                 </a>
