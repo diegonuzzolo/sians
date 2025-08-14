@@ -44,7 +44,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
                         <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip'] ?? 'N/A') ?></p>
                         <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_gb'] ?? 0) ?> MB</p>
-                        <p class="mb-2">Tipo: <?= htmlspecialchars($server['type']) ?> - Versione: <?= htmlspecialchars($server['version'] ?? '-') ?></p>
+                        <p class="mb-2">- <?= htmlspecialchars($server['type']) ?> - Versione: <?= htmlspecialchars($server['version'] ?? '-') ?></p>
 
                         <div class="progress mb-2" style="height: 20px;">
                             <div id="progress-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
