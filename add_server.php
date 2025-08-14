@@ -26,26 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
-        $stmt = $pdo->prepare("
-    INSERT INTO servers 
-    (name, user_id, container_id, proxmox_containerId, status, cpu_cores, ram_mb, assigned_cpu_cores, assigned_ram_mb, assigned_storage_gb)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-");
-        $stmt->execute([
-            $serverName,
-            $userId,
-            $containerId,
-            $vmid,
-            'installing',
-            $cores,
-            $ramGb * 1024,
-            $cores,
-            $ramGb * 1024,
-            $storageGb
-        ]);
-
-
-
 
         // --- 2. Trova un VMID libero ---
         $vmid = getNextFreeVmid($pdo);
