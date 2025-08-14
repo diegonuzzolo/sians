@@ -70,4 +70,5 @@ $stmt->execute([
     $levelName, $seed, $spawnProtection, $whiteList, $whitelist, $blacklist, $serverId, $userId
 ]);
 
-echo json_encode(['success'=>true,'message'=>'Server aggiornato con successo']);
+echo json_encode(['success' => true, 'message' => 'test']);
+exit;
