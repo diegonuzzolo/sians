@@ -1,54 +1,52 @@
 <?php
 include("auth_check.php");
 require 'config/config.php';
+require 'proxmox_functions.php';
+
+header('Content-Type: application/json');
 
 $userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_POST['server_id'] ?? 0);
 
-if($serverId <=0 || !isset($_FILES['icon'])) {
-    echo json_encode(['success'=>false,'message'=>'Parametri mancanti']);
-    exit;
-}
-
-$file = $_FILES['icon'];
-if($file['error'] !== 0) {
-    echo json_encode(['success'=>false,'message'=>'Errore upload file']);
-    exit;
-}
-
-$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-if($ext !== 'png') {
-    echo json_encode(['success'=>false,'message'=>'Solo PNG consentiti']);
-    exit;
-}
-
-// Recupera container
+// Recupera server e container
 $stmt = $pdo->prepare("
-    SELECT c.proxmox_containerId
+    SELECT s.*, c.proxmox_containerId
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.id=? AND s.user_id=?
 ");
-$stmt->execute([$serverId, $userId]);
-$container = $stmt->fetch(PDO::FETCH_ASSOC);
-if(!$container) {
-    echo json_encode(['success'=>false,'message'=>'Server non trovato']);
+$stmt->execute([$serverId,$userId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if(!$server){
+    echo json_encode(['success'=>false, 'message'=>'Server non trovato']);
     exit;
 }
 
-$vmid = $container['proxmox_containerId'];
-$sshKey = "/var/www/.ssh/id_proxmox";
-$nodeIp = "192.168.1.251";
-$tmpFile = $file['tmp_name'];
+$vmid = $server['proxmox_containerId'];
 
-// Copia icona nel container
-$cmd = "scp -i $sshKey -o StrictHostKeyChecking=no $tmpFile root@$nodeIp:/root/icon.png && "
-     . "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-     . "\"pct push $vmid /root/icon.png /root/icon.png\"";
+// Verifica file upload
+if(!isset($_FILES['server_icon']) || $_FILES['server_icon']['error'] !== UPLOAD_ERR_OK){
+    echo json_encode(['success'=>false, 'message'=>'Errore upload']);
+    exit;
+}
 
+$fileTmp = $_FILES['server_icon']['tmp_name'];
+
+// Controlla PNG e dimensioni
+$imageInfo = getimagesize($fileTmp);
+if(!$imageInfo || $imageInfo[0] !== 64 || $imageInfo[1] !== 64 || $imageInfo['mime'] !== 'image/png'){
+    echo json_encode(['success'=>false, 'message'=>'Il file deve essere PNG 64x64 px']);
+    exit;
+}
+
+// Copia il file nel container usando pct push
+$remotePath = "/root/minecraft_bedrock/server_icon.png";
+$cmd = "pct push $vmid $fileTmp $remotePath";
 exec($cmd, $output, $status);
-if($status !== 0) {
-    echo json_encode(['success'=>false,'message'=>'Errore caricamento icona']);
+
+if($status !== 0){
+    echo json_encode(['success'=>false, 'message'=>'Errore copia icona nel container']);
     exit;
 }
 

@@ -1,20 +1,20 @@
 <?php
 include("auth_check.php");
 require 'config/config.php';
-
 $userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_GET['id'] ?? 0);
 
+// Recupera server e container
 $stmt = $pdo->prepare("
-    SELECT s.*, c.ram_mb, c.cores
+    SELECT s.*, c.proxmox_containerId
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
-    WHERE s.id = ? AND s.user_id = ?
+    WHERE s.id=? AND s.user_id=?
 ");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$server) {
+if(!$server){
     die("Server non trovato o non autorizzato.");
 }
 ?>
@@ -23,171 +23,126 @@ if (!$server) {
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Gestione Server <?= htmlspecialchars($server['name']) ?></title>
+    <title>Gestione Server Bedrock</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .tab-content { background-color: #343a40; padding: 20px; border-radius: 8px; }
-        .nav-tabs .nav-link { color: #fff; }
-        .nav-tabs .nav-link.active { color: #fff; background-color: #495057; }
-    </style>
 </head>
 <body class="bg-dark text-white">
-    <?php include "includes/header.php"; ?>
+<?php include "includes/header.php"; ?>
 
-    <div class="container my-5">
-        <h2 class="mb-4 text-center">⚙️ Gestione Server: <?= htmlspecialchars($server['name']) ?></h2>
+<div class="container my-5">
+    <h2 class="mb-4 text-center">Gestione Server: <?= htmlspecialchars($server['name']) ?></h2>
 
-        <ul class="nav nav-tabs mb-3" id="serverTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button">Generale</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="game-tab" data-bs-toggle="tab" data-bs-target="#game" type="button">Gameplay</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="resources-tab" data-bs-toggle="tab" data-bs-target="#resources" type="button">Risorse</button>
-            </li>
-        </ul>
+    <form id="serverPropertiesForm">
+        <input type="hidden" name="server_id" value="<?= $serverId ?>">
 
-        <form id="serverPropsForm">
-            <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
-
-            <div class="tab-content" id="serverTabContent">
-                <!-- Generale -->
-                <div class="tab-pane fade show active" id="general">
-                    <div class="mb-3">
-                        <label class="form-label">Nome Server</label>
-                        <input type="text" class="form-control" name="server-name" value="<?= htmlspecialchars($server['name']) ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">MOTD</label>
-                        <input type="text" class="form-control" name="motd" value="<?= htmlspecialchars($server['motd'] ?? '') ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Seconda riga MOTD</label>
-                        <input type="text" class="form-control" name="motd2" value="<?= htmlspecialchars($server['motd2'] ?? '') ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Nome Mondo</label>
-                        <input type="text" class="form-control" name="level-name" value="<?= htmlspecialchars($server['level_name'] ?? 'Bedrock level') ?>">
-                    </div>
-                </div>
-
-                <!-- Gameplay -->
-                <div class="tab-pane fade" id="game">
-                    <div class="mb-3">
-                        <label class="form-label">Modalità Gioco</label>
-                        <select class="form-select" name="gamemode">
-                            <option value="survival" <?= ($server['gamemode']=='survival')?'selected':'' ?>>Survival</option>
-                            <option value="creative" <?= ($server['gamemode']=='creative')?'selected':'' ?>>Creative</option>
-                            <option value="adventure" <?= ($server['gamemode']=='adventure')?'selected':'' ?>>Adventure</option>
-                            <option value="spectator" <?= ($server['gamemode']=='spectator')?'selected':'' ?>>Spectator</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Difficoltà</label>
-                        <select class="form-select" name="difficulty">
-                            <option value="peaceful" <?= ($server['difficulty']=='peaceful')?'selected':'' ?>>Peaceful</option>
-                            <option value="easy" <?= ($server['difficulty']=='easy')?'selected':'' ?>>Easy</option>
-                            <option value="normal" <?= ($server['difficulty']=='normal')?'selected':'' ?>>Normal</option>
-                            <option value="hard" <?= ($server['difficulty']=='hard')?'selected':'' ?>>Hard</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Max Players</label>
-                        <input type="number" class="form-control" name="max-players" value="<?= htmlspecialchars($server['max_players'] ?? 20) ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">View Distance</label>
-                        <input type="number" class="form-control" name="view-distance" value="<?= htmlspecialchars($server['view_distance'] ?? 6) ?>">
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="allow-cheats" <?= ($server['allow_cheats']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Permetti Cheat</label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="white-list" <?= ($server['white_list']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Abilita Whitelist</label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="allow-flight" <?= ($server['allow_flight']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Permetti Volo</label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="spawn-animals" <?= ($server['spawn_animals']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Genera Animali</label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="spawn-monsters" <?= ($server['spawn_monsters']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Genera Mostri</label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="spawn-npcs" <?= ($server['spawn_npcs']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Genera NPC</label>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tick Distance</label>
-                        <input type="number" class="form-control" name="tick-distance" value="<?= htmlspecialchars($server['tick_distance'] ?? 4) ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">RCON Password</label>
-                        <input type="text" class="form-control" name="rcon-password" value="<?= htmlspecialchars($server['rcon_password'] ?? '') ?>">
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="enable-query" <?= ($server['enable_query']=='true')?'checked':'' ?>>
-                        <label class="form-check-label">Abilita Query RCON</label>
-                    </div>
-                </div>
-
-                <!-- Risorse -->
-                <div class="tab-pane fade" id="resources">
-                    <div class="mb-3">
-                        <label class="form-label">RAM (MB)</label>
-                        <input type="number" class="form-control" name="ram_mb" value="<?= htmlspecialchars($server['ram_mb'] ?? 2048) ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">CPU Cores</label>
-                        <input type="number" class="form-control" name="cores" value="<?= htmlspecialchars($server['cores'] ?? 2) ?>">
-                    </div>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary mt-3">Salva Modifiche</button>
-        </form>
-    </div>
-
-    <div class="mt-3">
-        <h5>Stato Server: <span id="server-status"><?= htmlspecialchars($server['status']) ?></span></h5>
-        <h6>Giocatori connessi: <span id="player-count">0</span></h6>
-        <div class="progress mb-2" style="height: 20px;">
-            <div id="progress-bar" class="progress-bar bg-info" role="progressbar" style="width: <?= $server['progress'] ?>%"><?= $server['progress'] ?>%</div>
+        <div class="mb-3">
+            <label class="form-label">MOTD</label>
+            <input type="text" class="form-control" name="motd" value="<?= htmlspecialchars($server['motd'] ?? '') ?>">
         </div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+        <div class="mb-3">
+            <label class="form-label">Gamemode</label>
+            <select class="form-select" name="gamemode">
+                <option value="survival" <?= ($server['gamemode'] ?? '')==='survival'?'selected':'' ?>>Survival</option>
+                <option value="creative" <?= ($server['gamemode'] ?? '')==='creative'?'selected':'' ?>>Creative</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Difficulty</label>
+            <select class="form-select" name="difficulty">
+                <option value="easy" <?= ($server['difficulty'] ?? '')==='easy'?'selected':'' ?>>Easy</option>
+                <option value="normal" <?= ($server['difficulty'] ?? '')==='normal'?'selected':'' ?>>Normal</option>
+                <option value="hard" <?= ($server['difficulty'] ?? '')==='hard'?'selected':'' ?>>Hard</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Max Players (1-100)</label>
+            <input type="number" class="form-control" name="max_players" min="1" max="100" value="<?= intval($server['max_players'] ?? 10) ?>">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">View Distance (2-32)</label>
+            <input type="number" class="form-control" name="view_distance" min="2" max="32" value="<?= intval($server['view_distance'] ?? 6) ?>">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Enable Command Blocks</label>
+            <select class="form-select" name="enable_command_blocks">
+                <option value="true" <?= ($server['enable_command_blocks'] ?? '')==='true'?'selected':'' ?>>True</option>
+                <option value="false" <?= ($server['enable_command_blocks'] ?? '')==='false'?'selected':'' ?>>False</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Level Name</label>
+            <input type="text" class="form-control" name="level_name" value="<?= htmlspecialchars($server['level_name'] ?? 'world') ?>">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Seed</label>
+            <input type="text" class="form-control" name="seed" value="<?= htmlspecialchars($server['seed'] ?? '') ?>">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Spawn Protection</label>
+            <input type="number" class="form-control" name="spawn_protection" min="0" value="<?= intval($server['spawn_protection'] ?? 16) ?>">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Whitelist Enabled</label>
+            <select class="form-select" name="white_list">
+                <option value="true" <?= ($server['white_list'] ?? '')==='true'?'selected':'' ?>>True</option>
+                <option value="false" <?= ($server['white_list'] ?? '')==='false'?'selected':'' ?>>False</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Whitelist (nomi separati da invio)</label>
+            <textarea class="form-control" name="whitelist" rows="3"><?= htmlspecialchars($server['whitelist'] ?? '') ?></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Blacklist (nomi separati da invio)</label>
+            <textarea class="form-control" name="blacklist" rows="3"><?= htmlspecialchars($server['blacklist'] ?? '') ?></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Aggiorna Server</button>
+    </form>
+
+    <div id="updateMessage" class="mt-3"></div>
+</div>
+
 <script>
-function updateServerStatus() {
-    fetch('check_status.php?id=<?= $server['id'] ?>')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('server-status').textContent = data.status || 'sconosciuto';
-            document.getElementById('player-count').textContent = data.players || 0;
+document.getElementById('serverPropertiesForm').addEventListener('submit', function(e){
+    e.preventDefault();
 
-            const progressEl = document.getElementById('progress-bar');
-            if(progressEl && data.progress !== undefined){
-                progressEl.style.width = data.progress + "%";
-                progressEl.textContent = data.progress + "%";
-            }
-        })
-        .catch(err => console.error("Errore aggiornamento stato:", err));
-}
+    let formData = new FormData(this);
 
-// Aggiorna ogni 5 secondi
-setInterval(updateServerStatus, 5000);
-updateServerStatus(); // esegue subito al caricamento
+    fetch('ajax_update_server.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        let msgEl = document.getElementById('updateMessage');
+        if(data.success){
+            msgEl.textContent = "Server aggiornato correttamente!";
+            msgEl.className = "alert alert-success mt-2";
+        } else {
+            msgEl.textContent = "Errore aggiornamento: " + data.message;
+            msgEl.className = "alert alert-danger mt-2";
+        }
+    })
+    .catch(err => {
+        let msgEl = document.getElementById('updateMessage');
+        msgEl.textContent = "Errore AJAX: " + err;
+        msgEl.className = "alert alert-danger mt-2";
+    });
+});
 </script>
 
-
-    <?php include "includes/footer.php"; ?>
+<?php include "includes/footer.php"; ?>
 </body>
 </html>

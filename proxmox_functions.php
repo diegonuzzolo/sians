@@ -169,3 +169,62 @@ function calcolaSwapMb($ramMb) {
 
 
 
+/**
+ * Genera in sicurezza il contenuto di server.properties per Bedrock
+ *
+ * @param array $data Dati inviati dal form
+ * @return string Contenuto pronto da scrivere in /root/minecraft_bedrock/server.properties
+ */
+function generateBedrockProperties(array $data): string {
+
+    $props = [];
+
+    // --- MOTD ---
+    $motd = trim($data['motd'] ?? '');
+    $props[] = "motd=$motd";
+
+    // --- GAMEMODE ---
+    $gamemode = in_array($data['gamemode'] ?? '', ['survival','creative']) ? $data['gamemode'] : 'survival';
+    $props[] = "gamemode=$gamemode";
+
+    // --- DIFFICULTY ---
+    $difficulty = in_array($data['difficulty'] ?? '', ['easy','normal','hard']) ? $data['difficulty'] : 'easy';
+    $props[] = "difficulty=$difficulty";
+
+    // --- MAX PLAYERS ---
+    $max_players = max(1, min(100, intval($data['max_players'] ?? 10)));
+    $props[] = "max-players=$max_players";
+
+    // --- VIEW DISTANCE ---
+    $view_distance = max(2, min(32, intval($data['view_distance'] ?? 6)));
+    $props[] = "view-distance=$view_distance";
+
+    // --- WHITELIST & BLACKLIST ---
+    $whitelist = trim($data['whitelist'] ?? '');
+    $props[] = "whitelist=".str_replace(["\r\n","\r"],"\n",$whitelist);
+
+    $blacklist = trim($data['blacklist'] ?? '');
+    $props[] = "blacklist=".str_replace(["\r\n","\r"],"\n",$blacklist);
+
+    // --- ENABLE COMMAND BLOCKS ---
+    $enable_command_blocks = in_array($data['enable_command_blocks'] ?? 'false',['true','false']) ? $data['enable_command_blocks'] : 'false';
+    $props[] = "enable-command-block=$enable_command_blocks";
+
+    // --- LEVEL NAME ---
+    $level_name = trim($data['level_name'] ?? 'world');
+    $props[] = "level-name=$level_name";
+
+    // --- SEED ---
+    $seed = trim($data['seed'] ?? '');
+    $props[] = "seed=$seed";
+
+    // --- SPAWN PROTECTION ---
+    $spawn_protection = max(0,intval($data['spawn_protection'] ?? 16));
+    $props[] = "spawn-protection=$spawn_protection";
+
+    // --- WHITE LIST ENABLED ---
+    $white_list_enabled = in_array($data['white_list'] ?? 'false',['true','false']) ? $data['white_list'] : 'false';
+    $props[] = "white-list=$white_list_enabled";
+
+    return implode("\n", $props);
+}

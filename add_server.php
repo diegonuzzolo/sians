@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
         $localScript = '/var/www/setup_server.sh';
-        $remoteTemp = "/root/setup_server.sh";
+        $remoteTemp = "/root/minecraft_bedrock/setup_server.sh";
 
         $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
@@ -70,13 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore copia script: " . implode("\n", $output));
 
         $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
+            . "\"pct push $vmid $remoteTemp /root/minecraft_bedrock/setup_server.sh\"";
         exec($pushCmd, $output, $status);
         if ($status !== 0)
             throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
         $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
+            . "\"pct exec $vmid -- chmod +x /root/minecraft_bedrock/setup_server.sh && pct exec $vmid -- /root/minecraft_bedrock/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
         if ($status !== 0)
             throw new Exception("Errore esecuzione script: " . implode("\n", $output));
