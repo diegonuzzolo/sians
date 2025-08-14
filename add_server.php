@@ -27,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- 4. Inserisci nel DB ---
         $stmt = $pdo->prepare("
-            INSERT INTO containers (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores)
+            INSERT INTO containers 
+            (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
@@ -39,49 +40,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        // --- 5b. Attesa breve per avvio container ---
-        waitForContainer($vmid);
+        // Attesa breve per assicurarsi che il container sia pronto
+        sleep(8);
 
-        // --- 6. Copia ed esegui setup_server.sh ---
+        // --- 5b. Installa dipendenze base per Minecraft Bedrock ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251"; // IP nodo Proxmox
-        $localScript = '/var/www/setup_server.sh';
-        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
-
-        // --- 6a. Installa dipendenze base per Bedrock ---
-        $depsCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
         if ($status !== 0) {
-            die("Errore installazione dipendenze nel container: " . implode("\n", $output));
+            throw new Exception("Errore installazione dipendenze nel container: " . implode("\n", $output));
         }
 
-        // --- 6b. Copia script sul nodo Proxmox ---
-        $copyCmd = "sudo -u www-data scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
+        // --- 6. Copia ed esegui setup_server.sh ---
+        $localScript = '/var/www/setup_server.sh';
+        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
+
+        // 1. Copia script sul nodo Proxmox
+        $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
         exec($copyCmd, $output, $status);
         if ($status !== 0) {
-            die("Errore copia verso nodo Proxmox: " . implode("\n", $output));
+            throw new Exception("Errore copia verso nodo Proxmox: " . implode("\n", $output));
         }
 
-        // --- 6c. Push dentro il container ---
-        $pushCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // 2. Push dentro il container
+        $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\" 2>&1";
         exec($pushCmd, $output, $status);
         if ($status !== 0) {
-            die("Errore push dentro container: " . implode("\n", $output));
+            throw new Exception("Errore push dentro container: " . implode("\n", $output));
         }
 
-        // --- 6d. Imposta permessi ed esegui in background nel container ---
-        $execCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // 3. Imposta permessi ed esegui in background
+        $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
         if ($status !== 0) {
-            die("Errore esecuzione script nel container: " . implode("\n", $output));
+            throw new Exception("Errore esecuzione script nel container: " . implode("\n", $output));
         }
 
-        echo "Script copiato ed eseguito nel container $containerId con successo!";
+        // --- Successo ---
+        echo "Script copiato ed eseguito nel container $vmid con successo!";
 
-        // --- 7. Redirect alla dashboard ---
+        // --- Redirect alla dashboard ---
         header("Location: dashboard.php");
         exit;
 
