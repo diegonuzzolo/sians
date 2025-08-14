@@ -40,9 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- 6. Copia ed esegui setup_server.sh ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251"; // IP nodo Proxmox
-        $localScript = '/var/www/scripts/setup_server.sh';
-        $remoteTemp = '/root/setup_server.sh';
-        // percorso temporaneo su Proxmox
+        $localScript = "/root/setup_server.sh"; // percorso sul webserver
+        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
         $containerId = $vmid; // VMID appena creato
 
         // --- 1. Copia script sul nodo Proxmox ---
@@ -53,8 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // --- 2. Push dentro il container ---
-        $pushCmd = shell_exec("ssh -i /var/www/.ssh/id_proxmox root@$proxmox_ip 'sudo pct push $vmid $localScript $remoteScript -perms 0755' 2>&1");
-
+        $pushCmd = "sudo -u www-data ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct push $containerId $remoteTemp /root/setup_server.sh\" 2>&1";
         exec($pushCmd, $output, $status);
         if ($status !== 0) {
             die("Errore push dentro container: " . implode("\n", $output));
