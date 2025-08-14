@@ -30,13 +30,22 @@ try {
         throw new Exception("Server non trovato o non appartiene all'utente. VMID: $vmid");
     }
 
-    // --- 3. Elimina container su Proxmox ---
-    $url = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
-    $deleteResult = callProxmox($url, 'DELETE');
+    // --- 3a. Stop container su Proxmox ---
+    $stopUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop";
+    $stopResult = callProxmox($stopUrl, 'POST');
 
-    if (!$deleteResult['success']) {
-        throw new Exception("Errore eliminazione container su Proxmox: " . $deleteResult['message']);
+    if (!$stopResult['success']) {
+        throw new Exception("Errore stop container: " . $stopResult['message']);
     }
+
+    // --- 3b. Distruggi container ---
+    $destroyUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
+    $destroyResult = callProxmox($destroyUrl, 'DELETE');
+
+    if (!$destroyResult['success']) {
+        throw new Exception("Errore distruzione container: " . $destroyResult['message']);
+    }
+
 
     // --- 4. Elimina record dal database (ON DELETE CASCADE rimuove container se impostato) ---
     $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");
