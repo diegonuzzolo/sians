@@ -7,7 +7,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 // Recupera tutti i server dell’utente
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type, s.progress,
-           c.ip AS private_ip, c.ram_gb
+           c.ip AS private_ip, c.ram_mb
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id = ?
@@ -43,7 +43,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="card bg-secondary text-white shadow rounded-4 p-3 card-hover">
                         <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
                         <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip'] ?? 'N/A') ?></p>
-                        <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_gb'] ?? 0) ?> MB</p>
+                        <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_mb'] ?? 0) ?> MB</p>
                         <p class="mb-2">- <?= htmlspecialchars($server['type']) ?></p>
 
                         <div class="progress mb-2" style="height: 20px;">

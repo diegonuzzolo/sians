@@ -13,7 +13,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // --- 1. Dati dal form ---
-    $ramGb = intval($_POST['ram_gb'] ?? 2);
+    $ramGb = intval($_POST['ram_mb'] ?? 2);
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- 4. Inserisci nel DB containers ---
         $stmt = $pdo->prepare("
             INSERT INTO containers 
-            (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) 
+            (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
@@ -133,10 +133,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="card-body">
                 <div class="mb-4">
-                    <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB) <span id="ramDisplay"
+                    <label for="ram_mb" class="form-label text-white fw-semibold">RAM (GB) <span id="ramDisplay"
                             class="fw-bold"></span></label>
-                    <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
-                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
+                    <input type="range" name="ram_mb" id="ram_mb" class="form-range" min="2" max="20" step="1"
+                        value="<?= htmlspecialchars($_POST['ram_mb'] ?? 4) ?>">
                     <div class="d-flex justify-content-between text-white small mt-1">
                         <span>2GB</span>
                         <span>20GB</span>
@@ -206,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </style>
 
 <script>
-    const ramInput = document.getElementById('ram_gb');
+    const ramInput = document.getElementById('ram_mb');
     const ramDisplay = document.getElementById('ramDisplay');
     const cpuLabel = document.getElementById('cpuLabel');
     const cpuInput = document.getElementById('cpu_cores');
