@@ -12,12 +12,13 @@ if ($vmid <= 0) {
 
 // Recupera il server corrispondente e il container associato
 $stmt = $pdo->prepare("
-    SELECT s.id AS server_id, s.container_id, c.proxmox_containerId
+    SELECT s.id, s.name, s.status, s.type, s.progress,
+           c.ip AS private_ip, c.ram_mb, c.proxmox_containerId
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id = ?
-    AND c.proxmox_containerId = ?
 ");
+
 $stmt->execute([$userId, $vmid]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
