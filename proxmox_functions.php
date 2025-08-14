@@ -78,14 +78,7 @@ function getNextFreeVmid(PDO $pdo, int $start = 101, int $end = 9999): int
 }
 
 
-/**
- * Esegue una chiamata all'API Proxmox
- *
- * @param string $url URL completo dell'endpoint API (es. https://192.168.1.251:8006/api2/json/nodes/pve/lxc/100/status/start)
- * @param array $postData Dati POST opzionali
- * @return array ['success' => true|false, 'message' => string]
- */
-function callProxmox(string $url, array $postData = []): array {
+function callProxmox(string $url, string $method = 'GET', array $postData = []): array {
     $apiToken = 'root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79';
 
     $ch = curl_init();
@@ -94,8 +87,10 @@ function callProxmox(string $url, array $postData = []): array {
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
-    if (!empty($postData)) {
-        curl_setopt($ch, CURLOPT_POST, true);
+    // Metodo HTTP
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
+
+    if (!empty($postData) && in_array(strtoupper($method), ['POST', 'PUT'])) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
     }
 
@@ -104,6 +99,7 @@ function callProxmox(string $url, array $postData = []): array {
     ]);
 
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
     curl_close($ch);
 
@@ -112,14 +108,16 @@ function callProxmox(string $url, array $postData = []): array {
     }
 
     $data = json_decode($response, true);
-    if (isset($data['data'])) {
-        return ['success' => true, 'message' => json_encode($data['data'])];
+    
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return ['success' => true, 'message' => json_encode($data['data'] ?? [])];
     } elseif (isset($data['errors'])) {
         return ['success' => false, 'message' => json_encode($data['errors'])];
     } else {
-        return ['success' => false, 'message' => 'Errore sconosciuto'];
+        return ['success' => false, 'message' => "HTTP $httpCode: $response"];
     }
 }
+
 
 /**
  * Recupera prossimo IP privato disponibile
@@ -150,31 +148,6 @@ function getNextFreePrivateIp(PDO $pdo): string
 
 
 
-
-/**
- * Attende che un container LXC esista e sia pronto
- *
- * @param int $vmid
- * @param int $timeout Timeout massimo in secondi
- * @param int $interval Intervallo di controllo in secondi
- * @return bool true se pronto, false se timeout
- */
-function waitForContainer(int $vmid, int $timeout = 10, int $interval = 2): bool {
-    $elapsed = 0;
-    while ($elapsed < $timeout) {
-        $status = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/current");
-        if ($status['success'] && isset($status['message'])) {
-            $data = json_decode($status['message'], true);
-            if (isset($data['status']) && in_array($data['status'], ['running', 'stopped'])) {
-                return true;
-            }
-        }
-        sleep($interval);
-        $elapsed += $interval;
-    }
-    return false; // timeout
-}
-
 /**
  * Calcola la swap in MB in base alla RAM assegnata
  *
@@ -195,11 +168,4 @@ function calcolaSwapMb($ramMb) {
 }
 
 
-function deleteProxmoxContainer($vmid) {
-    $res = callProxmox("/nodes/tuo_nodo/lxc/$vmid", "DELETE");
-    if (isset($res['data'])) {
-        return ['success' => true];
-    } else {
-        return ['success' => false, 'message' => $res['errors'][0] ?? 'Errore sconosciuto'];
-    }
-}
+
