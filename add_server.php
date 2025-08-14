@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- 3. Recupera il prossimo IP libero ---
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- 4. Inserisci nel DB ---
+        // --- 4. Inserisci nel DB containers ---
         $stmt = $pdo->prepare("
             INSERT INTO containers 
             (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) 
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- 5b. Installa dipendenze base per Minecraft Bedrock ---
         $sshKey = "/var/www/.ssh/id_proxmox";
-        $nodeIp = "192.168.1.251"; // IP nodo Proxmox
+        $nodeIp = "192.168.1.251";
         $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
@@ -55,16 +55,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- 6. Copia ed esegui setup_server.sh ---
         $localScript = '/var/www/setup_server.sh';
-        $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
+        $remoteTemp = "/root/setup_server.sh";
 
-        // 1. Copia script sul nodo Proxmox
         $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
         exec($copyCmd, $output, $status);
         if ($status !== 0) {
             throw new Exception("Errore copia verso nodo Proxmox: " . implode("\n", $output));
         }
 
-        // 2. Push dentro il container
         $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\" 2>&1";
         exec($pushCmd, $output, $status);
@@ -72,7 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore push dentro container: " . implode("\n", $output));
         }
 
-        // 3. Imposta permessi ed esegui in background
         $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
@@ -80,8 +77,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore esecuzione script nel container: " . implode("\n", $output));
         }
 
+        // --- 7. Inserisci nella tabella servers ---
+        $stmt = $pdo->prepare("
+            INSERT INTO servers
+            (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $serverName,
+            $userId,
+            $containerId,
+            $vmid,
+            'installing',
+            'bedrock',
+            $cores,
+            $ramGb * 1024,
+            0
+        ]);
+
         // --- Successo ---
-        echo "Script copiato ed eseguito nel container $vmid con successo!";
+        echo "Server creato con successo!";
 
         // --- Redirect alla dashboard ---
         header("Location: dashboard.php");
@@ -91,9 +106,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $e->getMessage();
     }
 }
-
-
-
 
 
 
