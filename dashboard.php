@@ -67,13 +67,18 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </p>
 
                             <div class="mt-3 d-flex justify-content-between">
-                                <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
+                                <a href="manage_server.php?id=<?= htmlspecialchars($server['id']) ?>"
+                                    class="btn btn-primary btn-sm">
+                                    Gestisci
+                                </a>
+
 
                                 <!-- Esempio dentro il ciclo dei server -->
-                                <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>" class="btn btn-danger"
-   onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-   Elimina
-</a>
+                                <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>"
+                                    class="btn btn-danger"
+                                    onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+                                    Elimina
+                                </a>
 
 
                             </div>
