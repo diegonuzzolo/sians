@@ -1,74 +1,57 @@
 <?php
 header('Content-Type: application/json');
-require 'auth_check.php';
-require 'config/config.php';
-require_once 'proxmox_functions.php';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
-$userId = $_SESSION['user_id'] ?? 0;
-$serverId = intval($_POST['server_id'] ?? 0);
+try {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception("Metodo non consentito");
+    }
 
-// Controllo proprietà
-$motd = $_POST['motd'] ?? '';
-$gamemode = $_POST['gamemode'] ?? 'survival';
-$difficulty = $_POST['difficulty'] ?? 'easy';
-$maxPlayers = intval($_POST['max_players'] ?? 10);
-$viewDistance = intval($_POST['view_distance'] ?? 6);
-$enableCommandBlocks = $_POST['enable_command_blocks'] ?? 'false';
-$levelName = $_POST['level_name'] ?? 'world';
-$seed = $_POST['seed'] ?? '';
-$spawnProtection = intval($_POST['spawn_protection'] ?? 16);
-$whiteList = $_POST['white_list'] ?? 'false';
-$whitelist = $_POST['whitelist'] ?? '';
-$blacklist = $_POST['blacklist'] ?? '';
+    $serverId = intval($_POST['server_id'] ?? 0);
+    if (!$serverId) throw new Exception("ID server non valido");
 
-// Recupero VMID del server dal DB
-$stmt = $pdo->prepare("SELECT vmid FROM servers WHERE id = ? AND user_id = ?");
-$stmt->execute([$serverId, $userId]);
-$server = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$server) {
-    echo json_encode(['success'=>false,'message'=>'Server non trovato']);
-    exit;
+    // Recupera i dati dal form
+    $props = [
+        'motd' => $_POST['motd'] ?? '',
+        'gamemode' => $_POST['gamemode'] ?? 'survival',
+        'difficulty' => $_POST['difficulty'] ?? 'easy',
+        'max_players' => max(1, min(100, intval($_POST['max_players'] ?? 10))),
+        'view_distance' => max(2, min(32, intval($_POST['view_distance'] ?? 6))),
+        'enable_command_blocks' => ($_POST['enable_command_blocks'] ?? 'false') === 'true' ? 'true' : 'false',
+        'level_name' => $_POST['level_name'] ?? 'world',
+        'seed' => $_POST['seed'] ?? '',
+        'spawn_protection' => max(0, intval($_POST['spawn_protection'] ?? 16)),
+        'white_list' => ($_POST['white_list'] ?? 'false') === 'true' ? 'true' : 'false',
+        'whitelist' => $_POST['whitelist'] ?? '',
+        'blacklist' => $_POST['blacklist'] ?? ''
+    ];
+
+    // Percorso dentro il container
+    $containerPath = "/root/minecraft_bedrock/server_$serverId";
+    if (!is_dir($containerPath)) {
+        mkdir($containerPath, 0755, true);
+    }
+
+    $serverProperties = "";
+    foreach ($props as $key => $value) {
+        // whitelist e blacklist li gestiamo separatamente
+        if (in_array($key, ['whitelist', 'blacklist'])) continue;
+        $serverProperties .= "$key=$value\n";
+    }
+
+    $propertiesFile = $containerPath . "/server.properties";
+    if (file_put_contents($propertiesFile, $serverProperties) === false) {
+        throw new Exception("Errore scrittura server.properties in $propertiesFile");
+    }
+
+    // Scrive whitelist e blacklist
+    file_put_contents($containerPath . "/whitelist.txt", $props['whitelist']);
+    file_put_contents($containerPath . "/blacklist.txt", $props['blacklist']);
+
+    echo json_encode(['success' => true, 'message' => "Server aggiornato con successo"]);
+
+} catch (Throwable $e) {
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
-$vmid = intval($server['vmid']);
-
-// Genero contenuto server.properties
-$props = <<<EOT
-motd=$motd
-gamemode=$gamemode
-difficulty=$difficulty
-max-players=$maxPlayers
-view-distance=$viewDistance
-enable-command-block=$enableCommandBlocks
-level-name=$levelName
-level-seed=$seed
-spawn-protection=$spawnProtection
-white-list=$whiteList
-EOT;
-
-if(!empty($whitelist)) {
-    $props .= "\nwhitelist=".str_replace("\n", ",", $whitelist);
-}
-if(!empty($blacklist)) {
-    $props .= "\nblacklist=".str_replace("\n", ",", $blacklist);
-}
-
-// Scrivo temporaneamente su host
-$tmpFile = "/tmp/server_{$serverId}.properties";
-file_put_contents($tmpFile, $props);
-
-// Copio nel container
-exec("pct push $vmid $tmpFile /root/minecraft_bedrock/server.properties", $output, $ret);
-if($ret !== 0){
-    echo json_encode(['success'=>false,'message'=>'Errore copia server.properties: '.implode("\n",$output)]);
-    exit;
-}
-
-// Aggiorno DB (solo esempio, puoi aggiornare altri campi se vuoi)
-$stmt = $pdo->prepare("UPDATE servers SET motd=?, gamemode=?, difficulty=?, max_players=?, view_distance=?, enable_command_blocks=?, level_name=?, seed=?, spawn_protection=?, white_list=?, whitelist=?, blacklist=? WHERE id=? AND user_id=?");
-$stmt->execute([
-    $motd, $gamemode, $difficulty, $maxPlayers, $viewDistance, $enableCommandBlocks,
-    $levelName, $seed, $spawnProtection, $whiteList, $whitelist, $blacklist, $serverId, $userId
-]);
-
-echo json_encode(['success' => true, 'message' => 'test']);
 exit;
