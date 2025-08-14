@@ -38,28 +38,33 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="alert alert-info">Non hai ancora server attivi.</div>
     <?php else: ?>
         <div class="row g-4">
-            <?php foreach ($servers as $server): ?>
-                <div class="col-md-6 col-lg-4">
-                    <div class="card bg-secondary text-white shadow rounded-4 p-3 card-hover">
-                        <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
-                        <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip'] ?? 'N/A') ?></p>
-                        <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_mb'] ?? 0) ?> MB</p>
-                        <p class="mb-2">- <?= htmlspecialchars($server['type']) ?></p>
-
-                        <div class="progress mb-2" style="height: 20px;">
-                            <div id="progress-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
-                                 style="width: <?= $server['progress'] ?? 0 ?>%">
-                                 <?= $server['progress'] ?? 0 ?>%
-                            </div>
-                        </div>
-
-                        <p id="status-<?= $server['id'] ?>" class="mb-2">Stato: <?= htmlspecialchars($server['status']) ?></p>
-
-                        <a href="server_panel.php?id=<?= $server['id'] ?>" class="btn btn-primary w-100">Gestisci</a>
-                    </div>
+    <?php foreach ($servers as $server): ?>
+        <div class="col-md-6 col-lg-4">
+            <div class="card bg-secondary text-white shadow rounded-4 p-3">
+                <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
+                <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip']) ?></p>
+                <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
+                
+                <div class="progress mb-2" style="height: 20px;">
+                    <div id="progress-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
+                         style="width: 0%">In attesa...</div>
                 </div>
-            <?php endforeach; ?>
+
+                <p id="status-<?= $server['id'] ?>" class="mb-0">Stato: <?= htmlspecialchars($server['status']) ?></p>
+
+                <div class="mt-3 d-flex justify-content-between">
+                    <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
+                    
+                    <form method="POST" action="delete_server.php" onsubmit="return confirm('Sei sicuro di eliminare questo server?');">
+                        <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
+                        <button type="submit" class="btn btn-danger btn-sm">Elimina</button>
+                    </form>
+                </div>
+            </div>
         </div>
+    <?php endforeach; ?>
+</div>
+
     <?php endif; ?>
 </div>
 

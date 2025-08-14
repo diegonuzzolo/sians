@@ -25,30 +25,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
-        // --- Recupera risorse disponibili ---
-        $stmt = $pdo->prepare("SELECT * FROM resources WHERE id = 1 FOR UPDATE"); // blocco per evitare race condition
-        $stmt->execute();
-        $resources = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $availableCores = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
-        $availableRamMb = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb'];
-        $availableStorageGb = $resources['total_storage_gb'] - $resources['used_storage_gb'];
-
-        if ($cores > $availableCores || $ramGb * 1024 > $availableRamMb || $storageGb > $availableStorageGb) {
-            throw new Exception("Non ci sono abbastanza risorse disponibili per creare il server.");
-        }
-
-        // --- Aggiorna risorse usate ---
         $stmt = $pdo->prepare("
-    UPDATE resources SET
-    used_cpu_cores = used_cpu_cores + ?,
-    used_ram_mb = used_ram_mb + ?,
-    used_storage_gb = used_storage_gb + ?
-    WHERE id = 1
+    INSERT INTO servers 
+    (name, user_id, container_id, proxmox_containerId, status, cpu_cores, ram_mb, assigned_cpu_cores, assigned_ram_mb, assigned_storage_gb)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ");
-        $stmt->execute([$cores, $ramGb * 1024, $storageGb]);
-
-
+        $stmt->execute([
+            $serverName,
+            $userId,
+            $containerId,
+            $vmid,
+            'installing',
+            $cores,
+            $ramGb * 1024,
+            $cores,
+            $ramGb * 1024,
+            $storageGb
+        ]);
 
 
 
