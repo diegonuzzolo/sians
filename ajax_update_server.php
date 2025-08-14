@@ -1,7 +1,8 @@
 <?php
 header('Content-Type: application/json');
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+ob_start();  // cattura output indesiderato
+ini_set('display_errors', 0);
+error_reporting(0);
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -52,6 +53,7 @@ try {
     echo json_encode(['success' => true, 'message' => "Server aggiornato con successo"]);
 
 } catch (Throwable $e) {
+    ob_clean();
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
 exit;
