@@ -4,16 +4,16 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Recupera tutti i server dell’utente
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type, s.progress,
-           c.ip AS private_ip, c.ram_mb
+           c.ip AS private_ip, c.ram_mb, c.proxmox_containerId
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id = ?
 ");
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 
 <!DOCTYPE html>
@@ -70,10 +70,10 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
 
                                 <!-- Esempio dentro il ciclo dei server -->
-                                <a href="delete_server.php?vmid=<?= $server['proxmox_containerId'] ?>" class="btn btn-danger"
-                                    onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                    Elimina
-                                </a>
+                                <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>" class="btn btn-danger"
+   onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+   Elimina
+</a>
 
 
                             </div>
