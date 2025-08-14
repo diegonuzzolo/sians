@@ -22,11 +22,12 @@ function createLxcContainer(
     $apiToken = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 
     $url = "$host/api2/json/nodes/pve/lxc";
-
+    $swapMb = calcolaSwapMb($ramGb * 1024);
     $params = [
         'vmid' => $vmid,
         'hostname' => $hostname,
         'memory' => $ramGb * 1024,
+        'swap' => $swapMb,
         'rootfs' => "local-lvm:64", // esempio "local-lvm:8"
         'cores' => $cores,
         'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
@@ -174,3 +175,21 @@ function waitForContainer(int $vmid, int $timeout = 10, int $interval = 2): bool
     return false; // timeout
 }
 
+/**
+ * Calcola la swap in MB in base alla RAM assegnata
+ *
+ * @param int $ramMb  RAM in MB
+ * @return int        Swap in MB
+ */
+function calcolaSwapMb($ramMb) {
+    if ($ramMb <= 2048) {
+        // Piccoli server: swap doppia
+        return $ramMb * 2;
+    } elseif ($ramMb <= 8192) {
+        // Medi server: swap 1.5x
+        return (int) round($ramMb * 1.5);
+    } else {
+        // Grandi server: swap = RAM
+        return $ramMb;
+    }
+}
