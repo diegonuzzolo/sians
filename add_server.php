@@ -18,7 +18,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
+
+
+
     try {
+
+
+
+        // --- Recupera risorse disponibili ---
+        $stmt = $pdo->prepare("SELECT * FROM resources WHERE id = 1 FOR UPDATE"); // blocco per evitare race condition
+        $stmt->execute();
+        $resources = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $availableCores = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
+        $availableRamMb = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb'];
+        $availableStorageGb = $resources['total_storage_gb'] - $resources['used_storage_gb'];
+
+        if ($cores > $availableCores || $ramGb * 1024 > $availableRamMb || $storageGb > $availableStorageGb) {
+            throw new Exception("Non ci sono abbastanza risorse disponibili per creare il server.");
+        }
+
+        // --- Aggiorna risorse usate ---
+        $stmt = $pdo->prepare("
+    UPDATE resources SET
+    used_cpu_cores = used_cpu_cores + ?,
+    used_ram_mb = used_ram_mb + ?,
+    used_storage_gb = used_storage_gb + ?
+    WHERE id = 1
+");
+        $stmt->execute([$cores, $ramGb * 1024, $storageGb]);
+
+
+
+
+
+
         // --- 2. Trova un VMID libero ---
         $vmid = getNextFreeVmid($pdo);
 
