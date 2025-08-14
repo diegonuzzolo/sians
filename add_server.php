@@ -34,25 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
-        // --- 1. Controlla risorse disponibili ---
-        $resStmt = $pdo->query("SELECT * FROM resources WHERE id = 1");
-        $resources = $resStmt->fetch(PDO::FETCH_ASSOC);
+ 
+        
 
-        if (!$resources || $resources['used_cpu_cores'] + $cores > $resources['total_cpu_cores']
-            || $resources['used_ram_mb'] + ($ramGb*1024) > $resources['total_ram_gb']*1024
-            || $resources['used_storage_gb'] + $storageGb > $resources['total_storage_gb']) {
-            throw new Exception("Risorse insufficienti per creare il server.");
-        }
 
-        // --- 2. Aggiorna risorse usate ---
-        $updateRes = $pdo->prepare("
-            UPDATE resources SET
-            used_cpu_cores = used_cpu_cores + ?,
-            used_ram_mb = used_ram_mb + ?,
-            used_storage_gb = used_storage_gb + ?
-            WHERE id = 1
-        ");
-        $updateRes->execute([$cores, $ramGb*1024, $storageGb]);
 
         // --- 3. Trova VMID e IP liberi ---
         $vmid = getNextFreeVmid($pdo);
