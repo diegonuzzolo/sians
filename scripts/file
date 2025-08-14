@@ -1,0 +1,91 @@
+#!/bin/bash
+# setup_server.sh
+# Script di setup server Minecraft Bedrock
+
+# --- Configura locale per evitare warning ---
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+
+# --- Aggiorna repository e installa pacchetti necessari ---
+apt-get update -y
+apt-get install -y curl jq unzip screen locales
+
+# --- Genera locale se necessario ---
+locale-gen C.UTF-8
+update-locale LANG=C.UTF-8
+
+# --- Percorso del server Bedrock nel container ---
+SERVER_DIR="/root/minecraft_bedrock"
+
+# Crea cartella se non esiste
+mkdir -p "$SERVER_DIR"
+cd "$MC_DIR" || exit 1
+
+SERVER_ID=$1
+TOKEN="ecb6843d7a4c262ce25055f80ac747d0878aa2435b20b9fb0bf0270e95cfc621"
+UPDATE_URL="https://sians.it/update_status.php"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+update_status() {
+    local status=$1
+    curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+         -H "Content-Type: application/json" \
+         -d "{\"server_id\":$SERVER_ID,\"status\":\"$status\"}" \
+         "$UPDATE_URL"
+}
+
+# --- Inizio installazione ---
+log "Installazione server Bedrock iniziata"
+update_status "installing"
+
+# --- Ottieni URL di download ---
+log "Ottenimento URL di download..."
+DOWNLOAD_URL=$(curl -s https://net-secondary.web.minecraft-services.net/api/v1.0/download/links | jq -r '.result.links[] | select(.downloadType=="serverBedrockLinux") | .downloadUrl')
+if [ -z "$DOWNLOAD_URL" ]; then
+    log "Errore: impossibile ottenere l'URL di download"
+    exit 1
+fi
+
+# --- Scarica server Bedrock ---
+log "Download server Bedrock..."
+wget -q --show-progress "$DOWNLOAD_URL" -O bedrock-server.zip
+if [ $? -ne 0 ]; then
+    log "Errore download server Bedrock"
+    exit 1
+fi
+
+# --- Estrai server ---
+unzip -o bedrock-server.zip
+rm bedrock-server.zip
+update_status "extracted"
+
+# --- Accetta EULA ---
+echo "eula=true" > eula.txt
+
+# --- Crea start.sh e stop.sh ---
+cat > start.sh << 'EOF'
+#!/bin/bash
+cd "$(dirname "$0")"
+LD_LIBRARY_PATH=. ./bedrock_server
+EOF
+# --- Disabilita telemetria ---
+chmod +x start.sh
+
+cat > stop.sh << 'EOF'
+#!/bin/bash
+pkill -f bedrock_server
+EOF
+
+chmod +x stop.sh
+
+# --- Aggiornamento finale ---
+update_status "running"
+log "Server Bedrock pronto e avviato"
+# --- Imposta permessi ---
+chown -R root:root "$SERVER_DIR"
+chmod -R 755 "$SERVER_DIR"
+
+echo "Setup iniziale completato. Cartella server: $SERVER_DIR"
