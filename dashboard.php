@@ -55,7 +55,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="mt-3 d-flex justify-content-between">
                     <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
                     
-                    <form method="POST" action="delete_server.php" onsubmit="return confirm('Sei sicuro di eliminare questo server?');">
+                    <form method="POST" action="delete_server.php?id=<?= $server['id'] ?>" onsubmit="return confirm('Sei sicuro di eliminare questo server?');">
                         <input type="hidden" name="server_id" value="<?= $server['id'] ?>">
                         <button type="submit" class="btn btn-danger btn-sm">Elimina</button>
                     </form>
