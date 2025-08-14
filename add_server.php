@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="ram_mb" class="form-label text-white fw-semibold">RAM (GB) <span id="ramDisplay"
                             class="fw-bold"></span></label>
                     <input type="range" name="ram_mb" id="ram_mb" class="form-range" min="2" max="20" step="1"
-                        value="<?= htmlspecialchars($_POST['ram_mb'] ?? 4) ?>">
+                        value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                     <div class="d-flex justify-content-between text-white small mt-1">
                         <span>2GB</span>
                         <span>20GB</span>
