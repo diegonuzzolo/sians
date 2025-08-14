@@ -27,7 +27,7 @@ function createLxcContainer(
         'vmid' => $vmid,
         'hostname' => $hostname,
         'memory' => $ramGb * 1024,
-        'rootfs' => "$storage:64G", // esempio "local-lvm:8"
+        'rootfs' => "local-lvm:64G", // esempio "local-lvm:8"
         'cores' => $cores,
         'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
         'ostemplate' => $template,
