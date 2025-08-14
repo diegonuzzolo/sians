@@ -17,33 +17,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     try {
-
-
-        // --- 7. Inserisci server nel DB ---
-        $stmt = $pdo->prepare("
-            INSERT INTO servers
-            (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
-
-        $serverId = $pdo->lastInsertId();
-
-
-
-
-
-
-
-
-
-
-
-        // --- 3. Trova VMID e IP liberi ---
+        // --- 1. Trova VMID e IP liberi ---
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- 4. Inserisci container nel DB ---
+        // --- 2. Inserisci server nel DB (container_id = NULL per ora) ---
+        $stmt = $pdo->prepare("
+            INSERT INTO servers
+            (name, user_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$serverName, $userId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
+        $serverId = $pdo->lastInsertId();
+
+        // --- 3. Inserisci container nel DB collegato al server ---
         $stmt = $pdo->prepare("
             INSERT INTO containers
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
@@ -51,6 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
+
+        // --- 4. Aggiorna server con container_id ---
+        $stmt = $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?");
+        $stmt->execute([$containerId, $serverId]);
 
         // --- 5. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
@@ -64,14 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251";
 
-        // installa curl, jq, unzip, screen
         $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
         if ($status !== 0)
             throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
-        // copia ed esegui setup_server.sh
         $localScript = '/var/www/setup_server.sh';
         $remoteTemp = "/root/setup_server.sh";
 
@@ -92,8 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($status !== 0)
             throw new Exception("Errore esecuzione script: " . implode("\n", $output));
 
-
-
         header("Location: dashboard.php");
         exit;
 
@@ -101,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $e->getMessage();
     }
 }
+
 
 ?>
 
