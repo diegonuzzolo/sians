@@ -12,109 +12,86 @@ $stmt = $pdo->prepare("
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id = ?
 ");
-
-
-// --- 8. Recupera subito il proxmox_containerId dal DB ---
-$stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id = ?");
-$stmt->execute([$serverId]);
-$serverData = $stmt->fetch(PDO::FETCH_ASSOC);
-
-$proxmoxVmid = $serverData['proxmox_containerId']; // <-- VMID da usare in dashboard o delete_server.php
-
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .bg-bedrock {
-            color: #00c8ff;
-            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-        }
-
-        .card-hover:hover {
-            transform: scale(1.03);
-            transition: 0.2s;
-            cursor: pointer;
-        }
-
-        .progress-bar {
-            transition: width 0.5s;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+.bg-bedrock { color: #00c8ff; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+.card-hover:hover { transform: scale(1.03); transition: 0.2s; cursor: pointer; }
+.progress-bar { transition: width 0.5s; }
+</style>
 </head>
-
 <body class="bg-dark text-white">
-    <?php include "includes/header.php"; ?>
+<?php include "includes/header.php"; ?>
 
-    <div class="container my-5">
-        <h2 class="mb-4 text-center bg-bedrock">🖥️ I tuoi server</h2>
+<div class="container my-5">
+    <h2 class="mb-4 text-center bg-bedrock">🖥️ I tuoi server</h2>
 
-        <?php if (empty($servers)): ?>
-            <div class="alert alert-info">Non hai ancora server attivi.</div>
-        <?php else: ?>
-            <div class="row g-4">
-                <?php foreach ($servers as $server): ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card bg-secondary text-white shadow rounded-4 p-3">
-                            <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
-                            <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip']) ?></p>
-                            <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
+    <?php if (empty($servers)): ?>
+        <div class="alert alert-info">Non hai ancora server attivi.</div>
+    <?php else: ?>
+        <div class="row g-4">
+    <?php foreach ($servers as $server): ?>
+        <div class="col-md-6 col-lg-4">
+            <div class="card bg-secondary text-white shadow rounded-4 p-3">
+                <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
+                <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip']) ?></p>
+                <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
+                
+                <div class="progress mb-2" style="height: 20px;">
+                    <div id="progress-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
+                         style="width: 0%">In attesa...</div>
+                </div>
 
-                            <div class="progress mb-2" style="height: 20px;">
-                                <div id="progress-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
-                                    style="width: 0%">In attesa...</div>
-                            </div>
+                <p id="status-<?= $server['id'] ?>" class="mb-0">Stato: <?= htmlspecialchars($server['status']) ?></p>
 
-                            <p id="status-<?= $server['id'] ?>" class="mb-0">Stato: <?= htmlspecialchars($server['status']) ?>
-                            </p>
+                <div class="mt-3 d-flex justify-content-between">
+                    <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
+                    
+                    <!-- Esempio dentro il ciclo dei server -->
+<a href="delete_server.php?vmid=<?= $server['proxmox_containerId'] ?>" 
+   class="btn btn-danger" 
+   onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+   Elimina
+</a>
 
-                            <div class="mt-3 d-flex justify-content-between">
-                                <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-sm">Gestisci</a>
-
-                                <!-- Esempio dentro il ciclo dei server -->
-                                <a href="delete_server.php?vmid=<?= $proxmoxVmid ?>" class="btn btn-danger"
-                                    onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                    Elimina
-                                </a>
-
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+                </div>
             </div>
+        </div>
+    <?php endforeach; ?>
+</div>
 
-        <?php endif; ?>
-    </div>
+    <?php endif; ?>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
-        // Aggiornamento dinamico dello stato e progress bar ogni 5 secondi
-        setInterval(() => {
-            <?php foreach ($servers as $server): ?>
-                fetch('check_status.php?id=<?= $server['id'] ?>')
-                    .then(res => res.json())
-                    .then(data => {
-                        const statusEl = document.getElementById('status-<?= $server['id'] ?>');
-                        const progressEl = document.getElementById('progress-<?= $server['id'] ?>');
-                        if (statusEl) statusEl.textContent = "Stato: " + data.status;
-                        if (progressEl) {
-                            progressEl.style.width = data.progress + "%";
-                            progressEl.textContent = data.progress + "%";
-                        }
-                    });
-            <?php endforeach; ?>
-        }, 5000);
-    </script>
+<script>
+// Aggiornamento dinamico dello stato e progress bar ogni 5 secondi
+setInterval(() => {
+    <?php foreach ($servers as $server): ?>
+        fetch('check_status.php?id=<?= $server['id'] ?>')
+            .then(res => res.json())
+            .then(data => {
+                const statusEl = document.getElementById('status-<?= $server['id'] ?>');
+                const progressEl = document.getElementById('progress-<?= $server['id'] ?>');
+                if(statusEl) statusEl.textContent = "Stato: " + data.status;
+                if(progressEl) {
+                    progressEl.style.width = data.progress + "%";
+                    progressEl.textContent = data.progress + "%";
+                }
+            });
+    <?php endforeach; ?>
+}, 5000);
+</script>
 
-    <?php include "includes/footer.php"; ?>
+<?php include "includes/footer.php"; ?>
 </body>
-
 </html>

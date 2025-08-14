@@ -21,9 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $resStmt = $pdo->query("SELECT * FROM resources WHERE id = 1");
         $resources = $resStmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$resources || $resources['used_cpu_cores'] + $cores > $resources['total_cpu_cores']
-            || $resources['used_ram_mb'] + ($ramGb*1024) > $resources['total_ram_gb']*1024
-            || $resources['used_storage_gb'] + $storageGb > $resources['total_storage_gb']) {
+        if (
+            !$resources || $resources['used_cpu_cores'] + $cores > $resources['total_cpu_cores']
+            || $resources['used_ram_mb'] + ($ramGb * 1024) > $resources['total_ram_gb'] * 1024
+            || $resources['used_storage_gb'] + $storageGb > $resources['total_storage_gb']
+        ) {
             throw new Exception("Risorse insufficienti per creare il server.");
         }
 
@@ -35,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             used_storage_gb = used_storage_gb + ?
             WHERE id = 1
         ");
-        $updateRes->execute([$cores, $ramGb*1024, $storageGb]);
+        $updateRes->execute([$cores, $ramGb * 1024, $storageGb]);
 
         // --- 3. Trova VMID e IP liberi ---
         $vmid = getNextFreeVmid($pdo);
@@ -47,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
         $containerId = $pdo->lastInsertId();
 
         // --- 5. Crea container su Proxmox ---
@@ -66,7 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
         // copia ed esegui setup_server.sh
         $localScript = '/var/www/setup_server.sh';
@@ -74,17 +77,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore copia script: " . implode("\n", $output));
 
         $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
         $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore esecuzione script: " . implode("\n", $output));
 
         // --- 7. Inserisci server nel DB ---
         $stmt = $pdo->prepare("
@@ -92,7 +98,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb*1024, 0]);
+        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
+
+
+        // --- 8. Recupera subito il proxmox_containerId dal DB ---
+        $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id = ?");
+        $stmt->execute([$serverId]);
+        $serverData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $proxmoxVmid = $serverData['proxmox_containerId']; // <-- VMID da usare in dashboard o delete_server.php
 
         header("Location: dashboard.php");
         exit;
