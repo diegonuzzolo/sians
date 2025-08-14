@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- 6. Copia ed esegui setup_server.sh ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251"; // IP nodo Proxmox
-        $localScript = "/root/setup_server.sh"; // percorso sul webserver
+        $localScript = '/var/www/setup_server.sh';
         $remoteTemp = "/root/setup_server.sh";  // percorso temporaneo su Proxmox
         $containerId = $vmid; // VMID appena creato
 
