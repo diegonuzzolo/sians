@@ -19,13 +19,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
 
 
-                // --- 7. Inserisci server nel DB ---
+        // --- 7. Inserisci server nel DB ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
             (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb*1024, 0]);
+        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
 
         $serverId = $pdo->lastInsertId();
 
@@ -34,8 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
- 
-        
+
+
 
 
 
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores, $serverId]);
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
 
         // --- 5. Crea container su Proxmox ---
@@ -68,7 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
         // copia ed esegui setup_server.sh
         $localScript = '/var/www/setup_server.sh';
@@ -76,17 +77,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore copia script: " . implode("\n", $output));
 
         $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
         $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n",$output));
+        if ($status !== 0)
+            throw new Exception("Errore esecuzione script: " . implode("\n", $output));
 
 
 
