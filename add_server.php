@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        sleep(10);
+        sleep(4);
 
         // --- 6. Installa dipendenze e setup server ---
         $sshKey = "/var/www/.ssh/id_proxmox";
