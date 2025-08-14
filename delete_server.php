@@ -4,20 +4,21 @@ require 'config/config.php';
 require_once 'proxmox_functions.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
-$serverId = intval($_GET['id'] ?? 0);
+$vmid = intval($_GET['vmid'] ?? 0);
 
-if ($serverId <= 0) {
-    die("ID server non valido.");
+if ($vmid <= 0) {
+    die("VMID non valido.");
 }
 
 try {
-    // --- 1. Recupera info server e container ---
+    // --- 1. Recupera info server e container tramite VMID ---
     $stmt = $pdo->prepare("
-        SELECT cpu_cores, ram_mb, storage_gb, proxmox_containerId, container_id 
-        FROM servers 
-        WHERE id = ? AND user_id = ?
+        SELECT s.id AS server_id, s.cpu_cores, s.ram_mb, c.storage_gb, s.container_id
+        FROM servers s
+        JOIN containers c ON s.container_id = c.id
+        WHERE s.proxmox_containerId = ? AND s.user_id = ?
     ");
-    $stmt->execute([$serverId, $userId]);
+    $stmt->execute([$vmid, $userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$server) throw new Exception("Server non trovato.");
@@ -35,7 +36,6 @@ try {
     // --- 3. Elimina container da Proxmox ---
     $sshKey = "/var/www/.ssh/id_proxmox";
     $nodeIp = "192.168.1.251";
-    $vmid = $server['proxmox_containerId'];
 
     $delCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
         . "\"pct stop $vmid && pct destroy $vmid\"";
@@ -43,7 +43,7 @@ try {
     if ($status !== 0) throw new Exception("Errore eliminazione container Proxmox: " . implode("\n",$output));
 
     // --- 4. Elimina record server e container dal DB ---
-    $pdo->prepare("DELETE FROM servers WHERE id = ?")->execute([$serverId]);
+    $pdo->prepare("DELETE FROM servers WHERE id = ?")->execute([$server['server_id']]);
     if ($server['container_id']) {
         $pdo->prepare("DELETE FROM containers WHERE id = ?")->execute([$server['container_id']]);
     }
