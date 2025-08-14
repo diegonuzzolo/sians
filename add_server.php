@@ -17,6 +17,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     try {
+
+
+                // --- 7. Inserisci server nel DB ---
+        $stmt = $pdo->prepare("
+            INSERT INTO servers
+            (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb*1024, 0]);
+
+        $serverId = $pdo->lastInsertId();
+
+
+
+
+
+
         // --- 1. Controlla risorse disponibili ---
         $resStmt = $pdo->query("SELECT * FROM resources WHERE id = 1");
         $resources = $resStmt->fetch(PDO::FETCH_ASSOC);
@@ -44,10 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- 4. Inserisci container nel DB ---
         $stmt = $pdo->prepare("
             INSERT INTO containers
-            (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
 
         // --- 5. Crea container su Proxmox ---
@@ -86,13 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exec($execCmd, $output, $status);
         if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n",$output));
 
-        // --- 7. Inserisci server nel DB ---
-        $stmt = $pdo->prepare("
-            INSERT INTO servers
-            (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb*1024, 0]);
+
 
         header("Location: dashboard.php");
         exit;
