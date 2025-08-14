@@ -12,6 +12,15 @@ $stmt = $pdo->prepare("
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id = ?
 ");
+
+
+// --- 8. Recupera subito il proxmox_containerId dal DB ---
+$stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id = ?");
+$stmt->execute([$serverId]);
+$serverData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$proxmoxVmid = $serverData['proxmox_containerId']; // <-- VMID da usare in dashboard o delete_server.php
+
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
