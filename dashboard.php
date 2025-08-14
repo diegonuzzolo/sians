@@ -6,7 +6,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 
 // Recupera tutti i server dell’utente
 $stmt = $pdo->prepare("
-    SELECT s.id, s.name, s.status, s.type, s.version, s.progress,
+    SELECT s.id, s.name, s.status, s.type, s.progress,
            c.ip AS private_ip, c.ram_gb
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
