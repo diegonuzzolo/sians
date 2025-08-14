@@ -193,3 +193,13 @@ function calcolaSwapMb($ramMb) {
         return $ramMb;
     }
 }
+
+
+function deleteProxmoxContainer($vmid) {
+    $res = callProxmox("/nodes/tuo_nodo/lxc/$vmid", "DELETE");
+    if (isset($res['data'])) {
+        return ['success' => true];
+    } else {
+        return ['success' => false, 'message' => $res['errors'][0] ?? 'Errore sconosciuto'];
+    }
+}
