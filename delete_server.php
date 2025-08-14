@@ -37,7 +37,7 @@ try {
     if (!$stopResult['success']) {
         throw new Exception("Errore stop container: " . $stopResult['message']);
     }
-
+    sleep(4);
     // --- 3b. Distruggi container ---
     $destroyUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
     $destroyResult = callProxmox($destroyUrl, 'DELETE');
