@@ -11,97 +11,86 @@ $userId = $_SESSION['user_id'] ?? 0;
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    // --- 1. Dati dal form ---
-    $ramGb = intval($_POST['ram_gb'] ?? 2);       // RAM richiesta in GB
+    $ramGb = intval($_POST['ram_gb'] ?? 2);  // input in GB
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     try {
+        // --- 1. Controlla risorse disponibili ---
+        $resStmt = $pdo->query("SELECT * FROM resources WHERE id = 1");
+        $resources = $resStmt->fetch(PDO::FETCH_ASSOC);
 
-        // --- 1b. Controlla risorse disponibili ---
-        $stmt = $pdo->query("SELECT total_cpu_cores, used_cpu_cores, total_ram_gb, used_ram_mb, total_storage_gb, used_storage_gb FROM resources WHERE id = 1");
-        $resources = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$resources || $resources['used_cpu_cores'] + $cores > $resources['total_cpu_cores']
+            || $resources['used_ram_mb'] + ($ramGb*1024) > $resources['total_ram_gb']*1024
+            || $resources['used_storage_gb'] + $storageGb > $resources['total_storage_gb']) {
+            throw new Exception("Risorse insufficienti per creare il server.");
+        }
 
-        if (!$resources) throw new Exception("Risorse non configurate");
-
-        $availableCores = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
-        $availableRamGb = $resources['total_ram_gb'] - ($resources['used_ram_mb'] / 1024);
-        $availableStorageGb = $resources['total_storage_gb'] - $resources['used_storage_gb'];
-
-        if ($cores > $availableCores) throw new Exception("CPU insufficiente disponibile");
-        if ($ramGb > $availableRamGb) throw new Exception("RAM insufficiente disponibile");
-        if ($storageGb > $availableStorageGb) throw new Exception("Storage insufficiente disponibile");
-
-        // --- 2. Trova un VMID libero ---
-        $vmid = getNextFreeVmid($pdo);
-
-        // --- 3. Recupera il prossimo IP libero ---
-        $vmIp = getNextFreePrivateIp($pdo);
-
-        // --- 4. Inserisci nel DB containers ---
-        $stmt = $pdo->prepare("
-            INSERT INTO containers 
-            (proxmox_containerId, ram_gb, storage_gb, user_id, hostname, ip, status, cores) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([$vmid, $ramGb, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
-        $containerId = $pdo->lastInsertId();
-
-        // --- 5. Aggiorna tabella risorse ---
-        $stmt = $pdo->prepare("
+        // --- 2. Aggiorna risorse usate ---
+        $updateRes = $pdo->prepare("
             UPDATE resources SET
-                used_cpu_cores = used_cpu_cores + ?,
-                used_ram_mb = used_ram_mb + ?,
-                used_storage_gb = used_storage_gb + ?
+            used_cpu_cores = used_cpu_cores + ?,
+            used_ram_mb = used_ram_mb + ?,
+            used_storage_gb = used_storage_gb + ?
             WHERE id = 1
         ");
-        $stmt->execute([$cores, $ramGb * 1024, $storageGb]);
+        $updateRes->execute([$cores, $ramGb*1024, $storageGb]);
 
-        // --- 6. Crea il container su Proxmox ---
+        // --- 3. Trova VMID e IP liberi ---
+        $vmid = getNextFreeVmid($pdo);
+        $vmIp = getNextFreePrivateIp($pdo);
+
+        // --- 4. Inserisci container nel DB ---
+        $stmt = $pdo->prepare("
+            INSERT INTO containers
+            (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores]);
+        $containerId = $pdo->lastInsertId();
+
+        // --- 5. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
         if (!$createResult['success']) {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        sleep(4); // Attesa per container pronto
-
-        // --- 7. Installa dipendenze base nel container ---
+        // --- 6. Installa dipendenze e setup server ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251";
+
+        // installa curl, jq, unzip, screen
         $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
-        if ($status !== 0) {
-            throw new Exception("Errore installazione dipendenze nel container: " . implode("\n", $output));
-        }
+        if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n",$output));
 
-        // --- 8. Copia ed esegui setup_server.sh ---
+        // copia ed esegui setup_server.sh
         $localScript = '/var/www/setup_server.sh';
         $remoteTemp = "/root/setup_server.sh";
 
-        $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp 2>&1";
+        $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore copia script sul nodo Proxmox");
+        if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n",$output));
 
         $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct push $vmid $remoteTemp /root/setup_server.sh\" 2>&1";
+            . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore push dentro container");
+        if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n",$output));
 
         $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore esecuzione script nel container");
+        if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n",$output));
 
-        // --- 9. Inserisci nella tabella servers ---
+        // --- 7. Inserisci server nel DB ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
             (name, user_id, container_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
+        $stmt->execute([$serverName, $userId, $containerId, $vmid, 'installing', 'bedrock', $cores, $ramGb*1024, 0]);
 
         header("Location: dashboard.php");
         exit;
