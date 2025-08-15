@@ -11,14 +11,15 @@ $userId = $_SESSION['user_id'] ?? 0;
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ramGb = intval($_POST['ram_gb'] ?? 2);  
+    $ramGb = intval($_POST['ram_gb'] ?? 2);  // input in GB
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     try {
-        // --- 0. Controllo risorse disponibili ---
-        $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
+
+
+         $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
         $resources = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
@@ -29,17 +30,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Risorse insufficienti per creare il server.");
         }
 
+
         // --- 1. Trova VMID e IP liberi ---
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- 2. Inserisci server nel DB (container_id = NULL per ora) ---
+        // --- 2. Inserisci server nel DB (status = stopped) ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
             (name, user_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $vmid, 'stopped', 'bedrock', $cores, $ramGb * 1024, 0]);
+        $initialStatus = 'stopped';
+        $stmt->execute([$serverName, $userId, $vmid, $initialStatus, 'bedrock', $cores, $ramGb * 1024, 0]);
         $serverId = $pdo->lastInsertId();
 
         // --- 3. Inserisci container nel DB collegato al server ---
@@ -48,14 +51,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'stopped', $cores, $serverId]);
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'Spento', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
 
         // --- 4. Aggiorna server con container_id ---
         $stmt = $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?");
         $stmt->execute([$containerId, $serverId]);
 
-        // --- 5. Aggiorna tabella resources ---
+
+
+             // --- 5. Aggiorna tabella resources ---
         $stmt = $pdo->prepare("
             UPDATE resources 
             SET used_ram_mb = used_ram_mb + ?, 
@@ -65,38 +70,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->execute([$ramGb*1024, $storageGb, $cores]);
 
-        // --- 6. Crea container su Proxmox ---
+        // --- 5. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
         if (!$createResult['success']) {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        // --- 7. Setup server via SSH ---
+        sleep(4); // attesa container ready
+
+        // --- 6. Installa dipendenze e setup server ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251";
+        $localScript = '/var/www/setup_server.sh';
+        $remoteTemp = "/root/setup_server.sh";
 
-        $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // Installa dipendenze nel container
+        $depsCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
         if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
-        $localScript = '/var/www/setup_server.sh';
-        $remoteTemp = "/root/setup_server.sh";
-
-        $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
+        // Copia script setup_server.sh sul nodo
+        $copyCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
         if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n", $output));
 
-        $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // Push script nel container
+        $pushCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
         if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
-        $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // Esecuzione in background (non avvia Bedrock, solo setup)
+        $execCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
         if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n", $output));
 
+        // Tutto ok, redirect alla dashboard
         header("Location: dashboard.php");
         exit;
 
@@ -152,8 +163,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <input type="hidden" name="form_token" value="<?= htmlspecialchars($_POST['form_token'] ?? '') ?>">
-
         <button id="createServerBtn" type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm"
             style="font-size: 1.2rem;">
             Crea Server
@@ -168,7 +177,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .form-range { cursor: pointer; }
     .btn-success { background-color: #00c8ff; border: none; transition: background-color 0.3s ease; }
     .btn-success:hover, .btn-success:focus { background-color: #0099cc; box-shadow: 0 0 12px #00c8ffaa; }
-    label { user-select: none; }
 </style>
 
 <script>
@@ -202,6 +210,7 @@ document.getElementById('createServerForm').addEventListener('submit', function 
     document.getElementById('createServerBtn').disabled = true;
     document.getElementById('createServerBtn').innerText = 'Creazione in corso...';
 });
+
 updateCpuAndPrice();
 </script>
 
