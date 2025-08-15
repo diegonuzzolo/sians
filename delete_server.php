@@ -52,6 +52,29 @@ try {
     ");
     $stmt->execute([$usedRam, $usedStorage, $usedCpu]);
 
+    // --- 1. Recupera le risorse utilizzate dal server eliminato ---
+    $stmt = $pdo->prepare("
+    SELECT ram_mb, cores 
+    FROM containers 
+    WHERE id = ?
+");
+    $stmt->execute([$server['container_id']]);
+    $used = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $usedRam = $used['ram_mb'] ?? 0;
+    $usedCpu = $used['cores'] ?? 0;
+    $usedStorage = 64; // storage fisso
+
+    // --- 2. Aggiorna tabella resources ---
+    $stmt = $pdo->prepare("
+    UPDATE resources 
+    SET used_ram_mb = GREATEST(used_ram_mb - ?, 0), 
+        used_cpu_cores = GREATEST(used_cpu_cores - ?, 0), 
+        used_storage_gb = GREATEST(used_storage_gb - ?, 0)
+    WHERE id = 1
+");
+    $stmt->execute([$usedRam, $usedCpu, $usedStorage]);
+
     // --- Elimina record server dal DB ---
     $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");
     $stmt->execute([$server['server_id']]);

@@ -19,14 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
 
 
-         $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
+        $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
         $resources = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
-        $availableRam = $resources['total_ram_gb']*1024 - $resources['used_ram_mb']; // in MB
+        $availableRam = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']; // in MB
         $availableStorage = $resources['total_storage_gb'] - $resources['used_storage_gb'];
 
-        if ($cores > $availableCpu || ($ramGb*1024) > $availableRam || $storageGb > $availableStorage) {
+        if ($cores > $availableCpu || ($ramGb * 1024) > $availableRam || $storageGb > $availableStorage) {
             throw new Exception("Risorse insufficienti per creare il server.");
         }
 
@@ -58,9 +58,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?");
         $stmt->execute([$containerId, $serverId]);
 
+        // --- 0. Controllo risorse disponibili ---
+        $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
+        $resources = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
+        $availableRam = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']; // in MB
+        $requiredStorage = 64; // storage fisso per server
+        $availableStorage = $resources['total_storage_gb'] - $resources['used_storage_gb'];
 
-             // --- 5. Aggiorna tabella resources ---
+        if ($cores > $availableCpu || ($ramGb * 1024) > $availableRam || $requiredStorage > $availableStorage) {
+            throw new Exception("Risorse insufficienti per creare il server.");
+        }
+
+        // --- 5. Aggiorna tabella resources ---
         $stmt = $pdo->prepare("
             UPDATE resources 
             SET used_ram_mb = used_ram_mb + ?, 
@@ -68,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 used_cpu_cores = used_cpu_cores + ?
             WHERE id = 1
         ");
-        $stmt->execute([$ramGb*1024, $storageGb, $cores]);
+        $stmt->execute([$ramGb * 1024, $storageGb, $cores]);
 
         // --- 5. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
@@ -88,24 +99,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $depsCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
+        if ($status !== 0)
+            throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
         // Copia script setup_server.sh sul nodo
         $copyCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n", $output));
+        if ($status !== 0)
+            throw new Exception("Errore copia script: " . implode("\n", $output));
 
         // Push script nel container
         $pushCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n", $output));
+        if ($status !== 0)
+            throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
         // Esecuzione in background (non avvia Bedrock, solo setup)
         $execCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
-        if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n", $output));
+        if ($status !== 0)
+            throw new Exception("Errore esecuzione script: " . implode("\n", $output));
 
         // Tutto ok, redirect alla dashboard
         header("Location: dashboard.php");
@@ -171,50 +186,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <style>
-    .bg-bedrock { background-color: #003f54 !important; }
-    .text-bedrock { color: #00c8ff; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
-    .form-control-lg { border-radius: 12px; }
-    .form-range { cursor: pointer; }
-    .btn-success { background-color: #00c8ff; border: none; transition: background-color 0.3s ease; }
-    .btn-success:hover, .btn-success:focus { background-color: #0099cc; box-shadow: 0 0 12px #00c8ffaa; }
+    .bg-bedrock {
+        background-color: #003f54 !important;
+    }
+
+    .text-bedrock {
+        color: #00c8ff;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .form-control-lg {
+        border-radius: 12px;
+    }
+
+    .form-range {
+        cursor: pointer;
+    }
+
+    .btn-success {
+        background-color: #00c8ff;
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-success:hover,
+    .btn-success:focus {
+        background-color: #0099cc;
+        box-shadow: 0 0 12px #00c8ffaa;
+    }
 </style>
 
 <script>
-const ramInput = document.getElementById('ram_gb');
-const ramDisplay = document.getElementById('ramDisplay');
-const cpuLabel = document.getElementById('cpuLabel');
-const cpuInput = document.getElementById('cpu_cores');
-const cpuProgress = document.getElementById('cpuProgress');
-const priceLabel = document.getElementById('priceLabel');
+    const ramInput = document.getElementById('ram_gb');
+    const ramDisplay = document.getElementById('ramDisplay');
+    const cpuLabel = document.getElementById('cpuLabel');
+    const cpuInput = document.getElementById('cpu_cores');
+    const cpuProgress = document.getElementById('cpuProgress');
+    const priceLabel = document.getElementById('priceLabel');
 
-function updateCpuAndPrice() {
-    let ram = parseInt(ramInput.value) || 2;
-    ramDisplay.textContent = ram + ' GB';
+    function updateCpuAndPrice() {
+        let ram = parseInt(ramInput.value) || 2;
+        ramDisplay.textContent = ram + ' GB';
 
-    let cores = 2, price = 6.5 * 0.85;
-    if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
-    else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
-    else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
-    else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
-    else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
-    else { cores = 8; price = 57.5 * 0.85; }
+        let cores = 2, price = 6.5 * 0.85;
+        if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
+        else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
+        else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
+        else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
+        else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
+        else { cores = 8; price = 57.5 * 0.85; }
 
-    cpuLabel.textContent = cores;
-    cpuInput.value = cores;
-    cpuProgress.style.width = (cores / 8 * 100) + '%';
-    priceLabel.textContent = "€ " + price.toFixed(2);
-}
+        cpuLabel.textContent = cores;
+        cpuInput.value = cores;
+        cpuProgress.style.width = (cores / 8 * 100) + '%';
+        priceLabel.textContent = "€ " + price.toFixed(2);
+    }
 
-ramInput.addEventListener('input', updateCpuAndPrice);
-document.getElementById('createServerForm').addEventListener('submit', function () {
-    document.getElementById('createServerBtn').disabled = true;
-    document.getElementById('createServerBtn').innerText = 'Creazione in corso...';
-});
+    ramInput.addEventListener('input', updateCpuAndPrice);
+    document.getElementById('createServerForm').addEventListener('submit', function () {
+        document.getElementById('createServerBtn').disabled = true;
+        document.getElementById('createServerBtn').innerText = 'Creazione in corso...';
+    });
 
-updateCpuAndPrice();
+    updateCpuAndPrice();
 </script>
 
 <?php include 'includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
