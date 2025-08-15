@@ -7,7 +7,7 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
-
+require '.env';
 require_once 'init.php';
 
 csrf_check_or_die();
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
     $priceCents = intval(round($price*100));
 
     try {
-        \Stripe\Stripe::setApiKey(getenv('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'));
+        \Stripe\Stripe::setApiKey(getenv('STRIPE_SECRET_KEY'));
 
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
