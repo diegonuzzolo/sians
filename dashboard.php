@@ -5,7 +5,7 @@ require 'config/config.php';
 $userId = $_SESSION['user_id'] ?? 0;
 
 $stmt = $pdo->prepare("
-    SELECT s.id, s.name, s.status, s.type, s.progress,
+    SELECT s.id, s.name, s.status, s.type,
            c.ip AS private_ip, c.ram_mb, c.proxmox_containerId
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
@@ -13,105 +13,126 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 ?>
 
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
     <title>Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .bg-bedrock {
-            color: #00c8ff;
-            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+        body { background-color: #121212; color: #fff; }
+        .card-server {
+            background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
+            border-radius: 20px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-
-        .card-hover:hover {
-            transform: scale(1.03);
-            transition: 0.2s;
-            cursor: pointer;
+        .card-server:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 200, 255, 0.3);
         }
-
-        .progress-bar {
-            transition: width 0.5s;
-        }
+        .server-name { color: #00c8ff; font-weight: bold; font-size: 1.3rem; }
+        .server-ip { color: #a0a0a0; font-size: 0.9rem; }
+        .btn-server { width: 48%; }
+        .status-badge { padding: 0.4em 0.7em; border-radius: 12px; font-size: 0.85rem; }
+        .status-running { background-color: #28a745; color: #fff; }
+        .status-stopped { background-color: #dc3545; color: #fff; }
     </style>
 </head>
+<body>
+<?php include "includes/header.php"; ?>
 
-<body class="bg-dark text-white">
-    <?php include "includes/header.php"; ?>
+<div class="container my-5">
+    <h2 class="mb-4 text-center" style="color:#00c8ff;">🖥️ I tuoi server</h2>
 
-    <div class="container my-5">
-        <h2 class="mb-4 text-center bg-bedrock">🖥️ I tuoi server</h2>
+    <?php if (empty($servers)): ?>
+        <div class="alert alert-info">Non hai ancora server attivi.</div>
+    <?php else: ?>
+        <div class="row g-4">
+            <?php foreach ($servers as $server): 
+                $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
+            ?>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card-server shadow">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
+                            <span class="status-badge <?= $statusClass ?>" id="status-<?= $server['id'] ?>">
+                                <?= htmlspecialchars($server['status']) ?>
+                            </span>
+                        </div>
+                        <p class="server-ip mb-2">IP: <?= htmlspecialchars($server['private_ip']) ?></p>
+                        <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
 
-        <?php if (empty($servers)): ?>
-            <div class="alert alert-info">Non hai ancora server attivi.</div>
-        <?php else: ?>
-            <div class="row g-4">
-                <?php foreach ($servers as $server): ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card bg-secondary text-white shadow rounded-4 p-3">
-                            <h5 class="card-title"><?= htmlspecialchars($server['name']) ?></h5>
-                            <p class="mb-1">IP: <?= htmlspecialchars($server['private_ip']) ?></p>
-                            <p class="mb-2">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-success btn-server" onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
+                            <button class="btn btn-danger btn-server" onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
+                        </div>
 
-                            <div class="progress mb-2" style="height: 20px;">
-                                <div id="progress-<?= $server['id'] ?>" class="progress-bar bg-info" role="progressbar"
-                                    style="width: 0%">In attesa...</div>
-                            </div>
-
-                            <p id="status-<?= $server['id'] ?>" class="mb-0">Stato: <?= htmlspecialchars($server['status']) ?>
-                            </p>
-
-                            <div class="mt-3 d-flex justify-content-between">
-                                <a href="manage_server.php?id=<?= htmlspecialchars($server['id']) ?>"
-                                    class="btn btn-primary btn-sm">
-                                    Gestisci
-                                </a>
-
-
-                                <!-- Esempio dentro il ciclo dei server -->
-                                <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>"
-                                    class="btn btn-danger"
-                                    onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                    Elimina
-                                </a>
-
-
-                            </div>
+                        <div class="mt-3 d-flex justify-content-between">
+                            <a href="manage_server.php?id=<?= htmlspecialchars($server['id']) ?>" class="btn btn-primary btn-sm w-100 me-1">Gestisci</a>
+                            <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>" 
+                               class="btn btn-outline-danger btn-sm w-100 ms-1"
+                               onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+                                Elimina
+                            </a>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-
-        <?php endif; ?>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script>
-        // Aggiornamento dinamico dello stato e progress bar ogni 5 secondi
-        setInterval(() => {
-            <?php foreach ($servers as $server): ?>
-                fetch('check_status.php?id=<?= $server['id'] ?>')
-                    .then(res => res.json())
-                    .then(data => {
-                        const statusEl = document.getElementById('status-<?= $server['id'] ?>');
-                        const progressEl = document.getElementById('progress-<?= $server['id'] ?>');
-                        if (statusEl) statusEl.textContent = "Stato: " + data.status;
-                        if (progressEl) {
-                            progressEl.style.width = data.progress + "%";
-                            progressEl.textContent = data.progress + "%";
-                        }
-                    });
+                </div>
             <?php endforeach; ?>
-        }, 5000);
-    </script>
+        </div>
+    <?php endif; ?>
+</div>
 
-    <?php include "includes/footer.php"; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function updateStatus(serverId) {
+    fetch('check_status.php?id=' + serverId)
+        .then(res => res.json())
+        .then(data => {
+            const statusEl = document.getElementById('status-' + serverId);
+            if(statusEl) {
+                statusEl.textContent = data.status;
+                statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
+            }
+        });
+}
+
+function startServer(serverId) {
+    fetch('ajax_server_control.php', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'action=start&id=' + serverId
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        updateStatus(serverId);
+    });
+}
+
+function stopServer(serverId) {
+    fetch('ajax_server_control.php', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'action=stop&id=' + serverId
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        updateStatus(serverId);
+    });
+}
+
+// Aggiornamento automatico stato ogni 10 secondi
+setInterval(() => {
+    <?php foreach ($servers as $server): ?>
+        updateStatus(<?= $server['id'] ?>);
+    <?php endforeach; ?>
+}, 10000);
+</script>
+
+<?php include "includes/footer.php"; ?>
 </body>
-
 </html>
