@@ -1,7 +1,7 @@
 <?php
 // auth_check.php
 include(__DIR__ . "/config/config.php");
-// require_once 'includes/csrf.php';
+require_once 'includes/csrf.php';
 
 
 session_start();
