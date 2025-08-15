@@ -55,7 +55,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
             ?>
                 <div class="col-md-6 col-lg-4">
-                    <div class="card-server shadow">
+                    <div class="card-server shadow" id="server-card-<?= $server['id'] ?>">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
                             <span class="status-badge <?= $statusClass ?>" id="status-<?= $server['id'] ?>">
@@ -66,8 +66,8 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
 
                         <div class="d-flex justify-content-between">
-                            <button class="btn btn-success btn-server" onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
-                            <button class="btn btn-danger btn-server" onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
+                            <button class="btn btn-success btn-server btn-start" onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
+                            <button class="btn btn-danger btn-server btn-stop" onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
                         </div>
 
                         <div class="mt-3 d-flex justify-content-between">
@@ -99,31 +99,37 @@ function updateStatus(serverId) {
         });
 }
 
-function startServer(serverId) {
+function setButtonsState(serverId, disabled, actionText = '') {
+    const card = document.getElementById('server-card-' + serverId);
+    if (!card) return;
+    const btnStart = card.querySelector('.btn-start');
+    const btnStop = card.querySelector('.btn-stop');
+    if (btnStart) { btnStart.disabled = disabled; btnStart.textContent = disabled && actionText==='start' ? 'Avviando…' : 'Avvia'; }
+    if (btnStop) { btnStop.disabled = disabled; btnStop.textContent = disabled && actionText==='stop' ? 'Fermando…' : 'Ferma'; }
+}
+
+function serverAction(serverId, action) {
+    setButtonsState(serverId, true, action);
+
     fetch('ajax_server_control.php', {
         method: 'POST',
         headers: {'Content-Type':'application/x-www-form-urlencoded'},
-        body: 'action=start&id=' + serverId
+        body: 'action=' + action + '&id=' + serverId
     })
     .then(res => res.json())
     .then(data => {
         alert(data.message);
         updateStatus(serverId);
+        setButtonsState(serverId, false);
+    })
+    .catch(err => {
+        alert('Errore di connessione');
+        setButtonsState(serverId, false);
     });
 }
 
-function stopServer(serverId) {
-    fetch('ajax_server_control.php', {
-        method: 'POST',
-        headers: {'Content-Type':'application/x-www-form-urlencoded'},
-        body: 'action=stop&id=' + serverId
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-        updateStatus(serverId);
-    });
-}
+function startServer(serverId) { serverAction(serverId, 'start'); }
+function stopServer(serverId) { serverAction(serverId, 'stop'); }
 
 // Aggiornamento automatico stato ogni 10 secondi
 setInterval(() => {
