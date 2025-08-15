@@ -33,6 +33,10 @@ try {
     // Se pgrep trova il processo => running, altrimenti stopped
     $statusText = (!empty($output)) ? 'running' : 'stopped';
 
+    // Aggiorna lo status nel database
+    $update = $pdo->prepare("UPDATE servers SET status=? WHERE id=? AND user_id=?");
+    $update->execute([$statusText, $serverId, $userId]);
+
     echo json_encode(['status' => $statusText]);
 
 } catch (Exception $e) {
