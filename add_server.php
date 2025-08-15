@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
     $priceCents = intval(round($price*100));
 
     try {
-        \Stripe\Stripe::setApiKey(getenv('STRIPE_SECRET_KEY'));
+        \Stripe\Stripe::setApiKey("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");
 
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
