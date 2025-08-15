@@ -1,11 +1,8 @@
 <?php
 /**
- * ajax_update_server.php
- * Aggiorna server.properties (Bedrock) nel container Proxmox via ssh + pct push.
+ * ajax_update_server.php - Aggiorna server.properties nel container Proxmox via ssh + pct push
  */
 header('Content-Type: application/json');
-
-// Non inviare output non-JSON
 ob_start();
 ini_set('display_errors', 0);
 error_reporting(0);
@@ -24,7 +21,7 @@ try {
         throw new Exception('Parametri non validi');
     }
 
-    // === 1) Recupero VMID dal DB in modo sicuro (colonna: proxmox_containerId) ===
+    // Recupero VMID dal DB
     $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id = ? AND user_id = ?");
     $stmt->execute([$serverId, $userId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -36,7 +33,7 @@ try {
         throw new Exception('VMID non valido sul server');
     }
 
-    // === 2) Dati dal form ===
+    // Dati dal form
     $motd                 = trim($_POST['motd'] ?? '');
     $gamemode             = $_POST['gamemode'] ?? 'survival';
     $difficulty           = $_POST['difficulty'] ?? 'easy';
@@ -50,8 +47,7 @@ try {
     $whitelistText        = trim($_POST['whitelist'] ?? '');
     $blacklistText        = trim($_POST['blacklist'] ?? '');
 
-    // === 3) Generazione contenuti file ===
-    // Nota: per Bedrock usiamo le chiavi con il trattino; manteniamo anche server-name/motd.
+    // Generazione server.properties
     $propertiesLines = [
         "server-name={$motd}",
         "motd={$motd}",
@@ -66,97 +62,81 @@ try {
         "white-list={$whiteListEnabled}"
     ];
     $serverProperties = implode("\n", $propertiesLines) . "\n";
-
-    // Normalizziamo whitelist/blacklist: accettiamo input separato da newline; convertiamo in newline
     $whitelistNormalized = trim(str_replace(["\r\n", "\r"], "\n", $whitelistText)) . "\n";
     $blacklistNormalized = trim(str_replace(["\r\n", "\r"], "\n", $blacklistText)) . "\n";
 
-    // === 4) File temporanei su host ===
+    // File temporanei locali
     $tmpDir   = sys_get_temp_dir();
     $uniq     = bin2hex(random_bytes(4));
-    $tmpProp  = $tmpDir . "/server_{$serverId}_{$uniq}.properties";
-    $tmpWhite = $tmpDir . "/server_{$serverId}_{$uniq}.whitelist";
-    $tmpBlack = $tmpDir . "/server_{$serverId}_{$uniq}.blacklist";
+    $tmpProp  = "{$tmpDir}/server_{$serverId}_{$uniq}.properties";
+    $tmpWhite = "{$tmpDir}/server_{$serverId}_{$uniq}.whitelist";
+    $tmpBlack = "{$tmpDir}/server_{$serverId}_{$uniq}.blacklist";
 
-    if (file_put_contents($tmpProp,  $serverProperties) === false) throw new Exception("Impossibile creare file temporaneo properties");
-    if (file_put_contents($tmpWhite, $whitelistNormalized) === false) throw new Exception("Impossibile creare file temporaneo whitelist");
-    if (file_put_contents($tmpBlack, $blacklistNormalized) === false) throw new Exception("Impossibile creare file temporaneo blacklist");
+    file_put_contents($tmpProp,  $serverProperties);
+    file_put_contents($tmpWhite, $whitelistNormalized);
+    file_put_contents($tmpBlack, $blacklistNormalized);
 
-    // === 5) Parametri SSH/Node Proxmox ===
-    $sshKey = '/var/www/.ssh/id_proxmox';   // chiave privata usata altrove nei tuoi script
-    $nodeIp = '192.168.1.251';              // IP del node Proxmox
+    // Config SSH
+    $sshKey = '/var/www/.ssh/id_proxmox';
+    $nodeIp = '192.168.1.251';
+    $escKey = escapeshellarg($sshKey);
+    $escNode = "root@{$nodeIp}";
 
-    // Comandi helper
-    $escKey   = escapeshellarg($sshKey);
-    $escNode  = "root@{$nodeIp}";
     $remoteTmpDir = "/root/.tmp/server_{$serverId}";
     $remoteProp   = "{$remoteTmpDir}/server.properties";
     $remoteWhite  = "{$remoteTmpDir}/whitelist.txt";
     $remoteBlack  = "{$remoteTmpDir}/blacklist.txt";
 
-    // Funzione helper per exec con errori dettagliati
+    // Funzione per eseguire comandi
     $run = function(string $cmd, string $step) {
         $out = [];
         $ret = 0;
-        exec($cmd, $out, $ret);
+        exec($cmd . " 2>&1", $out, $ret);
         if ($ret !== 0) {
             throw new Exception("$step fallito (exit $ret): " . implode("\n", $out));
         }
         return $out;
     };
 
-    // === 6) Crea dir temporanea sul node, copia file via scp ===
+    // Crea dir temporanea sul node
     $run(
-        "sudo ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
+        "ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
         escapeshellarg("mkdir -p {$remoteTmpDir}"),
         "Creazione cartella temporanea sul node"
     );
 
-    $run(
-        "sudo scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
-        escapeshellarg($tmpProp) . " {$escNode}:" . escapeshellarg($remoteProp),
-        "Copia server.properties al node"
-    );
+    // Copia file sul node
+    $run("scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
+         escapeshellarg($tmpProp) . " {$escNode}:" . escapeshellarg($remoteProp),
+         "Copia server.properties al node");
 
-    $run(
-        "sudo scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
-        escapeshellarg($tmpWhite) . " {$escNode}:" . escapeshellarg($remoteWhite),
-        "Copia whitelist.txt al node"
-    );
+    $run("scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
+         escapeshellarg($tmpWhite) . " {$escNode}:" . escapeshellarg($remoteWhite),
+         "Copia whitelist.txt al node");
 
-    $run(
-        "sudo scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
-        escapeshellarg($tmpBlack) . " {$escNode}:" . escapeshellarg($remoteBlack),
-        "Copia blacklist.txt al node"
-    );
+    $run("scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
+         escapeshellarg($tmpBlack) . " {$escNode}:" . escapeshellarg($remoteBlack),
+         "Copia blacklist.txt al node");
 
-    // === 7) pct push dal node nel container ===
-    $run(
-        "sudo ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-        escapeshellarg("pct push {$vmid} {$remoteProp} /root/minecraft_bedrock/server.properties"),
-        "pct push server.properties"
-    );
+    // pct push nel container
+    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
+         escapeshellarg("pct push {$vmid} {$remoteProp} /root/minecraft_bedrock/server.properties"),
+         "pct push server.properties");
 
-    $run(
-        "sudo ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-        escapeshellarg("pct push {$vmid} {$remoteWhite} /root/minecraft_bedrock/whitelist.txt"),
-        "pct push whitelist.txt"
-    );
+    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
+         escapeshellarg("pct push {$vmid} {$remoteWhite} /root/minecraft_bedrock/whitelist.txt"),
+         "pct push whitelist.txt");
 
-    $run(
-        "sudo ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-        escapeshellarg("pct push {$vmid} {$remoteBlack} /root/minecraft_bedrock/blacklist.txt"),
-        "pct push blacklist.txt"
-    );
+    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
+         escapeshellarg("pct push {$vmid} {$remoteBlack} /root/minecraft_bedrock/blacklist.txt"),
+         "pct push blacklist.txt");
 
-    // (Opzionale) Pulizia temp sul node
-    $run(
-        "sudo ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-        escapeshellarg("rm -f {$remoteProp} {$remoteWhite} {$remoteBlack} && rmdir {$remoteTmpDir} 2>/dev/null || true"),
-        "Pulizia temporanei sul node"
-    );
+    // Pulizia file temporanei sul node
+    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
+         escapeshellarg("rm -f {$remoteProp} {$remoteWhite} {$remoteBlack} && rmdir {$remoteTmpDir} 2>/dev/null || true"),
+         "Pulizia temporanei sul node");
 
-    // === 8) (Opzionale) Aggiorna DB con i valori ===
+    // Aggiorna DB
     $stmt = $pdo->prepare("
         UPDATE servers SET
             motd = ?, gamemode = ?, difficulty = ?,
@@ -174,7 +154,6 @@ try {
         $whitelistText, $blacklistText, $serverId, $userId
     ]);
 
-    // === 9) Risposta JSON ===
     ob_clean();
     echo json_encode(['success' => true, 'message' => 'Server aggiornato con successo', 'vmid' => $vmid]);
     exit;
