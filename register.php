@@ -2,7 +2,7 @@
 <?php
 require 'config/config.php';
 require 'includes/header.php';
-
+csrf_check_or_die();
 $error = null;
 $success = null;
 
@@ -46,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             
             <form method="post">
+              <?= csrf_field() ?>
               <label for="username" class="form-label">Username</label>
               <input name="username" id="username" class="form-control" required>
               

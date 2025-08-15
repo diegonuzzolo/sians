@@ -1,3 +1,7 @@
+<?php 
+include 'includes/force_https.php';
+
+?>
 <!DOCTYPE html>
 <html lang="it">
 <head>

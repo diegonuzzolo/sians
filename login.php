@@ -6,7 +6,7 @@ require 'config/config.php';
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-
+csrf_check_or_die();
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,6 +50,7 @@ include 'includes/header.php';
         <?php endif; ?>
         
         <form method="post" novalidate>
+          <?= csrf_field() ?>
           <label for="username" class="form-label">Username o Email</label>
           <input name="username" id="username" class="form-control" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
           

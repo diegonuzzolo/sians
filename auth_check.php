@@ -2,7 +2,7 @@
 // auth_check.php
 include(__DIR__ . "/config/config.php");
 session_start();
-
+csrf_check_or_die();
 // 1️⃣ Controllo login
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");

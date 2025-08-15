@@ -1,7 +1,7 @@
 <?php
 require 'config/config.php';
 require 'auth_check.php';
-
+csrf_check_or_die();
 $user_id = $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -42,6 +42,7 @@ include "includes/header.php";
     <?php endif; ?>
 
     <form method="post" class="card p-4 bg-dark text-light">
+        <?= csrf_field() ?>
         <div class="mb-3">
             <label>Password attuale</label>
             <input type="password" name="old_password" class="form-control" required>

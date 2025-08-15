@@ -3,6 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+csrf_check_or_die();
 require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
@@ -139,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
     <form method="POST" action="add_server.php" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
+        <?= csrf_field() ?>
         <div class="mb-4">
             <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
             <input type="text" name="server_name" id="server_name"

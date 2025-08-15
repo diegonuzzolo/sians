@@ -1,10 +1,11 @@
 <?php
 include("auth_check.php");
 require 'config/config.php';
-
+csrf_check_or_die();
 header('Content-Type: application/json');
 
 try {
+    csrf_check_or_die();
     $action = $_POST['action'] ?? '';
     $serverId = intval($_POST['id'] ?? 0);
     $userId = $_SESSION['user_id'] ?? 0;

@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 
 require 'auth_check.php';
 require 'config/config.php';
-
+csrf_check_or_die();
 header('Content-Type: application/json');
 
 try {

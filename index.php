@@ -1,7 +1,7 @@
 <?php
 require 'config/config.php';
 include 'includes/header.php';
-
+include 'includes/force_https.php';
 
 
 // Variabile usata per storage speed nella descrizione

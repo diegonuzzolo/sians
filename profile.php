@@ -3,7 +3,7 @@ require 'config/config.php';
 require 'auth_check.php'; // redirect se non loggato
 
 $user_id = $_SESSION['user_id'];
-
+csrf_check_or_die();
 // Recupera dati utente
 $stmt = $pdo->prepare("SELECT username, email, billing_name, billing_address, billing_country, billing_vat, last_password_change FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" class="card p-4 bg-dark text-light">
+        <?= csrf_field() ?>
         <div class="mb-3">
             <label class="form-label">Username (non modificabile)</label>
             <input type="text" class="form-control" value="<?= htmlspecialchars($user['username']) ?>" disabled>
