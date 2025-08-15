@@ -35,7 +35,7 @@ try {
     $updateRes = $pdo->prepare("
         UPDATE resources SET
             used_cpu_cores    = GREATEST(used_cpu_cores - ?, 0),
-            used_ram_gb       = GREATEST(used_ram_gb - ?, 0),
+            used_ram_mb       = GREATEST(used_ram_mb - ?, 0),
             used_storage_gb   = GREATEST(used_storage_gb - ?, 0)
         WHERE id = 1
     ");
