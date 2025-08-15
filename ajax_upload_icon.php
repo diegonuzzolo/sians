@@ -12,11 +12,11 @@ try {
     if ($serverId <= 0) throw new Exception("ID server non valido");
 
     // Controllo file upload
-    if (empty($_FILES['server_icon']['tmp_name']) || $_FILES['server_icon']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception("Upload icona non valido o errore PHP: " . ($_FILES['server_icon']['error'] ?? 'nessun file'));
+    if (empty($_FILES['server-icon']['tmp_name']) || $_FILES['server-icon']['error'] !== UPLOAD_ERR_OK) {
+        throw new Exception("Upload icona non valido o errore PHP: " . ($_FILES['server-icon']['error'] ?? 'nessun file'));
     }
 
-    $tmpLocal = $_FILES['server_icon']['tmp_name'];
+    $tmpLocal = $_FILES['server-icon']['tmp_name'];
 
     // Controllo PNG 64x64
     $info = getimagesize($tmpLocal);
@@ -44,8 +44,8 @@ try {
 
     $escKey  = escapeshellarg($sshKeyPath);
     $escNode = escapeshellarg("{$sshUser}@{$nodeHost}");
-    $remoteTmp = "/tmp/server_icon.png";
-    $remoteFinal = "/root/minecraft_bedrock/server_icon.png";
+    $remoteTmp = "/tmp/server-icon.png";
+    $remoteFinal = "/root/minecraft_bedrock/server-icon.png";
 
     // Funzione helper per eseguire comandi
     $run = function($cmd, $msg) {

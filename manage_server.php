@@ -245,7 +245,7 @@ if (!$server) {
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Carica nuova icona (PNG 64x64)</label>
-                        <input type="file" class="form-control" name="server_icon" id="server_icon" accept="image/png">
+                        <input type="file" class="form-control" name="server-icon" id="server-icon" accept="image/png">
                     </div>
                     <div class="text-center">
                         <button type="button" class="btn btn-primary" id="upload-icon-btn">
@@ -276,14 +276,14 @@ if (!$server) {
         });
 
         document.getElementById('upload-icon-btn').addEventListener('click', function () {
-            const fileInput = document.getElementById('server_icon');
+            const fileInput = document.getElementById('server-icon');
             if (!fileInput.files.length) {
                 alert('Seleziona un file PNG 64x64 prima di caricare.');
                 return;
             }
             const formData = new FormData();
             formData.append('server_id', '<?= $serverId ?>');
-            formData.append('server_icon', fileInput.files[0]);
+            formData.append('server-icon', fileInput.files[0]);
             fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
                 .then(r => r.json())
                 .then(data => {
