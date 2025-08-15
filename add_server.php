@@ -7,146 +7,80 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 
-// Funzione per aggiornare server.properties direttamente
-function updateServerPropertiesDirect(PDO $pdo, int $serverId, int $userId): array {
-    try {
-        // Recupera VMID
-        $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
-        $stmt->execute([$serverId, $userId]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$row) throw new Exception('Server non trovato');
-        $vmid = intval($row['proxmox_containerId'] ?? 0);
-
-        // Dati di default (puoi aggiungere $_POST se vuoi personalizzare)
-        $motd = trim($_POST['motd'] ?? 'Benvenuto sul server');
-        $gamemode = $_POST['gamemode'] ?? 'survival';
-        $difficulty = $_POST['difficulty'] ?? 'easy';
-        $maxPlayers = max(1, min(100, intval($_POST['max_players'] ?? 10)));
-        $viewDistance = max(2, min(32, intval($_POST['view_distance'] ?? 6)));
-        $enableCommandBlocks = (($_POST['enable_command_blocks'] ?? 'false') === 'true') ? 'true' : 'false';
-        $levelName = trim($_POST['level_name'] ?? 'world');
-        $seed = trim($_POST['seed'] ?? '');
-        $spawnProtection = max(0, intval($_POST['spawn_protection'] ?? 16));
-        $whiteListEnabled = (($_POST['white_list_enabled'] ?? 'false') === 'true') ? 'true' : 'false';
-        $whitelistText = trim($_POST['whitelist'] ?? '');
-        $blacklistText = trim($_POST['blacklist'] ?? '');
-        $tickDistance = max(4, min(12, intval($_POST['tick_distance'] ?? 4)));
-        $playerIdleTimeout = max(0, intval($_POST['player_idle_timeout'] ?? 30));
-        $maxThreads = max(1, intval($_POST['max_threads'] ?? 8));
-        $enableLanVisibility = 'true'; // statico
-        $serverDir = "/root/minecraft_bedrock";
-
-        // Generazione server.properties
-        $propertiesLines = [
-            "server-name={$motd}",
-            "motd={$motd}",
-            "gamemode={$gamemode}",
-            "force-gamemode=false",
-            "difficulty={$difficulty}",
-            "allow-cheats=false",
-            "max-players={$maxPlayers}",
-            "online-mode=true",
-            "allow-list={$whiteListEnabled}",
-            "server-port=19132",
-            "server-portv6=19133",
-            "enable-lan-visibility={$enableLanVisibility}",
-            "view-distance={$viewDistance}",
-            "tick-distance={$tickDistance}",
-            "player-idle-timeout={$playerIdleTimeout}",
-            "max-threads={$maxThreads}",
-            "level-name={$levelName}",
-            "level-seed={$seed}"
-        ];
-        $serverProperties = implode("\n", $propertiesLines) . "\n";
-
-        // --- Pusha file nel container via SSH/PCT ---
-        $sshKey = "/var/www/.ssh/id_proxmox";
-        $nodeIp = "192.168.1.251";
-        $tmpFile = "/root/server.properties";
-
-        file_put_contents("/tmp/server.properties", $serverProperties); // temporaneo locale
-
-        // Copia sul nodo
-        exec("sudo scp -i $sshKey -o StrictHostKeyChecking=no /tmp/server.properties root@$nodeIp:$tmpFile", $output, $status);
-        if ($status !== 0) throw new Exception("Errore copia server.properties sul nodo: " . implode("\n", $output));
-
-        // Push sul container
-        exec("sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $tmpFile $serverDir/server.properties\"", $output, $status);
-        if ($status !== 0) throw new Exception("Errore push server.properties nel container: " . implode("\n", $output));
-
-        // Aggiornamento DB
-        $stmt = $pdo->prepare("
-            UPDATE servers SET
-                motd=?, gamemode=?, difficulty=?,
-                max_players=?, view_distance=?,
-                enable_command_blocks=?, level_name=?,
-                seed=?, spawn_protection=?, white_list=?,
-                whitelist=?, blacklist=?, tick_distance=?,
-                player_idle_timeout=?, max_threads=?, updated_at=NOW()
-            WHERE id=? AND user_id=?
-        ");
-        $stmt->execute([
-            $motd,$gamemode,$difficulty,
-            $maxPlayers,$viewDistance,
-            $enableCommandBlocks,$levelName,
-            $seed,$spawnProtection,$whiteListEnabled,
-            $whitelistText,$blacklistText,$tickDistance,
-            $playerIdleTimeout,$maxThreads,$serverId,$userId
-        ]);
-
-        return ['success'=>true, 'message'=>'Server.properties aggiornato', 'vmid'=>$vmid];
-
-    } catch (Throwable $e) {
-        return ['success'=>false, 'message'=>$e->getMessage()];
-    }
-}
-
 $userId = $_SESSION['user_id'] ?? 0;
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $ramGb = intval($_POST['ram_gb'] ?? 2);
-        $storageGb = intval($_POST['storage_gb'] ?? 20);
-        $cores = intval($_POST['cpu_cores'] ?? 2);
-        $serverName = trim($_POST['server_name'] ?? "mcserver");
+    $ramGb = intval($_POST['ram_gb'] ?? 2);  // input in GB
+    $storageGb = intval($_POST['storage_gb'] ?? 20);
+    $cores = intval($_POST['cpu_cores'] ?? 2);
+    $serverName = trim($_POST['server_name'] ?? "mcserver");
 
-        // --- Trova VMID e IP liberi ---
+    try {
+        // --- 1. Trova VMID e IP liberi ---
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- Inserisci server nel DB ---
+        // --- 2. Inserisci server nel DB (container_id = NULL per ora) ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
             (name, user_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $vmid, 'installing', 'bedrock', $cores, $ramGb*1024, 0]);
+        $stmt->execute([$serverName, $userId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
         $serverId = $pdo->lastInsertId();
 
-        // --- Inserisci container nel DB ---
+        // --- 3. Inserisci container nel DB collegato al server ---
         $stmt = $pdo->prepare("
             INSERT INTO containers
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores, $serverId]);
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'installing', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
 
-        // --- Aggiorna server con container_id ---
+        // --- 4. Aggiorna server con container_id ---
         $stmt = $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?");
         $stmt->execute([$containerId, $serverId]);
 
-        // --- Crea container su Proxmox ---
+        // --- 5. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
-        if (!$createResult['success']) throw new Exception("Errore creazione container: ".$createResult['message']);
+        if (!$createResult['success']) {
+            throw new Exception("Errore creazione container: " . $createResult['message']);
+        }
 
-        sleep(4); // attesa iniziale
+        sleep(4);
 
-        // --- Aggiorna server.properties direttamente ---
-        $result = updateServerPropertiesDirect($pdo, $serverId, $userId);
-        if (!$result['success']) throw new Exception("Errore setup server.properties: ".$result['message']);
+        // --- 6. Installa dipendenze e setup server ---
+        $sshKey = "/var/www/.ssh/id_proxmox";
+        $nodeIp = "192.168.1.251";
 
+        $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
+        exec($depsCmd, $output, $status);
+        if ($status !== 0)
+            throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
+
+        $localScript = '/var/www/setup_server.sh';
+        $remoteTemp = "/root/setup_server.sh";
+
+        $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
+        exec($copyCmd, $output, $status);
+        if ($status !== 0)
+            throw new Exception("Errore copia script: " . implode("\n", $output));
+
+        $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
+        exec($pushCmd, $output, $status);
+        if ($status !== 0)
+            throw new Exception("Errore push script nel container: " . implode("\n", $output));
+
+        $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
+        exec($execCmd, $output, $status);
+        if ($status !== 0)
+            throw new Exception("Errore esecuzione script: " . implode("\n", $output));
+        
         header("Location: dashboard.php");
         exit;
 
