@@ -169,7 +169,7 @@ include "includes/header.php";
         <script src="https://js.stripe.com/v3/"></script>
         <button id="checkoutBtn" class="btn btn-success w-100 fw-bold">Paga e Crea Server</button>
         <script>
-            var stripe = Stripe('<?= getenv('STRIPE_PUBLISHABLE_KEY') ?>');
+            var stripe = Stripe('<?= getenv('pk_live_51RwTLKGyhVlVUQfHcwneV569jhxFiNNqCWwEup9sg9IzgtkCBpXmBj0F4pSOrgvFi3sgDng1t6oJcmBcqg93I7EM00z2SQl3Gq') ?>');
             document.getElementById('checkoutBtn').addEventListener('click', function(){
                 stripe.redirectToCheckout({ sessionId: '<?= $checkoutSessionId ?>' });
             });
