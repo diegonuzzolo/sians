@@ -190,11 +190,11 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php foreach ($servers as $server): ?>
         updateButtons(<?= $server['id'] ?>, '<?= $server['status'] ?>');
     <?php endforeach; ?>
-    <?php include "includes/footer.php"; ?>
-
-
+    
+    
     </script>
 
+<?php include "includes/footer.php"; ?>
 </body>
 
 </html>
