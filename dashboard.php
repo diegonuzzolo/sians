@@ -136,7 +136,7 @@ setInterval(() => {
     <?php foreach ($servers as $server): ?>
         updateStatus(<?= $server['id'] ?>);
     <?php endforeach; ?>
-}, 10000);
+}, 1000);
 </script>
 
 <?php include "includes/footer.php"; ?>
