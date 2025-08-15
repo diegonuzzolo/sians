@@ -105,7 +105,8 @@ if (!$server) {
 
     <div class="container my-5">
         <h2 class="text-center mb-4"><i class="bi bi-server"></i> Gestione Server:
-            <?= htmlspecialchars($server['name']) ?></h2>
+            <?= htmlspecialchars($server['name']) ?>
+        </h2>
 
         <!-- Tabs -->
         <ul class="nav nav-tabs mb-4" id="serverTab" role="tablist">
@@ -152,7 +153,8 @@ if (!$server) {
                         <select class="form-select" name="difficulty">
                             <option value="easy" <?= ($server['difficulty'] ?? '') === 'easy' ? 'selected' : '' ?>>Easy
                             </option>
-                            <option value="normal" <?= ($server['difficulty'] ?? '') === 'normal' ? 'selected' : '' ?>>Normal
+                            <option value="normal" <?= ($server['difficulty'] ?? '') === 'normal' ? 'selected' : '' ?>>
+                                Normal
                             </option>
                             <option value="hard" <?= ($server['difficulty'] ?? '') === 'hard' ? 'selected' : '' ?>>Hard
                             </option>
@@ -239,17 +241,18 @@ if (!$server) {
                 .then(data => {
                     let msgBox = document.getElementById('server-message');
                     msgBox.textContent = data.message;
-                    msgBox.style.display = 'block';
                     msgBox.className = data.success ? 'success' : 'error';
+                    msgBox.style.display = 'block';
 
-                    // Nascondi il messaggio dopo 5 secondi
                     setTimeout(() => {
-                        msgBox.style.display = 'none';
+                        msgBox.style.opacity = '0';
+                        setTimeout(() => msgBox.style.display = 'none', 300);
                     }, 5000);
                 })
                 .catch(err => {
                     console.error('Errore:', err);
                 });
+
 
         });
     </script>
