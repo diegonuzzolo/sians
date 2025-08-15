@@ -210,6 +210,7 @@ include "includes/header.php";
                     </div>
                     <div class="mb-0 text-white fw-semibold fs-5 text-center">
                         <span id="priceLabel">€ 0.00</span>
+
                     </div>
                 </div>
             </div>
@@ -219,31 +220,37 @@ include "includes/header.php";
 </div>
 
 <script>
-const ramInput = document.getElementById('ram_gb');
-const ramDisplay = document.getElementById('ramDisplay');
-const cpuLabel = document.getElementById('cpuLabel');
-const cpuInput = document.getElementById('cpu_cores');
-const cpuProgress = document.getElementById('cpuProgress');
-const priceLabel = document.getElementById('priceLabel');
+document.addEventListener("DOMContentLoaded", function() {
+    const ramInput = document.getElementById('ram_gb');
+    const ramDisplay = document.getElementById('ramDisplay');
+    const cpuLabel = document.getElementById('cpuLabel');
+    const cpuInput = document.getElementById('cpu_cores');
+    const cpuProgress = document.getElementById('cpuProgress');
+    const priceLabel = document.getElementById('priceLabel');
 
-function updateCpuAndPrice(){
-    let ram = parseInt(ramInput.value) || 2;
-    ramDisplay.textContent = ram + ' GB';
-    let cores = 2, price = 6.5*0.85;
-    if(ram<=2){cores=2;price=6.5*0.85;}
-    else if(ram<=4){cores=2;price=10*0.85;}
-    else if(ram<=6){cores=3;price=15*0.85;}
-    else if(ram<=8){cores=4;price=21.5*0.85;}
-    else if(ram<=16){cores=6;price=35*0.85;}
-    else{cores=8;price=57.5*0.85;}
-    cpuLabel.textContent = cores;
-    cpuInput.value = cores;
-    cpuProgress.style.width = (cores/8*100)+'%';
-    priceLabel.textContent = "€ "+price.toFixed(2);
-}
-ramInput.addEventListener('input', updateCpuAndPrice);
-updateCpuAndPrice();
+    function updateCpuAndPrice(){
+        let ram = parseInt(ramInput.value) || 4; // valore di default se vuoto
+        ramDisplay.textContent = ram + ' GB';
+
+        let cores = 2, price = 6.5*0.85;
+        if(ram<=2){cores=2;price=6.5*0.85;}
+        else if(ram<=4){cores=2;price=10*0.85;}
+        else if(ram<=6){cores=3;price=15*0.85;}
+        else if(ram<=8){cores=4;price=21.5*0.85;}
+        else if(ram<=16){cores=6;price=35*0.85;}
+        else{cores=8;price=57.5*0.85;}
+
+        cpuLabel.textContent = cores;
+        cpuInput.value = cores;
+        cpuProgress.style.width = (cores/8*100)+'%';
+        priceLabel.textContent = "€ "+price.toFixed(2);
+    }
+
+    ramInput.addEventListener('input', updateCpuAndPrice);
+    updateCpuAndPrice(); // aggiorna valori iniziali
+});
 </script>
+
 
 <?php include 'includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
