@@ -10,9 +10,9 @@ try {
 
     if (!$serverId || !$userId) throw new Exception('Parametri non validi');
 
-    // Recupera VMID
+    // Recupera VMID e nodo dal DB
     $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
-    $stmt->execute([$serverId, $userId]);
+    $stmt->execute([$serverId,$userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$server) throw new Exception('Server non trovato');
 
@@ -30,15 +30,15 @@ try {
 
     exec($cmd . " 2>&1", $output, $status);
 
-    // Se pgrep trova il processo => running, altrimenti stopped
-    $statusText = (!empty($output)) ? 'running' : 'stopped';
+    // Determina lo stato reale
+    $realStatus = (!empty($output)) ? 'running' : 'stopped';
 
-    // Aggiorna lo status nel database
-    $update = $pdo->prepare("UPDATE servers SET status=? WHERE id=? AND user_id=?");
-    $update->execute([$statusText, $serverId, $userId]);
+    // Aggiorna DB se diverso
+    $stmt = $pdo->prepare("UPDATE servers SET status=? WHERE id=? AND user_id=?");
+    $stmt->execute([$realStatus, $serverId, $userId]);
 
-    echo json_encode(['status' => $statusText]);
+    echo json_encode(['status'=>$realStatus]);
 
-} catch (Exception $e) {
-    echo json_encode(['status' => 'stopped', 'error' => $e->getMessage()]);
+} catch(Exception $e){
+    echo json_encode(['status'=>'stopped','error'=>$e->getMessage()]);
 }
