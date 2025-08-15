@@ -2,20 +2,12 @@
 
 # --- Parametri ---
 SERVER_ID=$1
-TOKEN="ecb6843d7a4c262ce25055f80ac747d0878aa2435b20b9fb0bf0270e95cfc621"
-UPDATE_URL="https://sians.it/update_status.php"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-update_status() {
-    local status=$1
-    curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-         -H "Content-Type: application/json" \
-         -d "{\"server_id\":$SERVER_ID,\"status\":\"$status\"}" \
-         "$UPDATE_URL"
-}
+
 
 # --- Percorso server ---
 MC_DIR="/root/minecraft_bedrock"
@@ -24,7 +16,6 @@ cd "$MC_DIR" || exit 1
 
 # --- Inizio installazione ---
 log "Installazione server Bedrock iniziata"
-update_status "installing"
 
 # --- Ottieni URL di download ---
 log "Ottenimento URL di download..."
@@ -45,7 +36,7 @@ fi
 # --- Estrai server ---
 unzip -o bedrock-server.zip
 rm bedrock-server.zip
-update_status "extracted"
+
 
 # --- Accetta EULA ---
 echo "eula=true" > eula.txt
@@ -67,5 +58,4 @@ EOF
 chmod +x stop.sh
 
 # --- Aggiornamento finale ---
-update_status "running"
 log "Server Bedrock pronto e avviato"
