@@ -11,24 +11,21 @@ $userId = $_SESSION['user_id'] ?? 0;
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ramGb = intval($_POST['ram_gb'] ?? 2);
+    $ramGb = intval($_POST['ram_gb'] ?? 2);  
     $storageGb = intval($_POST['storage_gb'] ?? 20);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     try {
         // --- 0. Controllo risorse disponibili ---
-        $resourcesStmt = $pdo->query("SELECT * FROM resources WHERE id=1");
-        $resources = $resourcesStmt->fetch(PDO::FETCH_ASSOC);
-        if (!$resources) throw new Exception("Risorse non configurate nel sistema");
+        $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
+        $resources = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $reqCpu = $cores;
-        $reqRam = $ramGb * 1024; // MB
-        $reqStorage = $storageGb;
+        $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
+        $availableRam = $resources['total_ram_gb']*1024 - $resources['used_ram_mb']; // in MB
+        $availableStorage = $resources['total_storage_gb'] - $resources['used_storage_gb'];
 
-        if ($resources['used_cpu_cores'] + $reqCpu > $resources['total_cpu_cores'] ||
-            $resources['used_ram_mb'] + $reqRam > $resources['total_ram_gb'] ||
-            $resources['used_storage_gb'] + $reqStorage > $resources['total_storage_gb']) {
+        if ($cores > $availableCpu || ($ramGb*1024) > $availableRam || $storageGb > $availableStorage) {
             throw new Exception("Risorse insufficienti per creare il server.");
         }
 
@@ -36,13 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- 2. Inserisci server nel DB ---
+        // --- 2. Inserisci server nel DB (container_id = NULL per ora) ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
             (name, user_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $vmid, 'stopped', 'bedrock', $cores, $reqRam, 0]);
+        $stmt->execute([$serverName, $userId, $vmid, 'stopped', 'bedrock', $cores, $ramGb * 1024, 0]);
         $serverId = $pdo->lastInsertId();
 
         // --- 3. Inserisci container nel DB collegato al server ---
@@ -51,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $reqRam, $reqStorage, $userId, $serverName, $vmIp, 'stopped', $cores, $serverId]);
+        $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, 'stopped', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
 
         // --- 4. Aggiorna server con container_id ---
@@ -59,14 +56,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$containerId, $serverId]);
 
         // --- 5. Aggiorna tabella resources ---
-        $updateRes = $pdo->prepare("
-            UPDATE resources SET
-                used_cpu_cores = used_cpu_cores + ?,
-                used_ram_mb    = used_ram_mb + ?,
-                used_storage_gb = used_storage_gb + ?
+        $stmt = $pdo->prepare("
+            UPDATE resources 
+            SET used_ram_mb = used_ram_mb + ?, 
+                used_storage_gb = used_storage_gb + ?, 
+                used_cpu_cores = used_cpu_cores + ?
             WHERE id = 1
         ");
-        $updateRes->execute([$reqCpu, $reqRam, $reqStorage]);
+        $stmt->execute([$ramGb*1024, $storageGb, $cores]);
 
         // --- 6. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
@@ -74,38 +71,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        sleep(4);
-
-        // --- 7. Installa dipendenze e setup server ---
+        // --- 7. Setup server via SSH ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251";
 
         $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
         exec($depsCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
+        if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
         $localScript = '/var/www/setup_server.sh';
         $remoteTemp = "/root/setup_server.sh";
 
         $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
         exec($copyCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore copia script: " . implode("\n", $output));
+        if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n", $output));
 
         $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore push script nel container: " . implode("\n", $output));
+        if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
         $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore esecuzione script: " . implode("\n", $output));
-        
+        if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n", $output));
+
         header("Location: dashboard.php");
         exit;
 
@@ -113,7 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $e->getMessage();
     }
 }
-
 ?>
 
 <?php include "includes/header.php"; ?>
