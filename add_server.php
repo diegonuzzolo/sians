@@ -195,7 +195,7 @@ include "includes/header.php";
                         <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB) <span id="ramDisplay" class="fw-bold"></span></label>
                         <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                                value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
-                        <div class="d-flex justify-content-between text-white small mt-1">
+                        <div class="d-flex justify-content-between text-black small mt-1">
                             <span>2GB</span>
                             <span>20GB</span>
                         </div>
