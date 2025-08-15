@@ -37,9 +37,9 @@ try {
     $tickDistance = max(4,min(12,intval($_POST['tick_distance'] ?? 4)));
     $playerIdleTimeout = max(0,intval($_POST['player_idle_timeout'] ?? 30));
     $maxThreads = max(1,intval($_POST['max_threads'] ?? 8));
-    $enableLanVisibility = 'true'; // sempre abilitato statico
+    $enableLanVisibility = 'true'; // statico
 
-    // Generazione server.properties (porte e indirizzi statici)
+    // Generazione server.properties
     $propertiesLines = [
         "server-name={$motd}",
         "motd={$motd}",
@@ -86,8 +86,58 @@ try {
     $whitelistNormalized = trim(str_replace(["\r\n","\r"],"\n",$whitelistText))."\n";
     $blacklistNormalized = trim(str_replace(["\r\n","\r"],"\n",$blacklistText))."\n";
 
-    // File temporanei e invio come nel tuo script originale (ssh + pct push)
-    // ... il codice SCP/SSH rimane identico
+    // File temporanei locali
+    $tmpDir   = sys_get_temp_dir();
+    $uniq     = bin2hex(random_bytes(4));
+    $tmpProp  = "{$tmpDir}/server_{$serverId}_{$uniq}.properties";
+    $tmpWhite = "{$tmpDir}/server_{$serverId}_{$uniq}.whitelist";
+    $tmpBlack = "{$tmpDir}/server_{$serverId}_{$uniq}.blacklist";
+
+    file_put_contents($tmpProp,  $serverProperties);
+    file_put_contents($tmpWhite, $whitelistNormalized);
+    file_put_contents($tmpBlack, $blacklistNormalized);
+
+    // Config SSH
+    $sshKey = '/var/www/.ssh/id_proxmox';
+    $nodeIp = '192.168.1.251';
+    $escKey = escapeshellarg($sshKey);
+    $escNode = "root@{$nodeIp}";
+    $remoteTmpDir = "/root/.tmp/server_{$serverId}";
+    $remoteProp   = "{$remoteTmpDir}/server.properties";
+    $remoteWhite  = "{$remoteTmpDir}/whitelist.txt";
+    $remoteBlack  = "{$remoteTmpDir}/blacklist.txt";
+
+    // Funzione helper per SSH
+    $run = function(string $cmd, string $step) {
+        $out = [];
+        $ret = 0;
+        exec($cmd." 2>&1", $out, $ret);
+        if ($ret !== 0) throw new Exception("$step fallito (exit $ret): ".implode("\n",$out));
+    };
+
+    // Creazione cartella temporanea sul node
+    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} ".
+         escapeshellarg("mkdir -p {$remoteTmpDir}"), "Creazione cartella temporanea");
+
+    // Copia file sul node
+    foreach ([[$tmpProp,$remoteProp], [$tmpWhite,$remoteWhite], [$tmpBlack,$remoteBlack]] as $f) {
+        $run("scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ".
+             escapeshellarg($f[0])." {$escNode}:".escapeshellarg($f[1]), "Copia file al node");
+    }
+
+    // pct push nel container
+    foreach ([[$remoteProp,"/root/minecraft_bedrock/server.properties"],
+              [$remoteWhite,"/root/minecraft_bedrock/whitelist.txt"],
+              [$remoteBlack,"/root/minecraft_bedrock/blacklist.txt"]] as $f) {
+        $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} ".
+             escapeshellarg("pct push {$vmid} {$f[0]} {$f[1]}"), "pct push ".$f[1]);
+    }
+
+    // Pulizia temp sul node
+    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} ".
+         escapeshellarg("rm -f {$remoteProp} {$remoteWhite} {$remoteBlack} && rmdir {$remoteTmpDir} 2>/dev/null || true"),
+         "Pulizia temporanei");
+
     // Aggiornamento DB
     $stmt = $pdo->prepare("
         UPDATE servers SET
