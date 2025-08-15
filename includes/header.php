@@ -6,6 +6,22 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+
+if (isset($_SESSION['user_id'])) {
+    $stmt = $pdo->prepare("SELECT last_password_change FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $lastChange = $stmt->fetchColumn();
+
+    if ($lastChange) {
+        $daysSince = (new DateTime())->diff(new DateTime($lastChange))->days;
+        if ($daysSince > 90) {
+            header("Location: change_password.php?expired=1");
+            exit;
+        }
+    }
+}
+
+
 // Usa username dalla variabile $username se esiste, altrimenti dalla sessione, altrimenti fallback "Utente"
 $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
 ?>

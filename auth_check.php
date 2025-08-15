@@ -8,6 +8,14 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
+$stmt = $pdo->prepare("SELECT last_password_change FROM users WHERE id=?");
+$stmt->execute([$_SESSION['user_id']]);
+$lastChange = $stmt->fetchColumn();
+
+if ($lastChange && (new DateTime())->diff(new DateTime($lastChange))->days > 90) {
+    header("Location: change_password.php?expired=1");
+    exit;
+}
 
 // 2️⃣ Controllo proprietà server (solo se serve)
 //    Lo usi passando l'ID del server nella query string o in POST
