@@ -1,7 +1,6 @@
 <?php
 // auth_check.php
 include(__DIR__ . "/config/config.php");
-// require_once 'includes/csrf.php';
 
 
 session_start();
@@ -12,7 +11,6 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
 if (!in_array($currentPage, $publicPages)) {
     // CSRF solo sulle pagine protette
-    // csrf_check_or_die();
 
     // 1️⃣ Controllo login
     if (!isset($_SESSION['user_id'])) {
