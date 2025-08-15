@@ -1,81 +1,69 @@
 <?php
+require 'auth_check.php';
 require 'config/config.php';
-require 'auth_check.php'; // redirect se non loggato
-include 'includes/csrf.php';
-
-$user_id = $_SESSION['user_id'];
+require 'includes/csrf.php';
 csrf_check_or_die();
-// Recupera dati utente
-$stmt = $pdo->prepare("SELECT username, email, billing_name, billing_address, billing_country, billing_vat, last_password_change FROM users WHERE id = ?");
-$stmt->execute([$user_id]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Aggiorna dati profilo
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
-    $billing_name = trim($_POST['billing_name']);
-    $billing_address = trim($_POST['billing_address']);
-    $billing_country = trim($_POST['billing_country']);
-    $billing_vat = trim($_POST['billing_vat']);
+$userId = $_SESSION['user_id'] ?? 0;
 
-    $stmt = $pdo->prepare("UPDATE users SET email=?, billing_name=?, billing_address=?, billing_country=?, billing_vat=? WHERE id=?");
-    $stmt->execute([$email, $billing_name, $billing_address, $billing_country, $billing_vat, $user_id]);
+if ($_SERVER['REQUEST_METHOD']==='POST') {
+    // aggiornamento email/username + dati fatturazione
+    $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
+    $username = trim($_POST['username'] ?? '');
+    if (!$email || $username === '') { die('Dati non validi'); }
 
-    $success = "Profilo aggiornato con successo!";
+    $pdo->beginTransaction();
+    try {
+        // aggiorna utente
+        $stmt = $pdo->prepare("UPDATE users SET username=?, email=? WHERE id=?");
+        $stmt->execute([$username, $email, $userId]);
+
+        // upsert billing
+        $stmt = $pdo->prepare("SELECT id FROM billing_profiles WHERE user_id=?");
+        $stmt->execute([$userId]);
+        $bp = $stmt->fetchColumn();
+
+        $bpData = [
+            $_POST['first_name'] ?? '', $_POST['last_name'] ?? '', $_POST['company'] ?? null,
+            $_POST['vat_number'] ?? null, $_POST['address_line1'] ?? '', $_POST['address_line2'] ?? null,
+            $_POST['city'] ?? '', $_POST['postal_code'] ?? '', strtoupper($_POST['country_code'] ?? 'IT'), $userId
+        ];
+
+        if ($bp) {
+            $upd = $pdo->prepare("UPDATE billing_profiles SET first_name=?, last_name=?, company=?, vat_number=?, address_line1=?, address_line2=?, city=?, postal_code=?, country_code=?, updated_at=NOW() WHERE user_id=?");
+            $upd->execute($bpData);
+        } else {
+            $ins = $pdo->prepare("INSERT INTO billing_profiles (first_name,last_name,company,vat_number,address_line1,address_line2,city,postal_code,country_code,user_id) VALUES (?,?,?,?,?,?,?,?,?,?)");
+            $ins->execute($bpData);
+        }
+
+        $pdo->commit();
+        $msg = "Profilo aggiornato";
+    } catch(Exception $e) {
+        $pdo->rollBack();
+        $msg = "Errore: ".$e->getMessage();
+    }
+}
+
+// cambio password
+if (isset($_POST['change_password'])) {
+    csrf_check_or_die();
+    $curr = $_POST['current_password'] ?? '';
+    $new  = $_POST['new_password'] ?? '';
+    $new2 = $_POST['new_password_confirm'] ?? '';
+    if ($new !== $new2) { die('Le password non coincidono'); }
+    // policy minima
+    if (!preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{10,}$/', $new)) { die('Password troppo debole'); }
+
+    $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id=?");
+    $stmt->execute([$userId]);
+    $hash = $stmt->fetchColumn();
+    if (!$hash || !password_verify($curr, $hash)) { die('Password attuale errata'); }
+
+    $newHash = password_hash($new, PASSWORD_DEFAULT);
+    $upd = $pdo->prepare("UPDATE users SET password_hash=?, password_changed_at=NOW(), force_password_reset=0 WHERE id=?");
+    $upd->execute([$newHash, $userId]);
+    $msg = "Password aggiornata";
 }
 ?>
-
-<?php include "includes/header.php"; ?>
-
-<div class="container py-5">
-    <h1 class="mb-4">Profilo Utente</h1>
-
-    <?php if (!empty($success)): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php endif; ?>
-
-    <form method="post" class="card p-4 bg-dark text-light">
-        <?= csrf_field() ?>
-        <div class="mb-3">
-            <label class="form-label">Username (non modificabile)</label>
-            <input type="text" class="form-control" value="<?= htmlspecialchars($user['username']) ?>" disabled>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Email *</label>
-            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required>
-        </div>
-
-        <hr>
-        <h4 class="mt-3">Dati di fatturazione</h4>
-
-        <div class="mb-3">
-            <label class="form-label">Nome / Ragione sociale</label>
-            <input type="text" name="billing_name" class="form-control" value="<?= htmlspecialchars($user['billing_name']) ?>">
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Indirizzo</label>
-            <textarea name="billing_address" class="form-control"><?= htmlspecialchars($user['billing_address']) ?></textarea>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Paese</label>
-            <input type="text" name="billing_country" class="form-control" value="<?= htmlspecialchars($user['billing_country']) ?>">
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Partita IVA (opzionale)</label>
-            <input type="text" name="billing_vat" class="form-control" value="<?= htmlspecialchars($user['billing_vat']) ?>">
-        </div>
-
-        <button type="submit" class="btn btn-warning">Salva modifiche</button>
-        <a href="change_password.php" class="btn btn-secondary ms-2">Cambia password</a>
-    </form>
-</div>
-
-<?php include "includes/footer.php"; ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-
-</html>
+<!-- QUI il tuo HTML con due form: (1) profilo/billing e (2) cambio password) -->
