@@ -75,16 +75,20 @@ if (!$server) {
         }
 
         #server-message {
-            padding: 12px 16px;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            padding: 12px 20px;
             border-radius: 8px;
             font-size: 15px;
             font-weight: 500;
-            max-width: 400px;
-            margin: 10px auto;
             text-align: center;
             box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.15);
             transition: opacity 0.3s ease;
         }
+
 
         #server-message.success {
             background-color: #d4edda;
@@ -108,30 +112,22 @@ if (!$server) {
             <?= htmlspecialchars($server['name']) ?>
         </h2>
 
-        <!-- Tabs -->
         <ul class="nav nav-tabs mb-4" id="serverTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general"
-                    type="button">Generale</button>
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab"
+                    data-bs-target="#general">Generale</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab"
+                    data-bs-target="#players">Giocatori</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#world">Mondo</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="players-tab" data-bs-toggle="tab" data-bs-target="#players"
-                    type="button">Giocatori</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="world-tab" data-bs-toggle="tab" data-bs-target="#world"
-                    type="button">Mondo</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced"
-                    type="button">Avanzate</button>
-            </li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab"
+                    data-bs-target="#advanced">Avanzate</button></li>
         </ul>
 
         <form id="serverPropertiesForm">
             <input type="hidden" name="server_id" value="<?= $serverId ?>">
 
             <div class="tab-content">
+
                 <!-- Generale -->
                 <div class="tab-pane fade show active" id="general">
                     <div class="mb-3">
@@ -146,16 +142,19 @@ if (!$server) {
                                 Survival</option>
                             <option value="creative" <?= ($server['gamemode'] ?? '') === 'creative' ? 'selected' : '' ?>>
                                 Creative</option>
+                            <option value="adventure" <?= ($server['gamemode'] ?? '') === 'adventure' ? 'selected' : '' ?>>
+                                Adventure</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Difficulty</label>
                         <select class="form-select" name="difficulty">
+                            <option value="peaceful" <?= ($server['difficulty'] ?? '') === 'peaceful' ? 'selected' : '' ?>>
+                                Peaceful</option>
                             <option value="easy" <?= ($server['difficulty'] ?? '') === 'easy' ? 'selected' : '' ?>>Easy
                             </option>
                             <option value="normal" <?= ($server['difficulty'] ?? '') === 'normal' ? 'selected' : '' ?>>
-                                Normal
-                            </option>
+                                Normal</option>
                             <option value="hard" <?= ($server['difficulty'] ?? '') === 'hard' ? 'selected' : '' ?>>Hard
                             </option>
                         </select>
@@ -217,7 +216,23 @@ if (!$server) {
                         <input type="number" class="form-control" name="spawn_protection" min="0"
                             value="<?= intval($server['spawn_protection'] ?? 16) ?>">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tick Distance (4-12)</label>
+                        <input type="number" class="form-control" name="tick_distance" min="4" max="12"
+                            value="<?= intval($server['tick_distance'] ?? 4) ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Player Idle Timeout (minuti)</label>
+                        <input type="number" class="form-control" name="player_idle_timeout" min="0"
+                            value="<?= intval($server['player_idle_timeout'] ?? 30) ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Max Threads</label>
+                        <input type="number" class="form-control" name="max_threads" min="1"
+                            value="<?= intval($server['max_threads'] ?? 8) ?>">
+                    </div>
                 </div>
+
             </div>
 
             <div class="mt-4 text-center">
@@ -239,11 +254,13 @@ if (!$server) {
             })
                 .then(response => response.json())
                 .then(data => {
-                    let msgBox = document.getElementById('server-message');
+                    const msgBox = document.getElementById('server-message');
                     msgBox.textContent = data.message;
                     msgBox.className = data.success ? 'success' : 'error';
+                    msgBox.style.opacity = '1';
                     msgBox.style.display = 'block';
 
+                    // Animazione scomparsa dopo 5 secondi
                     setTimeout(() => {
                         msgBox.style.opacity = '0';
                         setTimeout(() => msgBox.style.display = 'none', 300);
@@ -251,11 +268,19 @@ if (!$server) {
                 })
                 .catch(err => {
                     console.error('Errore:', err);
+                    const msgBox = document.getElementById('server-message');
+                    msgBox.textContent = "Errore nella richiesta. Riprovare.";
+                    msgBox.className = 'error';
+                    msgBox.style.display = 'block';
+                    msgBox.style.opacity = '1';
+                    setTimeout(() => {
+                        msgBox.style.opacity = '0';
+                        setTimeout(() => msgBox.style.display = 'none', 300);
+                    }, 5000);
                 });
-
-
         });
     </script>
+
 </body>
 
 </html>
