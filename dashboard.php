@@ -88,7 +88,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function updateStatus(serverId) {
-    fetch('check_status.php?id=' + serverId)
+    fetch('ajax_get_server_status.php?id=' + serverId)
         .then(res => res.json())
         .then(data => {
             const statusEl = document.getElementById('status-' + serverId);
