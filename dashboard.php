@@ -6,7 +6,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type,
-           c.ip AS private_ip, c.ram_mb, c.proxmox_containerId
+           c.ip AS ip, c.ram_mb, c.proxmox_containerId
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id = ?
@@ -62,7 +62,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <?= htmlspecialchars($server['status']) ?>
                             </span>
                         </div>
-                        <p class="server-ip mb-2">IP: <?= htmlspecialchars($server['private_ip']) ?></p>
+                        <p class="server-ip mb-2">IP: <?= htmlspecialchars($server['ip']) ?></p>
                         <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
 
                         <div class="d-flex justify-content-between">
