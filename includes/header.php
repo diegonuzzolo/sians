@@ -1,5 +1,5 @@
 <?php 
-include 'includes/force_https.php';
+// include 'includes/force_https.php';
 
 ?>
 <!DOCTYPE html>
