@@ -101,15 +101,12 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
 
                             <div class="d-flex justify-content-between">
-                                <button class="btn btn-success btn-server" id="startBtn-<?= $server['id'] ?>"
-                                    onclick="startServer(<?= $server['id'] ?>)">
-                                    Avvia
-                                </button>
-                                <button class="btn btn-danger btn-server" id="stopBtn-<?= $server['id'] ?>"
-                                    onclick="stopServer(<?= $server['id'] ?>)">
-                                    Ferma
-                                </button>
+                                <button class="btn btn-success btn-server" id="start-<?= $server['id'] ?>"
+                                    onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
+                                <button class="btn btn-danger btn-server" id="stop-<?= $server['id'] ?>"
+                                    onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
                             </div>
+
 
 
                             <div class="mt-3 d-flex justify-content-between">
@@ -130,26 +127,32 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function updateButtons(serverId, status) {
+            const startBtn = document.getElementById('start-' + serverId);
+            const stopBtn = document.getElementById('stop-' + serverId);
+
+            if (status === 'running') {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else { // stopped
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
         function updateStatus(serverId) {
             fetch('check_status.php?id=' + serverId)
                 .then(res => res.json())
                 .then(data => {
                     const statusEl = document.getElementById('status-' + serverId);
-                    const startBtn = document.getElementById('startBtn-' + serverId);
-                    const stopBtn = document.getElementById('stopBtn-' + serverId);
-
-                    if (statusEl && startBtn && stopBtn) {
-                        const isRunning = data.status === 'running';
-                        statusEl.textContent = isRunning ? 'Attivo' : 'Spento';
-                        statusEl.className = 'status-badge ' + (isRunning ? 'status-running' : 'status-stopped');
-
-                        // Disabilita/abilita bottoni
-                        startBtn.disabled = isRunning;
-                        stopBtn.disabled = !isRunning;
+                    if (statusEl) {
+                        statusEl.textContent = data.status;
+                        statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
+                        // aggiorna i pulsanti
+                        updateButtons(serverId, data.status);
                     }
                 });
         }
-
 
         function startServer(serverId) {
             fetch('ajax_server_control.php', {
@@ -183,8 +186,11 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 updateStatus(<?= $server['id'] ?>);
             <?php endforeach; ?>
         }, 10000);
-    </script>
 
+    </script>
+    <?php foreach ($servers as $server): ?>
+        updateButtons(<?= $server['id'] ?>, '<?= $server['status'] ?>');
+    <?php endforeach; ?>
     <?php include "includes/footer.php"; ?>
 </body>
 
