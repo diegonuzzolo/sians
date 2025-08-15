@@ -1,5 +1,5 @@
 <?php 
-include __DIR__ . '/../includes/force_https.php';
+require_once __DIR__ . '/../includes/force_https.php';
 
 ?>
 <!DOCTYPE html>
