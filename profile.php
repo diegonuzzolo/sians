@@ -47,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
 // cambio password
 if (isset($_POST['change_password'])) {
-    // csrf_check_or_die();
     $curr = $_POST['current_password'] ?? '';
     $new  = $_POST['new_password'] ?? '';
     $new2 = $_POST['new_password_confirm'] ?? '';
