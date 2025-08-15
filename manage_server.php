@@ -89,7 +89,6 @@ if (!$server) {
             transition: opacity 0.3s ease;
         }
 
-
         #server-message.success {
             background-color: #d4edda;
             color: #155724;
@@ -109,8 +108,7 @@ if (!$server) {
 
     <div class="container my-5">
         <h2 class="text-center mb-4"><i class="bi bi-server"></i> Gestione Server:
-            <?= htmlspecialchars($server['name']) ?>
-        </h2>
+            <?= htmlspecialchars($server['name']) ?></h2>
 
         <ul class="nav nav-tabs mb-4" id="serverTab" role="tablist">
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab"
@@ -121,6 +119,8 @@ if (!$server) {
             </li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab"
                     data-bs-target="#advanced">Avanzate</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#icon">Icona</button>
+            </li>
         </ul>
 
         <form id="serverPropertiesForm">
@@ -233,6 +233,23 @@ if (!$server) {
                     </div>
                 </div>
 
+                <!-- Icona -->
+                <div class="tab-pane fade" id="icon">
+                    <div class="mb-3 text-center">
+                        <img id="server-icon-preview" src="/path/to/default/icon.png" alt="Server Icon"
+                            style="width:64px;height:64px;border-radius:8px;border:1px solid #444;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Carica nuova icona (PNG 64x64)</label>
+                        <input type="file" class="form-control" name="server_icon" id="server_icon" accept="image/png">
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-primary" id="upload-icon-btn">
+                            <i class="bi bi-upload"></i> Carica Icona
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
             <div class="mt-4 text-center">
@@ -248,37 +265,43 @@ if (!$server) {
         document.getElementById('serverPropertiesForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(this);
-            fetch('ajax_update_server.php', {
-                method: 'POST',
-                body: formData
-            })
+            fetch('ajax_update_server.php', { method: 'POST', body: formData })
                 .then(response => response.json())
-                .then(data => {
-                    const msgBox = document.getElementById('server-message');
-                    msgBox.textContent = data.message;
-                    msgBox.className = data.success ? 'success' : 'error';
-                    msgBox.style.opacity = '1';
-                    msgBox.style.display = 'block';
-
-                    // Animazione scomparsa dopo 5 secondi
-                    setTimeout(() => {
-                        msgBox.style.opacity = '0';
-                        setTimeout(() => msgBox.style.display = 'none', 300);
-                    }, 5000);
-                })
-                .catch(err => {
-                    console.error('Errore:', err);
-                    const msgBox = document.getElementById('server-message');
-                    msgBox.textContent = "Errore nella richiesta. Riprovare.";
-                    msgBox.className = 'error';
-                    msgBox.style.display = 'block';
-                    msgBox.style.opacity = '1';
-                    setTimeout(() => {
-                        msgBox.style.opacity = '0';
-                        setTimeout(() => msgBox.style.display = 'none', 300);
-                    }, 5000);
-                });
+                .then(data => showMessage(data.success, data.message))
+                .catch(() => showMessage(false, "Errore nella richiesta. Riprovare."));
         });
+
+        document.getElementById('upload-icon-btn').addEventListener('click', function () {
+            const fileInput = document.getElementById('server_icon');
+            if (!fileInput.files.length) {
+                alert('Seleziona un file PNG 64x64 prima di caricare.');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('server_id', '<?= $serverId ?>');
+            formData.append('server_icon', fileInput.files[0]);
+            fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    showMessage(data.success, data.message);
+                    if (data.success) {
+                        document.getElementById('server-icon-preview').src = URL.createObjectURL(fileInput.files[0]);
+                    }
+                })
+                .catch(() => showMessage(false, "Errore durante l'upload."));
+        });
+
+        function showMessage(success, message) {
+            const msgBox = document.getElementById('server-message');
+            msgBox.textContent = message;
+            msgBox.className = success ? 'success' : 'error';
+            msgBox.style.display = 'block';
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+                setTimeout(() => msgBox.style.display = 'none', 300);
+            }, 5000);
+        }
     </script>
 
 </body>
