@@ -10,7 +10,8 @@ require_once __DIR__ . '/config/config.php';
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('Metodo non consentito');
 
-    $userId = $_SESSION['user_id'] ?? 0;
+    $userId = intval($_POST['user_id'] ?? 0);
+
     $serverId = intval($_POST['server_id'] ?? 0);
     if (!$userId || !$serverId) throw new Exception('Parametri non validi');
 

@@ -83,25 +83,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
         $ajaxData = [
-            'server_id' => $serverId,
-            'motd' => $serverName,
-            'gamemode' => 'survival',
-            'difficulty' => 'easy',
-            'max_players' => 10,
-            'view_distance' => 6,
-            'enable_command_blocks' => 'false',
-            'level_name' => 'world',
-            'seed' => '',
-            'spawn_protection' => 16,
-            'white_list_enabled' => 'false',
-            'whitelist' => '',
-            'blacklist' => '',
-            'tick_distance' => 4,
-            'player_idle_timeout' => 30,
-            'max_threads' => $cores,           // default = numero di core del container
-            'cpu_cores' => $cores,             // opzionale se vuoi memorizzare anche qui
-            'enable_lan_visibility' => 'true'  // sempre abilitato statico
-        ];
+    'server_id' => $serverId,
+    'user_id' => $userId, // <--- aggiungi qui
+    'motd' => $serverName,
+    'gamemode' => 'survival',
+    'difficulty' => 'easy',
+    'max_players' => 10,
+    'view_distance' => 6,
+    'enable_command_blocks' => 'false',
+    'level_name' => 'world',
+    'seed' => '',
+    'spawn_protection' => 16,
+    'white_list_enabled' => 'false',
+    'whitelist' => '',
+    'blacklist' => '',
+    'tick_distance' => 4,
+    'player_idle_timeout' => 30,
+    'max_threads' => $cores
+];
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/ajax_update_server.php");
         curl_setopt($ch, CURLOPT_POST, 1);
