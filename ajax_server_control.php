@@ -5,31 +5,29 @@ require 'config/config.php';
 header('Content-Type: application/json');
 
 try {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('Metodo non consentito');
-
-    $userId = $_SESSION['user_id'] ?? 0;
-    $serverId = intval($_POST['id'] ?? 0);
     $action = $_POST['action'] ?? '';
+    $serverId = intval($_POST['id'] ?? 0);
+    $userId = $_SESSION['user_id'] ?? 0;
 
-    if (!$userId || !$serverId) throw new Exception('Parametri non validi');
-    if (!in_array($action, ['start','stop'])) throw new Exception('Azione non valida');
+    if (!$serverId || !$userId || !in_array($action, ['start','stop'])) {
+        throw new Exception('Parametri non validi');
+    }
 
-    // Recupera VMID del container
+    // Recupera VMID e nodo dal DB
     $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
-    $stmt->execute([$serverId, $userId]);
+    $stmt->execute([$serverId,$userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$server) throw new Exception('Server non trovato');
+    if(!$server) throw new Exception("Server non trovato");
 
     $vmid = intval($server['proxmox_containerId']);
     $nodeIp = '192.168.1.251';
     $sshKey = '/var/www/.ssh/id_proxmox';
 
-    // Script da eseguire
     $script = ($action === 'start') ? '/root/minecraft_bedrock/start.sh' : '/root/minecraft_bedrock/stop.sh';
 
-    // Comando SSH + pct exec + screen
+    // Comando pct exec con screen
     $cmd = sprintf(
-        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -dmS mcserver bash %s"',
+        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -dmS bedrock bash %s"',
         escapeshellarg($sshKey),
         escapeshellarg($nodeIp),
         $vmid,
@@ -37,13 +35,18 @@ try {
     );
 
     exec($cmd . " 2>&1", $output, $status);
-    if ($status !== 0) {
-        throw new Exception("Errore esecuzione script: ".implode("\n",$output));
+
+    if($status !== 0){
+        throw new Exception("Errore esecuzione {$action}. Output: ".implode("\n",$output));
     }
 
-    $msg = ($action === 'start') ? 'Server avviato' : 'Server fermato';
-    echo json_encode(['success'=>true,'message'=>$msg]);
+    // Aggiorna stato nel DB: 'running' se start, 'stopped' se stop
+    $newStatus = ($action === 'start') ? 'running' : 'stopped';
+    $stmt = $pdo->prepare("UPDATE servers SET status=? WHERE id=? AND user_id=?");
+    $stmt->execute([$newStatus,$serverId,$userId]);
 
-} catch (Exception $e) {
+    echo json_encode(['success'=>true,'message'=>"Server {$action}ato con successo",'status'=>$newStatus]);
+
+} catch(Exception $e){
     echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
 }
