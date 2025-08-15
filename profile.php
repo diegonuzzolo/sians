@@ -1,8 +1,8 @@
 <?php
 require 'auth_check.php';
 require 'config/config.php';
-require 'includes/csrf.php';
-csrf_check_or_die();
+// require 'includes/csrf.php';
+// csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
 
