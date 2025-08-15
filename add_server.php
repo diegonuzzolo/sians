@@ -110,10 +110,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         curl_close($ch);
 
+        // Controllo e debug
         $result = json_decode($response, true);
-        if (!$result['success']) {
-            throw new Exception("Errore setup server.properties: " . ($result['message'] ?? ''));
+        if ($result === null) {
+            throw new Exception("Errore setup server.properties: risposta non valida da ajax_update_server.php: " . $response);
         }
+
+        if (!isset($result['success']) || !$result['success']) {
+            throw new Exception("Errore setup server.properties: " . ($result['message'] ?? 'Unknown error'));
+        }
+
 
 
 
