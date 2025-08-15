@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reqStorage = $storageGb;
 
         if ($resources['used_cpu_cores'] + $reqCpu > $resources['total_cpu_cores'] ||
-            $resources['used_ram_mb'] + $reqRam > $resources['total_ram_mb'] ||
+            $resources['used_ram_gb'] + $reqRam > $resources['total_ram_gb'] ||
             $resources['used_storage_gb'] + $reqStorage > $resources['total_storage_gb']) {
             throw new Exception("Risorse insufficienti per creare il server.");
         }
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $updateRes = $pdo->prepare("
             UPDATE resources SET
                 used_cpu_cores = used_cpu_cores + ?,
-                used_ram_mb    = used_ram_mb + ?,
+                used_ram_gb    = used_ram_gb + ?,
                 used_storage_gb = used_storage_gb + ?
             WHERE id = 1
         ");
