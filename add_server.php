@@ -12,7 +12,7 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ramGb = intval($_POST['ram_gb'] ?? 2);  // input in GB
-    $storageGb = intval($_POST['storage_gb'] ?? 20);
+    $storageGb = intval($_POST['storage_gb'] ?? 64);
     $cores = intval($_POST['cpu_cores'] ?? 2);
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
