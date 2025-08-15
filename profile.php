@@ -184,9 +184,22 @@ if (isset($_POST['change_password'])) {
 </div>
 
 <style>
+   <style>
     body { background-color: #f4f6f9; }
     .card { border-radius: 12px; }
     .card-header { font-size: 1.1rem; }
+    /* Etichette leggibili su sfondo chiaro */
+    .form-label, .text-muted {
+        color: #333 !important;
+    }
+    /* Input chiari con bordo discreto */
+    .form-control {
+        background-color: #fff;
+        color: #000;
+        border: 1px solid #ccc;
+    }
+</style>
+
 </style>
 
 <?php include 'includes/footer.php'; ?>
