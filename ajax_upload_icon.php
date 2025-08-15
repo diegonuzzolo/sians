@@ -24,16 +24,19 @@ try {
         throw new Exception("File non valido: deve essere PNG 64x64 px");
     }
 
-    // Recupera server info dal DB
-    $stmt = $pdo->prepare("SELECT node_host, ssh_user, ssh_key_path, proxmox_containerId FROM servers WHERE id=?");
+    // Recupera VMID dal DB
+    $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=?");
     $stmt->execute([$serverId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$server) throw new Exception("Server non trovato");
 
-    $nodeHost   = $server['node_host'];
-    $sshUser    = $server['ssh_user'] ?: 'root';
-    $sshKeyPath = $server['ssh_key_path'] ?: '/var/www/.ssh/id_proxmox';
-    $vmid       = intval($server['proxmox_containerId']);
+    $vmid = intval($server['proxmox_containerId']);
+    if ($vmid <= 0) throw new Exception("VMID non valido");
+
+    // Parametri nodo Proxmox
+    $nodeHost   = '192.168.1.251';
+    $sshUser    = 'root';
+    $sshKeyPath = '/var/www/.ssh/id_proxmox';
 
     if (!file_exists($sshKeyPath) || !is_readable($sshKeyPath)) {
         throw new Exception("Chiave SSH non trovata o non leggibile: {$sshKeyPath}");
@@ -44,7 +47,7 @@ try {
     $remoteTmp = "/tmp/server_icon.png";
     $remoteFinal = "/root/minecraft_bedrock/server_icon.png";
 
-    // Funzione helper per eseguire comandi e loggare errori
+    // Funzione helper per eseguire comandi
     $run = function($cmd, $msg) {
         exec($cmd . " 2>&1", $out, $ret);
         if ($ret !== 0) {
@@ -55,13 +58,13 @@ try {
 
     // 1️⃣ Copia sul nodo via SCP
     $run("scp -i {$escKey} -o StrictHostKeyChecking=no {$tmpLocal} {$escNode}:{$remoteTmp}",
-         "Errore SCP verso nodo");
+         "Errore SCP verso nodo Proxmox");
 
-    // 2️⃣ Push nel container
+    // 2️⃣ Push nel container con pct
     $run("ssh -i {$escKey} -o StrictHostKeyChecking=no {$escNode} 'pct push {$vmid} {$remoteTmp} {$remoteFinal}'",
          "Errore pct push nel container");
 
-    // 3️⃣ Rimuovo file temporaneo dal nodo
+    // 3️⃣ Rimuovo file temporaneo sul nodo
     $run("ssh -i {$escKey} -o StrictHostKeyChecking=no {$escNode} 'rm -f {$remoteTmp}'",
          "Errore pulizia file temporaneo sul nodo");
 
