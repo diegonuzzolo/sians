@@ -3,10 +3,11 @@ header('Content-Type: application/json');
 ob_start();
 ini_set('display_errors', 0);
 error_reporting(0);
-csrf_check_or_die();
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/config.php';
+include 'includes/csrf.php';
 
+csrf_check_or_die();
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('Metodo non consentito');
 

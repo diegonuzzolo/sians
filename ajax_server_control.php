@@ -1,6 +1,7 @@
 <?php
 include("auth_check.php");
 require 'config/config.php';
+include 'includes/csrf.php';
 
 header('Content-Type: application/json');
 csrf_check_or_die();

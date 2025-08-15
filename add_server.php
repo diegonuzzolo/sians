@@ -3,11 +3,12 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-csrf_check_or_die();
 require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
+include 'includes/csrf.php';
 
+csrf_check_or_die();
 $userId = $_SESSION['user_id'] ?? 0;
 $error = '';
 

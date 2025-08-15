@@ -1,6 +1,8 @@
 <?php
 // auth_check.php
 include(__DIR__ . "/config/config.php");
+include 'includes/csrf.php';
+
 session_start();
 csrf_check_or_die();
 // 1️⃣ Controllo login

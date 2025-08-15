@@ -1,6 +1,7 @@
 <?php
 require 'config/config.php';
 require 'auth_check.php'; // redirect se non loggato
+include 'includes/csrf.php';
 
 $user_id = $_SESSION['user_id'];
 csrf_check_or_die();

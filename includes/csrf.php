@@ -1,4 +1,7 @@
 <?php
+
+include 'includes/csrf.php';
+
 csrf_check_or_die();
 function csrf_token() {
     if (empty($_SESSION['csrf'])) {

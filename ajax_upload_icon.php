@@ -4,9 +4,11 @@ error_reporting(E_ALL);
 
 require 'auth_check.php';
 require 'config/config.php';
-csrf_check_or_die();
+include 'includes/csrf.php';
+
 header('Content-Type: application/json');
 
+csrf_check_or_die();
 try {
     $serverId = intval($_POST['server_id'] ?? 0);
     if ($serverId <= 0) throw new Exception("ID server non valido");
