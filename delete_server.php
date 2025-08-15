@@ -41,39 +41,38 @@ try {
     // --- Distruggi container ---
     $destroyUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
     $destroyResult = callProxmox($destroyUrl, 'DELETE');
+    // --- Recupera le risorse del container ---
+    $stmt = $pdo->prepare("SELECT ram_mb, storage_gb, cores FROM containers WHERE id = ?");
+    $stmt->execute([$server['container_id']]);
+    $containerResources = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // --- Restituisci risorse ---
-    $stmt = $pdo->prepare("
-        UPDATE resources 
-        SET used_ram_mb = used_ram_mb - ?, 
-            used_storage_gb = used_storage_gb - ?, 
-            used_cpu_cores = used_cpu_cores - ?
+    if ($containerResources) {
+        $ramMb = intval($containerResources['ram_mb']);
+        $storageGb = intval($containerResources['storage_gb']);
+        $cores = intval($containerResources['cores']);
+
+        // --- Aggiorna tabella resources ---
+        $stmt = $pdo->prepare("
+        UPDATE resources
+        SET 
+            total_cpu_cores = total_cpu_cores + ?, 
+            total_ram_gb = total_ram_gb + ?, 
+            total_storage_gb = total_storage_gb + ?, 
+            used_cpu_cores = used_cpu_cores - ?, 
+            used_ram_mb = used_ram_mb - ?, 
+            used_storage_gb = used_storage_gb - ?
         WHERE id = 1
     ");
-    $stmt->execute([$usedRam, $usedStorage, $usedCpu]);
+        $stmt->execute([
+            $cores,
+            $ramMb / 1024,  // converto MB in GB
+            $storageGb,
+            $cores,
+            $ramMb,
+            $storageGb
+        ]);
+    }
 
-    // --- 1. Recupera le risorse utilizzate dal server eliminato ---
-    $stmt = $pdo->prepare("
-    SELECT ram_mb, cores 
-    FROM containers 
-    WHERE id = ?
-");
-    $stmt->execute([$server['container_id']]);
-    $used = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    $usedRam = $used['ram_mb'] ?? 0;
-    $usedCpu = $used['cores'] ?? 0;
-    $usedStorage = 64; // storage fisso
-
-    // --- 2. Aggiorna tabella resources ---
-    $stmt = $pdo->prepare("
-    UPDATE resources 
-    SET used_ram_mb = GREATEST(used_ram_mb - ?, 0), 
-        used_cpu_cores = GREATEST(used_cpu_cores - ?, 0), 
-        used_storage_gb = GREATEST(used_storage_gb - ?, 0)
-    WHERE id = 1
-");
-    $stmt->execute([$usedRam, $usedCpu, $usedStorage]);
 
     // --- Elimina record server dal DB ---
     $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");

@@ -18,19 +18,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
 
-
+        // --- 0. Controllo risorse disponibili ---
         $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
         $resources = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
-        $availableRam = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']; // in MB
+        $availableRam = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']; // MB
         $availableStorage = $resources['total_storage_gb'] - $resources['used_storage_gb'];
+        // Per tutti i server Bedrock, storage usato fisso 64 GB
+        $serverStorage = 64;
 
-        if ($cores > $availableCpu || ($ramGb * 1024) > $availableRam || $storageGb > $availableStorage) {
+        if ($cores > $availableCpu || ($ramGb * 1024) > $availableRam || $serverStorage > $availableStorage) {
             throw new Exception("Risorse insufficienti per creare il server.");
         }
-
-
         // --- 1. Trova VMID e IP liberi ---
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
@@ -58,34 +58,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?");
         $stmt->execute([$containerId, $serverId]);
 
-        // --- 0. Controllo risorse disponibili ---
-        $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
-        $resources = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
-        $availableRam = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']; // in MB
-        $requiredStorage = 64; // storage fisso per server
-        $availableStorage = $resources['total_storage_gb'] - $resources['used_storage_gb'];
-
-        if ($cores > $availableCpu || ($ramGb * 1024) > $availableRam || $requiredStorage > $availableStorage) {
-            throw new Exception("Risorse insufficienti per creare il server.");
-        }
-
         // --- 5. Aggiorna tabella resources ---
         $stmt = $pdo->prepare("
-            UPDATE resources 
-            SET used_ram_mb = used_ram_mb + ?, 
-                used_storage_gb = used_storage_gb + ?, 
-                used_cpu_cores = used_cpu_cores + ?
-            WHERE id = 1
-        ");
-        $stmt->execute([$ramGb * 1024, $storageGb, $cores]);
+                UPDATE resources 
+                SET 
+                    total_cpu_cores = total_cpu_cores - ?, 
+                    total_ram_gb = total_ram_gb - ?, 
+                    total_storage_gb = total_storage_gb - ?, 
+                    used_cpu_cores = used_cpu_cores + ?, 
+                    used_ram_mb = used_ram_mb + ?, 
+                    used_storage_gb = used_storage_gb + ?
+                WHERE id = 1
+            ");
+        $stmt->execute([
+            $cores,
+            $ramGb,
+            $serverStorage,
+            $cores,
+            $ramGb * 1024,
+            $serverStorage
+        ]);
+
 
         // --- 5. Crea container su Proxmox ---
         $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
         if (!$createResult['success']) {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
+
+
 
         sleep(4); // attesa container ready
 
