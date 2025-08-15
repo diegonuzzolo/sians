@@ -14,222 +14,162 @@ $stmt = $pdo->prepare("
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$server) {
+if(!$server){
     die("Server non trovato o non autorizzato.");
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
     <title>Gestione Server Bedrock</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #121212;
-            color: #fff;
-        }
-
-        .nav-tabs .nav-link.active {
-            background-color: #0d6efd;
-            color: #fff;
-            border-color: #0d6efd;
-        }
-
-        .card {
-            background-color: #1e1e1e;
-            border: none;
-        }
-
-        .form-control,
-        .form-select,
-        .form-check-input {
-            background-color: #2a2a2a;
-            color: #fff;
-            border-color: #444;
-        }
-
-        .form-control:focus,
-        .form-select:focus {
-            background-color: #2a2a2a;
-            color: #fff;
-            border-color: #0d6efd;
-            box-shadow: none;
-        }
-
-        .btn-primary {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
-        }
-
-        .btn-primary:hover {
-            background-color: #0b5ed7;
-            border-color: #0b5ed7;
-        }
-
-        textarea.form-control {
-            resize: vertical;
-        }
+        body { background-color: #121212; color: #fff; }
+        .nav-tabs .nav-link.active { background-color: #0d6efd; color: #fff; border-color: #0d6efd; }
+        .card { background-color: #1e1e1e; border: none; }
+        .form-control, .form-select, .form-check-input { background-color: #2a2a2a; color: #fff; border-color: #444; }
+        .form-control:focus, .form-select:focus { background-color: #2a2a2a; color: #fff; border-color: #0d6efd; box-shadow: none; }
+        .btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
+        .btn-primary:hover { background-color: #0b5ed7; border-color: #0b5ed7; }
+        textarea.form-control { resize: vertical; }
     </style>
 </head>
-
 <body>
-    <?php include "includes/header.php"; ?>
+<?php include "includes/header.php"; ?>
 
-    <div class="container my-5">
-        <h2 class="text-center mb-4"><i class="bi bi-server"></i> Gestione Server:
-            <?= htmlspecialchars($server['name']) ?></h2>
+<div class="container my-5">
+    <h2 class="text-center mb-4"><i class="bi bi-server"></i> Gestione Server: <?= htmlspecialchars($server['name']) ?></h2>
 
-        <!-- Tabs -->
-        <ul class="nav nav-tabs mb-4" id="serverTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general"
-                    type="button">Generale</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="players-tab" data-bs-toggle="tab" data-bs-target="#players"
-                    type="button">Giocatori</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="world-tab" data-bs-toggle="tab" data-bs-target="#world"
-                    type="button">Mondo</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced"
-                    type="button">Avanzate</button>
-            </li>
-        </ul>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="serverTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button">Generale</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="players-tab" data-bs-toggle="tab" data-bs-target="#players" type="button">Giocatori</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="world-tab" data-bs-toggle="tab" data-bs-target="#world" type="button">Mondo</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button">Avanzate</button>
+        </li>
+    </ul>
 
-        <form id="serverPropertiesForm">
-            <input type="hidden" name="server_id" value="<?= $serverId ?>">
+    <form id="serverPropertiesForm">
+        <input type="hidden" name="server_id" value="<?= $serverId ?>">
 
-            <div class="tab-content">
-                <!-- Generale -->
-                <div class="tab-pane fade show active" id="general">
-                    <div class="mb-3">
-                        <label class="form-label">MOTD</label>
-                        <input type="text" class="form-control" name="motd"
-                            value="<?= htmlspecialchars($server['motd'] ?? '') ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Gamemode</label>
-                        <select class="form-select" name="gamemode">
-                            <option value="survival" <?= ($server['gamemode'] ?? '') === 'survival' ? 'selected' : '' ?>>
-                                Survival</option>
-                            <option value="creative" <?= ($server['gamemode'] ?? '') === 'creative' ? 'selected' : '' ?>>
-                                Creative</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Difficulty</label>
-                        <select class="form-select" name="difficulty">
-                            <option value="easy" <?= ($server['difficulty'] ?? '') === 'easy' ? 'selected' : '' ?>>Easy
-                            </option>
-                            <option value="normal" <?= ($server['difficulty'] ?? '') === 'normal' ? 'selected' : '' ?>>Normal
-                            </option>
-                            <option value="hard" <?= ($server['difficulty'] ?? '') === 'hard' ? 'selected' : '' ?>>Hard
-                            </option>
-                        </select>
-                    </div>
+        <div class="tab-content">
+            <!-- Generale -->
+            <div class="tab-pane fade show active" id="general">
+                <div class="mb-3">
+                    <label class="form-label">MOTD</label>
+                    <input type="text" class="form-control" name="motd" value="<?= htmlspecialchars($server['motd'] ?? '') ?>">
                 </div>
-
-                <!-- Giocatori -->
-                <div class="tab-pane fade" id="players">
-                    <div class="mb-3">
-                        <label class="form-label">Max Players (1-100)</label>
-                        <input type="number" class="form-control" name="max_players" min="1" max="100"
-                            value="<?= intval($server['max_players'] ?? 10) ?>">
-                    </div>
-                    <div class="mb-3 form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="white_list_enabled"
-                            <?= ($server['white_list'] ?? 'false') === 'true' ? 'checked' : '' ?>>
-                        <label class="form-check-label">Whitelist Abilitata</label>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Whitelist (nomi separati da invio)</label>
-                        <textarea class="form-control" name="whitelist"
-                            rows="3"><?= htmlspecialchars($server['whitelist'] ?? '') ?></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Blacklist (nomi separati da invio)</label>
-                        <textarea class="form-control" name="blacklist"
-                            rows="3"><?= htmlspecialchars($server['blacklist'] ?? '') ?></textarea>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Gamemode</label>
+                    <select class="form-select" name="gamemode">
+                        <option value="survival" <?= ($server['gamemode'] ?? '')==='survival'?'selected':'' ?>>Survival</option>
+                        <option value="creative" <?= ($server['gamemode'] ?? '')==='creative'?'selected':'' ?>>Creative</option>
+                    </select>
                 </div>
-
-                <!-- Mondo -->
-                <div class="tab-pane fade" id="world">
-                    <div class="mb-3">
-                        <label class="form-label">Level Name</label>
-                        <input type="text" class="form-control" name="level_name"
-                            value="<?= htmlspecialchars($server['level_name'] ?? 'world') ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Seed</label>
-                        <input type="text" class="form-control" name="seed"
-                            value="<?= htmlspecialchars($server['seed'] ?? '') ?>">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">View Distance (2-32)</label>
-                        <input type="number" class="form-control" name="view_distance" min="2" max="32"
-                            value="<?= intval($server['view_distance'] ?? 6) ?>">
-                    </div>
-                </div>
-
-                <!-- Avanzate -->
-                <div class="tab-pane fade" id="advanced">
-                    <div class="mb-3 form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="enable_command_blocks"
-                            <?= ($server['enable_command_blocks'] ?? 'false') === 'true' ? 'checked' : '' ?>>
-                        <label class="form-check-label">Command Blocks Abilitati</label>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Spawn Protection</label>
-                        <input type="number" class="form-control" name="spawn_protection" min="0"
-                            value="<?= intval($server['spawn_protection'] ?? 16) ?>">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Difficulty</label>
+                    <select class="form-select" name="difficulty">
+                        <option value="easy" <?= ($server['difficulty'] ?? '')==='easy'?'selected':'' ?>>Easy</option>
+                        <option value="normal" <?= ($server['difficulty'] ?? '')==='normal'?'selected':'' ?>>Normal</option>
+                        <option value="hard" <?= ($server['difficulty'] ?? '')==='hard'?'selected':'' ?>>Hard</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="mt-4 text-center">
-                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save"></i> Salva Modifiche</button>
+            <!-- Giocatori -->
+            <div class="tab-pane fade" id="players">
+                <div class="mb-3">
+                    <label class="form-label">Max Players (1-100)</label>
+                    <input type="number" class="form-control" name="max_players" min="1" max="100" value="<?= intval($server['max_players'] ?? 10) ?>">
+                </div>
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="white_list_enabled" <?= ($server['white_list'] ?? 'false')==='true'?'checked':'' ?>>
+                    <label class="form-check-label">Whitelist Abilitata</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Whitelist (nomi separati da invio)</label>
+                    <textarea class="form-control" name="whitelist" rows="3"><?= htmlspecialchars($server['whitelist'] ?? '') ?></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Blacklist (nomi separati da invio)</label>
+                    <textarea class="form-control" name="blacklist" rows="3"><?= htmlspecialchars($server['blacklist'] ?? '') ?></textarea>
+                </div>
             </div>
-        </form>
 
-        <div id="server-message" style="display:none; padding:10px; border-radius:5px;"></div>
+            <!-- Mondo -->
+            <div class="tab-pane fade" id="world">
+                <div class="mb-3">
+                    <label class="form-label">Level Name</label>
+                    <input type="text" class="form-control" name="level_name" value="<?= htmlspecialchars($server['level_name'] ?? 'world') ?>">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Seed</label>
+                    <input type="text" class="form-control" name="seed" value="<?= htmlspecialchars($server['seed'] ?? '') ?>">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">View Distance (2-32)</label>
+                    <input type="number" class="form-control" name="view_distance" min="2" max="32" value="<?= intval($server['view_distance'] ?? 6) ?>">
+                </div>
+            </div>
 
-    </div>
+            <!-- Avanzate -->
+            <div class="tab-pane fade" id="advanced">
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="enable_command_blocks" <?= ($server['enable_command_blocks'] ?? 'false')==='true'?'checked':'' ?>>
+                    <label class="form-check-label">Command Blocks Abilitati</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Spawn Protection</label>
+                    <input type="number" class="form-control" name="spawn_protection" min="0" value="<?= intval($server['spawn_protection'] ?? 16) ?>">
+                </div>
+            </div>
+        </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.getElementById('serverPropertiesForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            fetch('ajax_update_server.php', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    let msgBox = document.getElementById('server-message');
-                    msgBox.textContent = data.message;
-                    msgBox.style.display = 'block';
-                    msgBox.className = data.success ? 'success' : 'error';
+        <div class="mt-4 text-center">
+            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save"></i> Salva Modifiche</button>
+        </div>
+    </form>
 
-                    // Nascondi il messaggio dopo 5 secondi
-                    setTimeout(() => {
-                        msgBox.style.display = 'none';
-                    }, 5000);
-                })
-                .catch(err => {
-                    console.error('Errore:', err);
-                });
+    <div id="server-message" class="mt-3 text-center" style="display:none; padding:10px; border-radius:5px;"></div>
 
-        });
-    </script>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('serverPropertiesForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const formData = new FormData(this);
+    fetch('ajax_update_server.php', {
+    method: 'POST',
+    body: formData
+})
+.then(response => response.json())
+.then(data => {
+    let msgBox = document.getElementById('server-message');
+    msgBox.textContent = data.message;
+    msgBox.style.display = 'block';
+    msgBox.className = data.success ? 'success' : 'error';
+
+    // Nascondi il messaggio dopo 5 secondi
+    setTimeout(() => {
+        msgBox.style.display = 'none';
+    }, 5000);
+})
+.catch(err => {
+    console.error('Errore:', err);
+});
+
+});
+</script>
 </body>
-
 </html>
