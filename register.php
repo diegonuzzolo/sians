@@ -2,7 +2,8 @@
 <?php
 require 'config/config.php';
 require 'includes/header.php';
-include 'includes/csrf.php';
+require_once 'includes/csrf.php';
+
 
 csrf_check_or_die();
 $error = null;

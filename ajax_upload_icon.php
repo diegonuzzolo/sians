@@ -4,7 +4,8 @@ error_reporting(E_ALL);
 
 require 'auth_check.php';
 require 'config/config.php';
-include 'includes/csrf.php';
+require_once 'includes/csrf.php';
+
 
 header('Content-Type: application/json');
 

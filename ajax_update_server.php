@@ -5,7 +5,8 @@ ini_set('display_errors', 0);
 error_reporting(0);
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/config.php';
-include 'includes/csrf.php';
+require_once 'includes/csrf.php';
+
 
 csrf_check_or_die();
 try {

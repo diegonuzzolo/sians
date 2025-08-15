@@ -1,7 +1,8 @@
 <?php
 session_start();
 require 'config/config.php';
-include 'includes/csrf.php';
+require_once 'includes/csrf.php';
+
 
 // Abilita error reporting (rimuovi in produzione)
 ini_set('display_errors', 1);

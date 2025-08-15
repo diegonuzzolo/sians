@@ -7,7 +7,8 @@ session_start();
 require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
-include 'includes/csrf.php';
+require_once 'includes/csrf.php';
+
 require_once 'includes/stripe-php/init.php';
 
 csrf_check_or_die();
@@ -249,4 +250,3 @@ updateCpuAndPrice();
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-    
