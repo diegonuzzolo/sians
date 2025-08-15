@@ -37,7 +37,7 @@ try {
     $blacklistText = trim($_POST['blacklist'] ?? '');
     $tickDistance = max(4,min(12,intval($_POST['tick_distance'] ?? 4)));
     $playerIdleTimeout = max(0,intval($_POST['player_idle_timeout'] ?? 30));
-    $maxThreads = $cpuCores; // Imposta max-threads al numero di core del container
+    $maxThreads = "8"; // Imposta max-threads al numero di core del container
     $enableLanVisibility = 'true'; // statico
 
     // Generazione server.properties
