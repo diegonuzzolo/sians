@@ -192,7 +192,7 @@ include "includes/header.php";
                 </div>
                 <div class="card-body">
                     <div class="mb-4">
-                        <label for="ram_gb" class="form-label text-black fw-semibold">RAM<span id="ramDisplay" class="fw-bold"></span></label>
+                        <label for="ram_gb" class="form-label text-black fw-semibold">RAM: <span id="ramDisplay" class="fw-bold"></span></label>
                         <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                                value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                         <div class="d-flex justify-content-between text-black small mt-1">
