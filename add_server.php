@@ -81,6 +81,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($status !== 0)
             throw new Exception("Errore esecuzione script: " . implode("\n", $output));
 
+
+        $ajaxData = [
+            'server_id' => $serverId,
+            'motd' => $serverName,
+            'gamemode' => 'survival',
+            'difficulty' => 'easy',
+            'max_players' => 10,
+            'view_distance' => 6,
+            'enable_command_blocks' => 'false',
+            'level_name' => 'world',
+            'seed' => '',
+            'spawn_protection' => 16,
+            'white_list_enabled' => 'false',
+            'whitelist' => '',
+            'blacklist' => '',
+            'tick_distance' => 4,
+            'player_idle_timeout' => 30,
+            'max_threads' => $cores,           // default = numero di core del container
+            'cpu_cores' => $cores,             // opzionale se vuoi memorizzare anche qui
+            'enable_lan_visibility' => 'true'  // sempre abilitato statico
+        ];
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/ajax_update_server.php");
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $ajaxData);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        $result = json_decode($response, true);
+        if (!$result['success']) {
+            throw new Exception("Errore setup server.properties: " . ($result['message'] ?? ''));
+        }
+
+
+
         header("Location: dashboard.php");
         exit;
 
