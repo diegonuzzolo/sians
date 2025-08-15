@@ -21,13 +21,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
 
-        // --- 2. Inserisci server nel DB (container_id = NULL per ora) ---
+        // --- 2. Inserisci server nel DB (status = stopped) ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
             (name, user_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$serverName, $userId, $vmid, 'installing', 'bedrock', $cores, $ramGb * 1024, 0]);
+        $initialStatus = 'stopped';
+        $stmt->execute([$serverName, $userId, $vmid, $initialStatus, 'bedrock', $cores, $ramGb * 1024, 0]);
         $serverId = $pdo->lastInsertId();
 
         // --- 3. Inserisci container nel DB collegato al server ---
@@ -49,38 +50,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Errore creazione container: " . $createResult['message']);
         }
 
-        sleep(4);
+        sleep(4); // attesa container ready
 
         // --- 6. Installa dipendenze e setup server ---
         $sshKey = "/var/www/.ssh/id_proxmox";
         $nodeIp = "192.168.1.251";
-
-        $depsCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-            . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
-        exec($depsCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
-
         $localScript = '/var/www/setup_server.sh';
         $remoteTemp = "/root/setup_server.sh";
 
-        $copyCmd = "sudo scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
-        exec($copyCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore copia script: " . implode("\n", $output));
+        // Installa dipendenze nel container
+        $depsCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+            . "\"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"";
+        exec($depsCmd, $output, $status);
+        if ($status !== 0) throw new Exception("Errore installazione dipendenze: " . implode("\n", $output));
 
-        $pushCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // Copia script setup_server.sh sul nodo
+        $copyCmd = "scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp";
+        exec($copyCmd, $output, $status);
+        if ($status !== 0) throw new Exception("Errore copia script: " . implode("\n", $output));
+
+        // Push script nel container
+        $pushCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct push $vmid $remoteTemp /root/setup_server.sh\"";
         exec($pushCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore push script nel container: " . implode("\n", $output));
+        if ($status !== 0) throw new Exception("Errore push script nel container: " . implode("\n", $output));
 
-        $execCmd = "sudo ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
+        // Esecuzione in background (non avvia Bedrock, solo setup)
+        $execCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
             . "\"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"";
         exec($execCmd, $output, $status);
-        if ($status !== 0)
-            throw new Exception("Errore esecuzione script: " . implode("\n", $output));
-        
+        if ($status !== 0) throw new Exception("Errore esecuzione script: " . implode("\n", $output));
+
+        // Tutto ok, redirect alla dashboard
         header("Location: dashboard.php");
         exit;
 
@@ -88,10 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $e->getMessage();
     }
 }
-
-
 ?>
-
 
 <?php include "includes/header.php"; ?>
 <div class="container my-5" style="max-width: 480px;">
@@ -139,9 +137,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <!-- Token anti-duplicazione -->
-        <input type="hidden" name="form_token" value="<?= htmlspecialchars($_POST['form_token'] ?? '') ?>">
-
         <button id="createServerBtn" type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm"
             style="font-size: 1.2rem;">
             Crea Server
@@ -149,79 +144,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 
-
 <style>
-    .bg-bedrock {
-        background-color: #003f54 !important;
-    }
-
-    .text-bedrock {
-        color: #00c8ff;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    }
-
-    .form-control-lg {
-        border-radius: 12px;
-    }
-
-    .form-range {
-        cursor: pointer;
-    }
-
-    .btn-success {
-        background-color: #00c8ff;
-        border: none;
-        transition: background-color 0.3s ease;
-    }
-
-    .btn-success:hover,
-    .btn-success:focus {
-        background-color: #0099cc;
-        box-shadow: 0 0 12px #00c8ffaa;
-    }
-
-    label {
-        user-select: none;
-    }
+    .bg-bedrock { background-color: #003f54 !important; }
+    .text-bedrock { color: #00c8ff; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+    .form-control-lg { border-radius: 12px; }
+    .form-range { cursor: pointer; }
+    .btn-success { background-color: #00c8ff; border: none; transition: background-color 0.3s ease; }
+    .btn-success:hover, .btn-success:focus { background-color: #0099cc; box-shadow: 0 0 12px #00c8ffaa; }
 </style>
 
 <script>
-    const ramInput = document.getElementById('ram_gb');
-    const ramDisplay = document.getElementById('ramDisplay');
-    const cpuLabel = document.getElementById('cpuLabel');
-    const cpuInput = document.getElementById('cpu_cores');
-    const cpuProgress = document.getElementById('cpuProgress');
-    const priceLabel = document.getElementById('priceLabel');
+const ramInput = document.getElementById('ram_gb');
+const ramDisplay = document.getElementById('ramDisplay');
+const cpuLabel = document.getElementById('cpuLabel');
+const cpuInput = document.getElementById('cpu_cores');
+const cpuProgress = document.getElementById('cpuProgress');
+const priceLabel = document.getElementById('priceLabel');
 
-    function updateCpuAndPrice() {
-        let ram = parseInt(ramInput.value) || 2;
-        ramDisplay.textContent = ram + ' GB';
+function updateCpuAndPrice() {
+    let ram = parseInt(ramInput.value) || 2;
+    ramDisplay.textContent = ram + ' GB';
 
-        let cores = 2, price = 6.5 * 0.85;
-        if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
-        else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
-        else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
-        else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
-        else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
-        else { cores = 8; price = 57.5 * 0.85; }
+    let cores = 2, price = 6.5 * 0.85;
+    if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
+    else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
+    else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
+    else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
+    else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
+    else { cores = 8; price = 57.5 * 0.85; }
 
-        cpuLabel.textContent = cores;
-        cpuInput.value = cores;
-        cpuProgress.style.width = (cores / 8 * 100) + '%';
-        priceLabel.textContent = "€ " + price.toFixed(2);
-    }
+    cpuLabel.textContent = cores;
+    cpuInput.value = cores;
+    cpuProgress.style.width = (cores / 8 * 100) + '%';
+    priceLabel.textContent = "€ " + price.toFixed(2);
+}
 
-    ramInput.addEventListener('input', updateCpuAndPrice);
-    document.getElementById('createServerForm').addEventListener('submit', function () {
-        document.getElementById('createServerBtn').disabled = true;
-        document.getElementById('createServerBtn').innerText = 'Creazione in corso...';
-    });
+ramInput.addEventListener('input', updateCpuAndPrice);
+document.getElementById('createServerForm').addEventListener('submit', function () {
+    document.getElementById('createServerBtn').disabled = true;
+    document.getElementById('createServerBtn').innerText = 'Creazione in corso...';
+});
 
-    updateCpuAndPrice();
+updateCpuAndPrice();
 </script>
 
 <?php include 'includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>

@@ -36,7 +36,13 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .server-name { color: #00c8ff; font-weight: bold; font-size: 1.3rem; }
         .server-ip { color: #a0a0a0; font-size: 0.9rem; }
         .btn-server { width: 48%; }
-        .status-badge { padding: 0.4em 0.7em; border-radius: 12px; font-size: 0.85rem; }
+        .status-badge {
+            padding: 0.4em 0.7em;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
         .status-running { background-color: #28a745; color: #fff; }
         .status-stopped { background-color: #dc3545; color: #fff; }
     </style>
@@ -66,7 +72,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <p class="server-ip mb-2">IP: <?= htmlspecialchars($server['ip']) ?></p>
                         <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
 
-                        <div class="d-flex justify-content-between mb-2">
+                        <div class="d-flex justify-content-between">
                             <button class="btn btn-success btn-server" onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
                             <button class="btn btn-danger btn-server" onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
                         </div>
@@ -93,9 +99,10 @@ function updateStatus(serverId) {
         .then(res => res.json())
         .then(data => {
             const statusEl = document.getElementById('status-' + serverId);
-            if(statusEl && data.status){
-                statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
-                statusEl.className = 'status-badge ' + ((data.status === 'running') ? 'status-running' : 'status-stopped');
+            if(statusEl) {
+                const isRunning = data.status === 'running';
+                statusEl.textContent = isRunning ? 'Attivo' : 'Spento';
+                statusEl.className = 'status-badge ' + (isRunning ? 'status-running' : 'status-stopped');
             }
         });
 }
