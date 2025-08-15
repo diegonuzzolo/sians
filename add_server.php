@@ -180,19 +180,19 @@ include "includes/header.php";
         <form method="POST" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
             <?= csrf_field() ?>
             <div class="mb-4">
-                <label for="server_name" class="form-label text-white fw-semibold fs-5">Nome Server</label>
+                <label for="server_name" class="form-label text-black fw-semibold fs-5">Nome Server</label>
                 <input type="text" name="server_name" id="server_name"
-                       class="form-control form-control-lg bg-secondary text-white border-0 shadow-sm" required
+                       class="form-control form-control-lg bg-secondary text-black border-0 shadow-sm" required
                        placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
             </div>
 
             <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-                <div class="card-header bg-primary rounded-3 py-2 text-white text-center fs-5 fw-bold">
+                <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
                     Configura le Risorse
                 </div>
                 <div class="card-body">
                     <div class="mb-4">
-                        <label for="ram_gb" class="form-label text-white fw-semibold">RAM (GB) <span id="ramDisplay" class="fw-bold"></span></label>
+                        <label for="ram_gb" class="form-label text-black fw-semibold">RAM (GB) <span id="ramDisplay" class="fw-bold"></span></label>
                         <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="1"
                                value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                         <div class="d-flex justify-content-between text-black small mt-1">
@@ -201,14 +201,14 @@ include "includes/header.php";
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-white fw-semibold">CPU Cores: <span id="cpuLabel" class="fs-5"></span></label>
+                        <label class="form-label text-black fw-semibold">CPU Cores: <span id="cpuLabel" class="fs-5"></span></label>
                         <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
                         <div class="progress" style="height: 8px;">
                             <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
                                  style="width: 0%; transition: width 0.4s;"></div>
                         </div>
                     </div>
-                    <div class="mb-0 text-white fw-semibold fs-5 text-center">
+                    <div class="mb-0 text-black fw-semibold fs-5 text-center">
                         <span id="priceLabel">€ 0.00</span>
 
                     </div>
