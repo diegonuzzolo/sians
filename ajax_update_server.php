@@ -14,12 +14,13 @@ try {
     $serverId = intval($_POST['server_id'] ?? 0);
     if (!$userId || !$serverId) throw new Exception('Parametri non validi');
 
-    // Recupera VMID
-    $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
+    // Recupera VMID e core dal DB
+    $stmt = $pdo->prepare("SELECT proxmox_containerId, cpu_cores FROM servers WHERE id=? AND user_id=?");
     $stmt->execute([$serverId,$userId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) throw new Exception('Server non trovato');
     $vmid = intval($row['proxmox_containerId'] ?? 0);
+    $cpuCores = max(1,intval($row['cpu_cores'] ?? 2));
 
     // Dati dal form
     $motd = trim($_POST['motd'] ?? '');
@@ -36,7 +37,7 @@ try {
     $blacklistText = trim($_POST['blacklist'] ?? '');
     $tickDistance = max(4,min(12,intval($_POST['tick_distance'] ?? 4)));
     $playerIdleTimeout = max(0,intval($_POST['player_idle_timeout'] ?? 30));
-    $maxThreads = max(1,intval($_POST['max_threads'] ?? 8));
+    $maxThreads = $cpuCores; // Imposta max-threads al numero di core del container
     $enableLanVisibility = 'true'; // statico
 
     // Generazione server.properties
@@ -87,13 +88,13 @@ try {
     $blacklistNormalized = trim(str_replace(["\r\n","\r"],"\n",$blacklistText))."\n";
 
     // File temporanei locali
-    $tmpDir   = sys_get_temp_dir();
-    $uniq     = bin2hex(random_bytes(4));
-    $tmpProp  = "{$tmpDir}/server_{$serverId}_{$uniq}.properties";
+    $tmpDir = sys_get_temp_dir();
+    $uniq = bin2hex(random_bytes(4));
+    $tmpProp = "{$tmpDir}/server_{$serverId}_{$uniq}.properties";
     $tmpWhite = "{$tmpDir}/server_{$serverId}_{$uniq}.whitelist";
     $tmpBlack = "{$tmpDir}/server_{$serverId}_{$uniq}.blacklist";
 
-    file_put_contents($tmpProp,  $serverProperties);
+    file_put_contents($tmpProp, $serverProperties);
     file_put_contents($tmpWhite, $whitelistNormalized);
     file_put_contents($tmpBlack, $blacklistNormalized);
 
@@ -103,40 +104,38 @@ try {
     $escKey = escapeshellarg($sshKey);
     $escNode = "root@{$nodeIp}";
     $remoteTmpDir = "/root/.tmp/server_{$serverId}";
-    $remoteProp   = "{$remoteTmpDir}/server.properties";
-    $remoteWhite  = "{$remoteTmpDir}/whitelist.txt";
-    $remoteBlack  = "{$remoteTmpDir}/blacklist.txt";
+    $remoteProp = "{$remoteTmpDir}/server.properties";
+    $remoteWhite = "{$remoteTmpDir}/whitelist.txt";
+    $remoteBlack = "{$remoteTmpDir}/blacklist.txt";
 
-    // Funzione helper per SSH
-    $run = function(string $cmd, string $step) {
-        $out = [];
-        $ret = 0;
-        exec($cmd." 2>&1", $out, $ret);
-        if ($ret !== 0) throw new Exception("$step fallito (exit $ret): ".implode("\n",$out));
+    $run = function(string $cmd, string $step){
+        $out = []; $ret=0;
+        exec($cmd . " 2>&1", $out, $ret);
+        if($ret!==0) throw new Exception("$step fallito (exit $ret): ".implode("\n",$out));
+        return $out;
     };
 
-    // Creazione cartella temporanea sul node
+    // Creazione tmp sul node
     $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} ".
-         escapeshellarg("mkdir -p {$remoteTmpDir}"), "Creazione cartella temporanea");
+         escapeshellarg("mkdir -p {$remoteTmpDir}"), "Creazione cartella temporanea sul node");
 
     // Copia file sul node
-    foreach ([[$tmpProp,$remoteProp], [$tmpWhite,$remoteWhite], [$tmpBlack,$remoteBlack]] as $f) {
+    foreach ([[$tmpProp,$remoteProp],[$tmpWhite,$remoteWhite],[$tmpBlack,$remoteBlack]] as [$local,$remote]){
         $run("scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ".
-             escapeshellarg($f[0])." {$escNode}:".escapeshellarg($f[1]), "Copia file al node");
+             escapeshellarg($local)." {$escNode}:".escapeshellarg($remote), "Copia {$remote}");
     }
 
     // pct push nel container
-    foreach ([[$remoteProp,"/root/minecraft_bedrock/server.properties"],
-              [$remoteWhite,"/root/minecraft_bedrock/whitelist.txt"],
-              [$remoteBlack,"/root/minecraft_bedrock/blacklist.txt"]] as $f) {
+    foreach ([[$remoteProp,'/root/minecraft_bedrock/server.properties'],
+              [$remoteWhite,'/root/minecraft_bedrock/whitelist.txt'],
+              [$remoteBlack,'/root/minecraft_bedrock/blacklist.txt']] as [$src,$dest]){
         $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} ".
-             escapeshellarg("pct push {$vmid} {$f[0]} {$f[1]}"), "pct push ".$f[1]);
+             escapeshellarg("pct push {$vmid} {$src} {$dest}"), "pct push {$dest}");
     }
 
-    // Pulizia temp sul node
+    // Pulizia file temporanei sul node
     $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} ".
-         escapeshellarg("rm -f {$remoteProp} {$remoteWhite} {$remoteBlack} && rmdir {$remoteTmpDir} 2>/dev/null || true"),
-         "Pulizia temporanei");
+         escapeshellarg("rm -f {$remoteProp} {$remoteWhite} {$remoteBlack} && rmdir {$remoteTmpDir} 2>/dev/null || true"), "Pulizia temporanei");
 
     // Aggiornamento DB
     $stmt = $pdo->prepare("
