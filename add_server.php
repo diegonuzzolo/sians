@@ -64,8 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
                 'quantity' => 1
             ]],
             'mode' => 'payment',
-            'success_url' => "https://tuo-sito.it/add_server.php?success=1&server_name=".urlencode($serverName)."&ram_gb=$ramGb",
-            'cancel_url' => "https://tuo-sito.it/add_server.php?cancel=1"
+            'success_url' => "https://sians.it/add_server.php?success=1&server_name=".urlencode($serverName)."&ram_gb=$ramGb",
+            'cancel_url' => "https://sians.it/add_server.php?cancel=1"
         ]);
 
         $checkoutSessionId = $session->id;
