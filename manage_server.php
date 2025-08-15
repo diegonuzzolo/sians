@@ -140,7 +140,8 @@ if(!$server){
         </div>
     </form>
 
-    <div id="updateMessage" class="mt-3 text-center"></div>
+    <div id="server-message" style="display:none; padding:10px; border-radius:5px;"></div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -149,21 +150,25 @@ document.getElementById('serverPropertiesForm').addEventListener('submit', funct
     e.preventDefault();
     const formData = new FormData(this);
     fetch('ajax_update_server.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        const msgDiv = document.getElementById('updateMessage');
-        if(data.success){
-            msgDiv.innerHTML = '<div class="alert alert-success">'+data.message+'</div>';
-        } else {
-            msgDiv.innerHTML = '<div class="alert alert-danger">'+data.message+'</div>';
-        }
-    })
-    .catch(err => {
-        document.getElementById('updateMessage').innerHTML = '<div class="alert alert-danger">Errore di rete: '+err+'</div>';
-    });
+    method: 'POST',
+    body: formData
+})
+.then(response => response.json())
+.then(data => {
+    let msgBox = document.getElementById('server-message');
+    msgBox.textContent = data.message;
+    msgBox.style.display = 'block';
+    msgBox.className = data.success ? 'success' : 'error';
+
+    // Nascondi il messaggio dopo 5 secondi
+    setTimeout(() => {
+        msgBox.style.display = 'none';
+    }, 5000);
+})
+.catch(err => {
+    console.error('Errore:', err);
+});
+
 });
 </script>
 </body>
