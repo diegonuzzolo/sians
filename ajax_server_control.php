@@ -10,7 +10,7 @@ function csrf_check_or_die_json() {
 }
 
 
-csrf_check_or_die();
+csrf_check_or_die_json();
 
 try {
     $userId   = $_SESSION['user_id'] ?? 0;
