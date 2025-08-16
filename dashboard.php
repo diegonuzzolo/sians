@@ -45,61 +45,91 @@ foreach ($subscriptions as $sub) {
     <title>Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #121212;
-            color: #fff;
-        }
+    body {
+        background-color: #121212;
+        color: #fff;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-        .card-server {
-            background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
-            border-radius: 20px;
-            padding: 20px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+    .card-server {
+        background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
+        border-radius: 20px;
+        padding: 20px;
+        transition: transform 0.2s, box-shadow 0.3s;
+        position: relative;
+    }
 
-        .card-server:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 200, 255, 0.3);
-        }
+    .card-server:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 200, 255, 0.4);
+    }
 
-        .server-name {
-            color: #00c8ff;
-            font-weight: bold;
-            font-size: 1.3rem;
-        }
+    .server-name {
+        color: #00c8ff;
+        font-weight: bold;
+        font-size: 1.3rem;
+        margin-bottom: 0.3rem;
+    }
 
-        .server-ip {
-            color: #a0a0a0;
-            font-size: 0.9rem;
-        }
+    .server-ip {
+        color: #a0a0a0;
+        font-size: 0.9rem;
+        margin-bottom: 0.7rem;
+    }
 
-        .btn-server {
-            width: 48%;
-        }
+    .status-badge {
+        padding: 0.4em 0.8em;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
 
-        .status-badge {
-            padding: 0.4em 0.7em;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
+    .status-running {
+        background-color: #28a745;
+        color: #fff;
+    }
 
-        .status-running {
-            background-color: #28a745;
-            color: #fff;
-        }
+    .status-stopped {
+        background-color: #dc3545;
+        color: #fff;
+    }
 
-        .status-stopped {
-            background-color: #dc3545;
-            color: #fff;
-        }
-    </style>
-</head>
+    .btn-server {
+        width: 48%;
+        margin-top: 5px;
+    }
 
-<body>
-    <?php include('includes/header.php'); ?>
-   <div class="container my-5">
+    .server-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+    }
+
+    .card-header-plan {
+        font-weight: bold;
+        text-align: center;
+        background-color: #00c8ff;
+        color: #121212;
+        padding: 10px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .slot-count {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .btn-slot {
+        width: 100%;
+    }
+</style>
+
+<div class="container my-5">
 
     <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 I tuoi server</h2>
 
@@ -111,7 +141,6 @@ foreach ($subscriptions as $sub) {
         $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($plans as $plan):
-            // Calcola slot disponibili per l'utente
             $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM subscriptions WHERE user_id=? AND plan_id=?");
             $stmt2->execute([$_SESSION['user_id'], $plan['id']]);
             $totalSlots = (int)$stmt2->fetchColumn();
@@ -123,18 +152,16 @@ foreach ($subscriptions as $sub) {
             $availableSlots = max(0, $totalSlots - $usedSlots);
         ?>
         <div class="col-md-4 mb-3">
-            <div class="card shadow p-3 rounded">
-                <h5 class="card-title text-center"><?= htmlspecialchars($plan['name']) ?></h5>
-                <p class="text-center slot-count" data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+            <div class="card shadow p-3 rounded card-server">
+                <div class="card-header-plan"><?= htmlspecialchars($plan['name']) ?></div>
+                <p class="slot-count" data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
                     <?= $availableSlots ?> slot disponibili
                 </p>
-                <div class="text-center">
-                    <a href="javascript:void(0);" onclick="createServerSlot('<?= htmlspecialchars($plan['code']) ?>')"
-                        class="btn btn-success <?= $availableSlots > 0 ? '' : 'disabled' ?>"
-                        data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
-                        <?= $availableSlots > 0 ? 'Crea/Ricrea Server' : 'Slot Esauriti' ?>
-                    </a>
-                </div>
+                <a href="javascript:void(0);" onclick="createServerSlot('<?= htmlspecialchars($plan['code']) ?>')"
+                    class="btn btn-success btn-slot <?= $availableSlots > 0 ? '' : 'disabled' ?>"
+                    data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                    <?= $availableSlots > 0 ? 'Crea/Ricrea Server' : 'Slot Esauriti' ?>
+                </a>
             </div>
         </div>
         <?php endforeach; ?>
@@ -154,26 +181,37 @@ foreach ($subscriptions as $sub) {
             $container = $container->fetch(PDO::FETCH_ASSOC);
         ?>
         <div class="col-md-4 mb-3">
-            <div class="server-item card mb-3 p-3 shadow rounded">
-                <h5><?= htmlspecialchars($server['name']) ?></h5>
-                <p>VMID: <?= $container['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $container['ip'] ?? 'N/A' ?></p>
-                <p>Status: <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>">
+            <div class="card card-server p-3 shadow">
+                <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
+                <div class="server-ip">VMID: <?= $container['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $container['ip'] ?? 'N/A' ?></div>
+                <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>">
                     <?= ucfirst($server['status']) ?>
-                </span></p>
-                <button id="start-<?= $server['id'] ?>" class="btn btn-success me-2"
-                    onclick="startServer(<?= $server['id'] ?>)" <?= $server['status'] === 'running' ? 'disabled' : '' ?>>
-                    Avvia
-                </button>
-                <button id="stop-<?= $server['id'] ?>" class="btn btn-danger"
-                    onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status'] === 'stopped' ? 'disabled' : '' ?>>
-                    Ferma
-                </button>
+                </span>
+
+                <div class="server-actions">
+                    <button id="start-<?= $server['id'] ?>" class="btn btn-success btn-server"
+                        onclick="startServer(<?= $server['id'] ?>)" <?= $server['status']==='running'?'disabled':'' ?>>
+                        Avvia
+                    </button>
+                    <button id="stop-<?= $server['id'] ?>" class="btn btn-danger btn-server"
+                        onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status']==='stopped'?'disabled':'' ?>>
+                        Ferma
+                    </button>
+                </div>
+
+                <div class="server-actions mt-2">
+                    <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-server">Gestisci</a>
+                    <a href="delete_server.php?id=<?= $server['id'] ?>" class="btn btn-outline-danger btn-server"
+                        onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+                        Elimina
+                    </a>
+                </div>
             </div>
         </div>
         <?php endforeach; ?>
     </div>
-
 </div>
+
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
