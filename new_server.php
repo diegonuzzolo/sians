@@ -66,7 +66,7 @@ $stmt->execute([$cores, $ramGb*1024, $storageGb]);
 // Crea container in Proxmox
 $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
 if (!$createResult['success']) die(json_encode(['success'=>false,'message'=>$createResult['message']]));
-
+sleep(4);
 // Setup server remoto
 $sshKey = "/var/www/.ssh/id_proxmox";
 $nodeIp = "192.168.1.251";
