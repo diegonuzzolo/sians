@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // Recupera utente
         $stmt = $pdo->prepare("
-            SELECT id, username, email, password_hash, role, password_changed_at, force_password_reset
+            SELECT id, username, email, password_hash, role, last_password_change, force_password_reset
             FROM users
             WHERE username = ? OR email = ?
         ");
