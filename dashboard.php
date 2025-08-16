@@ -166,10 +166,25 @@ function controlServer(serverId, action) {
 function startServer(serverId) { controlServer(serverId, 'start'); }
 function stopServer(serverId) { controlServer(serverId, 'stop'); }
 
-// Aggiornamento automatico stato ogni 10 secondi
+function updateStatus(serverId) {
+    fetch('check_status.php?id=' + serverId)
+        .then(res => res.json())
+        .then(data => {
+            console.log(data); // <--- log per debug
+            const statusEl = document.getElementById('status-' + serverId);
+            if (statusEl) {
+                statusEl.textContent = data.status;
+                statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
+                updateButtons(serverId, data.status);
+            }
+        })
+        .catch(err => console.error('Errore nel fetch:', err));
+}
+
+// aggiornamento automatico ogni 10 secondi
 setInterval(() => {
     <?php foreach ($servers as $server): ?>
-        updateButtons(<?= $server['id'] ?>, '<?= $server['status'] ?>');
+        updateStatus(<?= $server['id'] ?>);
     <?php endforeach; ?>
 }, 10000);
 </script>
