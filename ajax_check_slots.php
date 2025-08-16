@@ -1,25 +1,23 @@
 <?php
-require 'auth_check.php';
+session_start();
 require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
-$result = [];
 
-// Recupera tutte le subscription
+// Recupera tutte le subscription attive
 $stmt = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code
+    SELECT p.code AS plan_code, sub.total, sub.used
     FROM subscriptions sub
     JOIN plans p ON p.id = sub.plan_id
-    WHERE sub.user_id = ?
+    WHERE sub.user_id = ? AND sub.status='active'
 ");
 $stmt->execute([$userId]);
 $subs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$slots = [];
 foreach ($subs as $sub) {
-    $used = (int)$sub['used'];      // server attivi
-    $total = (int)$sub['total'];    // slot totali
-    $result[$sub['plan_code']] = $total - $used;
+    $slots[$sub['plan_code']] = max(0, $sub['total'] - $sub['used']);
 }
 
 header('Content-Type: application/json');
-echo json_encode($result);
+echo json_encode($slots);

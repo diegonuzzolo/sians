@@ -138,42 +138,49 @@ foreach ($subscriptions as $sub) {
         <?php endif; ?>
         
         <div class="row g-4">
-<?php
-// Recupera piani attivi
-$stmt = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
-$plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    <?php
+    // Loop piani attivi
+    $stmt = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
+    $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Recupera subscription attive dell'utente
-$stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id = ? AND status='active'");
-$stmt->execute([$userId]);
-$subs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Recupera tutte le subscription attive dell'utente
+    $stmt = $pdo->prepare("SELECT plan_id FROM subscriptions WHERE user_id = ? AND status='active'");
+    $stmt->execute([$userId]);
+    $activePlans = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-// Organizza subscriptions per plan_id
-$subsByPlan = [];
-foreach ($subs as $sub) {
-    $subsByPlan[$sub['plan_id']] = $sub;
-}
+    // Recupera i server attivi per ogni piano
+    $stmt = $pdo->prepare("SELECT plan_id, COUNT(*) AS server_count 
+                   FROM servers 
+                   WHERE user_id = ? 
+                   GROUP BY plan_id");
+    $stmt->execute([$userId]);
+    $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-// Loop piani
-foreach ($plans as $plan):
-    $sub = $subsByPlan[$plan['id']] ?? null;
-    $slotsAvailable = $sub ? ($sub['total'] - $sub['used']) : 0;
+    // Calcola gli slot disponibili per ogni piano
+    $slotsAvailablePerPlan = [];
+    foreach ($activePlans as $planId) {
+        $maxSlots = 1; // ogni piano permette 1 server, modifica se vuoi più slot
+        $usedSlots = $serversPerPlan[$planId] ?? 0;
+        $slotsAvailablePerPlan[$planId] = max(0, $maxSlots - $usedSlots);
+    }
 
     // Mostra solo i piani con slot disponibili
-    if ($slotsAvailable <= 0) continue;
-?>
-    <div class="col-md-4">
-        <div class="card-server p-3 text-center">
-            <h5><?= htmlspecialchars($plan['code']) ?> - <?= $plan['ram_gb'] ?> GB</h5>
-            <p><?= $plan['cpu_cores'] ?> Cores</p>
-            <p><?= $slotsAvailable ?> slot disponibili</p>
-            <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server"
-               class="btn btn-success w-100 mt-2">
-               Crea/Ricrea Server
-            </a>
+    foreach ($plans as $plan):
+        $slotsAvailable = $slotsAvailablePerPlan[$plan['id']] ?? 0;
+        if ($slotsAvailable <= 0) continue; // salta i piani senza slot disponibili
+    ?>
+        <div class="col-md-4">
+            <div class="card-server p-3 text-center">
+                <h5><?= $plan['ram_gb'] ?> GB</h5>
+                <p><?= $plan['cpu_cores'] ?> Cores</p>
+                <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server&recreate=1"
+                   class="btn btn-success w-100 mt-2"
+                   data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                    Crea Server
+                </a>
+            </div>
         </div>
-    </div>
-<?php endforeach; ?>
+    <?php endforeach; ?>
 </div>
 
     </div>
