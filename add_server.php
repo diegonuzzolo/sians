@@ -198,17 +198,20 @@ include "includes/header.php";
     <?php if ($error): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
-
-    <?php if ($checkoutSessionId): ?>
-        <script src="https://js.stripe.com/v3/"></script>
-        <button id="checkoutBtn" class="btn btn-success w-100 fw-bold">Paga e Crea Server</button>
-        <script>
-            var stripe = Stripe('pk_live_51RwTLKGyhVlVUQfHcwneV569jhxFiNNqCWwEup9sg9IzgtkCBpXmBj0F4pSOrgvFi3sgDng1t6oJcmBcqg93I7EM00z2SQl3Gq');
-            document.getElementById('checkoutBtn').addEventListener('click', function () {
-                stripe.redirectToCheckout({ sessionId: '<?= $checkoutSessionId ?>' });
-            });
-        </script>
-    <?php else: ?>
+        <?php if (!empty($checkoutSessionId)): ?>
+    <script src="https://js.stripe.com/v3/"></script>
+    <button id="checkoutBtn" class="btn btn-success w-100 fw-bold">Paga e Crea Server</button>
+    <script>
+        var stripe = Stripe('pk_live_51RwTLKGyhVlVUQfHcwneV569jhxFiNNqCWwEup9sg9IzgtkCBpXmBj0F4pSOrgvFi3sgDng1t6oJcmBcqg93I7EM00z2SQl3Gq');
+        document.getElementById('checkoutBtn').addEventListener('click', function () {
+            stripe.redirectToCheckout({ sessionId: <?php echo json_encode($checkoutSessionId); ?> });
+        });
+    </script>
+<?php else: ?>
+    <div class="alert alert-danger">
+        Errore: <?= htmlspecialchars($error ?? "Checkout non avviato") ?>
+    </div>
+<?php endif; ?>
         <!-- Form selezione risorse -->
         <form method="POST" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
     <?php echo csrf_field(); ?>
