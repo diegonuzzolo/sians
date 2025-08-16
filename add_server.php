@@ -226,7 +226,6 @@ include "includes/header.php";
                         <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="2"
        value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
 
-                            value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
                         <div class="d-flex justify-content-between text-black small mt-1">
                             <span>2GB</span>
                             <span>20GB</span>
@@ -282,7 +281,6 @@ include "includes/header.php";
         ramInput.addEventListener('input', updateCpuAndPrice);
         updateCpuAndPrice(); // aggiorna valori iniziali
     });
-
     ramInput.addEventListener('input', function() {
     let ram = parseInt(this.value);
     if(ram % 2 !== 0) ram--; // arrotonda verso il basso al pari più vicino
