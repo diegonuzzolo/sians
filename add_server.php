@@ -52,15 +52,25 @@ function calculatePrice($ramGb)
     if ($ramGb <= 16)
         return 35 * 0.85;
     return 57.5 * 0.85;
+
+
+    
 }
 
 // STEP 1: Generazione Stripe Checkout
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
-    $ramGb = intval($_POST['ram_gb'] ?? 2);
+     $planCode = $_POST['plan_code'] ?? 'plan_4gb'; // default piano 4GB
     $serverName = trim($_POST['server_name'] ?? "mcserver");
-    $cores = calculateCores($ramGb);
-    $price = calculatePrice($ramGb);
-    $priceCents = intval(round($price * 100));
+
+    // Recupero dati piano dalla tabella plans
+    $stmt = $pdo->prepare("SELECT * FROM plans WHERE code = ? AND active=1 LIMIT 1");
+    $stmt->execute([$planCode]);
+    $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$plan) die("Piano selezionato non valido.");
+
+    $ramGb = $plan['ram_gb'];
+    $cores = $plan['cpu_cores'];
+    $stripePriceId = $plan['stripe_price_id'];
 
     try {
         \Stripe\Stripe::setApiKey("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");
@@ -68,14 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
             'customer_email' => $email,
-            'line_items' => [
-                [
-                    'price' => $stripePriceId,  // preso da tabella plans
-                    'quantity' => 1
-                ]
-            ],
+            'line_items' => [[
+                'price' => $stripePriceId,  // Price ID ricorrente Stripe
+                'quantity' => 1
+            ]],
             'mode' => 'subscription',
-            'success_url' => "https://sians.it/add_server.php?success=1&server_name=".urlencode($serverName)."&ram_gb=$ramGb",
+            'success_url' => "https://sians.it/add_server.php?success=1&plan_code=".urlencode($planCode)."&server_name=".urlencode($serverName),
             'cancel_url' => "https://sians.it/add_server.php?cancel=1"
         ]);
 
@@ -87,13 +95,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
     }
 }
 
-// STEP 2: Dopo pagamento Stripe (success_url) -> creazione reale server
-if (isset($_GET['success']) && isset($_GET['server_name']) && isset($_GET['ram_gb'])) {
-    $ramGb = intval($_GET['ram_gb']);
+// STEP 2: Dopo pagamento (success_url) -> creazione server
+if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_name'])) {
+    $planCode = $_GET['plan_code'];
     $serverName = trim($_GET['server_name']);
-    $cores = calculateCores($ramGb);
-    $storageGb = 64;
 
+    $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
+    $stmt->execute([$planCode]);
+    $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$plan) die("Piano non trovato.");
+
+    $ramGb = $plan['ram_gb'];
+    $cores = $plan['cpu_cores'];
+    $storageGb = $plan['storage_gb'];
+    
     try {
         // --- 0. Controllo risorse disponibili ---
         $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
