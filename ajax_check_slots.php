@@ -18,7 +18,7 @@ $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $pdo->prepare("
     SELECT plan_id, COUNT(*) AS server_count
     FROM servers
-    WHERE user_id = ?
+    WHERE user_id = ? AND status != 'deleted'
     GROUP BY plan_id
 ");
 $stmt->execute([$userId]);
@@ -27,9 +27,14 @@ $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 // Calcola slot disponibili per ogni piano
 $slotsAvailable = [];
 foreach ($subscriptions as $sub) {
-    $maxSlots = 1; // ogni piano permette 1 server, modifica se vuoi più slot
-    $usedSlots = $serversPerPlan[$sub['plan_id']] ?? 0;
-    $slotsAvailable[$sub['plan_code']] = max(0, $maxSlots - $usedSlots);
+    $planId = $sub['plan_id'];
+    $planCode = $sub['plan_code'];
+
+    // Ogni subscription attiva vale 1 slot
+    $maxSlots = (int)$sub['quantity'] ?? 1;
+
+    $usedSlots = $serversPerPlan[$planId] ?? 0;
+    $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
 }
 
 header('Content-Type: application/json');
