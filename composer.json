@@ -1,6 +1,0 @@
-{
-    "name": "sians/sians.it",
-    "require": {
-        "stripe/stripe-php": "^17.5"
-    }
-}
