@@ -1,9 +1,15 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 include 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 
 header('Content-Type: application/json');
+
+try {
 
 $userId = $_SESSION['user_id'] ?? 0;
 $planCode = $_GET['plan_code'] ?? null;
@@ -116,13 +122,17 @@ foreach ($cmds as $idx => $cmd) {
     }
 }
 
-// Tutto ok
-echo json_encode([
-    'success' => true,
-    'message' => 'Server creato con successo',
-    'server_id' => $serverId,
-    'vmid' => $vmid,
-    'ip' => $ip,
-    'container_id' => $containerId,
-    'cmd_output' => $cmdOutput
-]);
+    echo json_encode([
+        'success' => true,
+        'message' => 'Server creato',
+        'vmid' => $vmid,
+        'ip' => $ip
+    ]);
+} catch (Throwable $e) {
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'step' => 'exception'
+    ]);
+}
+exit;
