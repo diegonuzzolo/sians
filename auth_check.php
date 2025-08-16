@@ -2,8 +2,9 @@
 // auth_check.php
 include(__DIR__ . "/config/config.php");
 
-
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // ⚡ Pagine pubbliche (no redirect o CSRF)
 $publicPages = ['login.php', 'register.php'];

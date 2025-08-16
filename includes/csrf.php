@@ -1,5 +1,17 @@
 <?php
 
+// Genera CSRF token se non esiste
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function csrf_check_or_die_json() {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'message' => 'CSRF token non valido']);
+        exit;
+    }
+}
+
 
 function csrf_token() {
     if (empty($_SESSION['csrf'])) {

@@ -1,14 +1,17 @@
 <?php
 include("auth_check.php");
+require 'config/config.php';
+
+// Genera CSRF token se non presente
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csrf_token = $_SESSION['csrf_token'];
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require 'config/config.php';
 $userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_GET['id'] ?? 0);
 
@@ -26,7 +29,6 @@ if (!$server) {
     die("Server non trovato o non autorizzato.");
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="it">
 
@@ -269,50 +271,47 @@ if (!$server) {
         <div id="server-message" style="display:none;"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.getElementById('serverPropertiesForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            fetch('ajax_update_server.php', { method: 'POST', body: formData })
-                .then(response => response.json())
-                .then(data => showMessage(data.success, data.message))
-                .catch(() => showMessage(false, "Errore nella richiesta. Riprovare."));
-        });
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const csrfToken = '<?= $csrf_token ?>';
 
-        document.getElementById('upload-icon-btn').addEventListener('click', function () {
-            const fileInput = document.getElementById('server-icon');
-            if (!fileInput.files.length) {
-                alert('Seleziona un file PNG 64x64 prima di caricare.');
-                return;
-            }
-            const formData = new FormData();
-            formData.append('server_id', '<?= $serverId ?>');
-            formData.append('server-icon', fileInput.files[0]);
-            fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
-                    showMessage(data.success, data.message);
-                    if (data.success) {
-                        document.getElementById('server-icon-preview').src = URL.createObjectURL(fileInput.files[0]);
-                    }
-                })
-                .catch(() => showMessage(false, "Errore durante l'upload."));
-        });
+document.getElementById('serverPropertiesForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const formData = new FormData(this);
+    fetch('ajax_update_server.php', { method:'POST', body: formData })
+    .then(res => res.json())
+    .then(data => showMessage(data.success, data.message))
+    .catch(()=>showMessage(false,"Errore nella richiesta. Riprovare."));
+});
 
-        function showMessage(success, message) {
-            const msgBox = document.getElementById('server-message');
-            msgBox.textContent = message;
-            msgBox.className = success ? 'success' : 'error';
-            msgBox.style.display = 'block';
-            msgBox.style.opacity = '1';
-            setTimeout(() => {
-                msgBox.style.opacity = '0';
-                setTimeout(() => msgBox.style.display = 'none', 300);
-            }, 5000);
+document.getElementById('upload-icon-btn').addEventListener('click', function(){
+    const fileInput = document.getElementById('server-icon');
+    if(!fileInput.files.length){ alert('Seleziona un file PNG 64x64 prima di caricare.'); return; }
+
+    const formData = new FormData();
+    formData.append('server_id','<?= $serverId ?>');
+    formData.append('server-icon', fileInput.files[0]);
+    formData.append('csrf_token', csrfToken);
+
+    fetch('ajax_upload_icon.php', { method:'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+        showMessage(data.success, data.message);
+        if(data.success){
+            document.getElementById('server-icon-preview').src = URL.createObjectURL(fileInput.files[0]);
         }
-    </script>
+    })
+    .catch(()=>showMessage(false,"Errore durante l'upload."));
+});
 
+function showMessage(success, message){
+    const msgBox = document.getElementById('server-message');
+    msgBox.textContent = message;
+    msgBox.className = success ? 'success' : 'error';
+    msgBox.style.display='block';
+    msgBox.style.opacity='1';
+    setTimeout(()=>{ msgBox.style.opacity='0'; setTimeout(()=>msgBox.style.display='none',300); }, 5000);
+}
+</script>
 </body>
-
 </html>
