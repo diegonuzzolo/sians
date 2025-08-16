@@ -211,58 +211,60 @@ include "includes/header.php";
     <?php else: ?>
         <!-- Form selezione risorse -->
         <form method="POST" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
-            <?= csrf_field() ?>
-            <div class="mb-4">
-                <label for="server_name" class="form-label text-black fw-semibold fs-5">Nome Server</label>
-                <input type="text" name="server_name" id="server_name"
-                    class="form-control form-control-lg bg-secondary text-black border-0 shadow-sm" required
-                    placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+
+    <div class="mb-4">
+        <label for="server_name" class="form-label text-black fw-semibold fs-5">Nome Server</label>
+        <input type="text" name="server_name" id="server_name"
+            class="form-control form-control-lg bg-secondary text-black border-0 shadow-sm" required
+            placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
+    </div>
+
+    <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
+        <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
+            Configura le Risorse
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Seleziona Piano</label>
+                <select name="plan_code" class="form-select form-select-lg">
+                    <option value="plan_2gb">2 GB</option>
+                    <option value="plan_4gb" selected>4 GB</option>
+                    <option value="plan_6gb">6 GB</option>
+                    <option value="plan_8gb">8 GB</option>
+                    <option value="plan_16gb">16 GB</option>
+                    <option value="plan_24gb">24 GB</option>
+                </select>
             </div>
 
-            <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-                <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
-                    Configura le Risorse
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Seleziona Piano</label>
-                        <select name="plan_code" class="form-select">
-                            <option value="plan_2gb">2 GB</option>
-                            <option value="plan_4gb" selected>4 GB</option>
-                            <option value="plan_6gb">6 GB</option>
-                            <option value="plan_8gb">8 GB</option>
-                            <option value="plan_16gb">16 GB</option>
-                            <option value="plan_24gb">24 GB</option>
-                        </select>
-                    </div>
+            <div class="mb-3">
+                <label class="form-label text-black fw-semibold">
+                    CPU Cores: <span id="cpuDisplay" class="fs-5 badge bg-info"></span>
+                </label>
+                <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
 
-
-
-                    <div class="mb-3">
-                        <label class="form-label text-black fw-semibold">
-                            CPU Cores: <span id="cpuDisplay" class="fs-5"></span>
-                        </label>
-                        <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
-
-                        <div class="progress" style="height: 8px;">
-                            <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                                style="width: 0%; transition: width 0.4s;"></div>
-                        </div>
-                    </div>
-
-                    <div class="mb-0 text-black fw-semibold fs-5 text-center">
-                        <span id="priceLabel">€ 0.00</span>
-                    </div>
+                <div class="progress rounded-pill" style="height: 12px;">
+                    <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
+                        style="width: 0%; transition: width 0.5s;"></div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm">Prosegui al Pagamento</button>
-        </form>
-    <?php endif; ?>
-</div>
+
+            <div class="mb-3">
+                <label class="form-label text-black fw-semibold">
+                    RAM Allocata: <span id="ramDisplay" class="fs-5 badge bg-primary"></span>
+                </label>
+            </div>
+
+            <div class="mb-0 text-black fw-semibold fs-5 text-center">
+                <span id="priceLabel" class="fw-bold text-success">€ 0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm">Prosegui al Pagamento</button>
+</form>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Definizione dei piani
     const plans = [
         {code:'plan_2gb', ram:2, cores:2, price:5.53},
         {code:'plan_4gb', ram:4, cores:2, price:8.50},
@@ -272,11 +274,10 @@ document.addEventListener("DOMContentLoaded", function() {
         {code:'plan_24gb', ram:24, cores:8, price:48.00}
     ];
 
-    // Elementi del form
     const planSelect = document.querySelector('select[name="plan_code"]');
     const ramDisplay = document.getElementById('ramDisplay');
-    const cpuLabel = document.getElementById('cpu_cores'); // hidden input
-    const cpuDisplay = document.getElementById('cpuLabel'); // span visibile
+    const cpuLabel = document.getElementById('cpu_cores'); // hidden
+    const cpuDisplay = document.getElementById('cpuDisplay'); // badge
     const cpuProgress = document.getElementById('cpuProgress');
     const priceLabel = document.getElementById('priceLabel');
 
@@ -285,21 +286,32 @@ document.addEventListener("DOMContentLoaded", function() {
         const option = plans.find(p => p.code === planCode);
         if (!option) return;
 
-        // Aggiorna visualizzazione
+        // Aggiorna badge RAM
         ramDisplay.textContent = option.ram + ' GB';
-        cpuDisplay.textContent = option.cores;
-        cpuLabel.value = option.cores; // valore hidden per il form
+        ramDisplay.classList.add('animate__animated', 'animate__fadeIn');
+        setTimeout(() => ramDisplay.classList.remove('animate__animated', 'animate__fadeIn'), 500);
+
+        // Aggiorna badge CPU
+        cpuDisplay.textContent = option.cores + ' Cores';
+        cpuDisplay.classList.add('animate__animated', 'animate__pulse');
+        setTimeout(() => cpuDisplay.classList.remove('animate__animated', 'animate__pulse'), 500);
+
+        cpuLabel.value = option.cores;
         cpuProgress.style.width = (option.cores / 8 * 100) + '%';
+
+        // Aggiorna prezzo
         priceLabel.textContent = "€ " + option.price.toFixed(2);
     }
 
-    // Event listener sul select dei piani
     planSelect.addEventListener('change', updatePlanDisplay);
 
-    // Inizializza valori al caricamento
-    updatePlanDisplay();
+    updatePlanDisplay(); // inizializza valori
 });
 </script>
+
+<!-- Aggiungi Animate.css per le animazioni -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
 
 
 
