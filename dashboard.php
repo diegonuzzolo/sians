@@ -188,19 +188,20 @@ foreach ($subscriptions as $sub) {
                         </a>
 
                         <div class="slot-badge mt-2">
-                            <span style="
-                    display:inline-block;
-                    background: #00c8ff33;
-                    color: #00c8ff;
-                    font-weight:bold;
-                    padding: 5px 12px;
-                    border-radius: 12px;
-                    font-size: 0.9rem;
-                    transition: background 0.3s;
-                ">
+                            <span class="slot-count" data-plan-code="<?= htmlspecialchars($plan['code']) ?>" style="
+              display:inline-block;
+              background: #00c8ff33;
+              color: #00c8ff;
+              font-weight:bold;
+              padding: 5px 12px;
+              border-radius: 12px;
+              font-size: 0.9rem;
+              transition: background 0.3s;
+          ">
                                 <?= $slotsAvailable ?> slot disponibili
                             </span>
                         </div>
+
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -211,124 +212,62 @@ foreach ($subscriptions as $sub) {
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
+ <script>
+    // Funzione per creare server da slot
+    function createServerSlot(planCode) {
+        let serverName = prompt("Inserisci il nome del tuo server:");
+        if (!serverName) return;
 
-        // Funzioni base per start/stop server
-        function updateButtons(serverId, status) {
-            const startBtn = document.getElementById('start-' + serverId);
-            const stopBtn = document.getElementById('stop-' + serverId);
-            if (!startBtn || !stopBtn) return;
-
-            if (status === 'running') {
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-            } else {
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            }
-        }
-        function createServerSlot(planCode) {
-    let serverName = prompt("Inserisci il nome del tuo server:");
-    if (!serverName) return;
-
-    const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
-    btn.disabled = true; // disabilita il pulsante temporaneamente
-
-    fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
-        .then(res => res.json())
-        .then(data => {
-            btn.disabled = false; // riabilita pulsante
-            if (data.success) {
-                alert(`✅ Server creato con successo!\nVMID: ${data.vmid}\nIP: ${data.ip}`);
-                location.reload(); // aggiorna la dashboard per mostrare il nuovo server
-            } else {
-                let msg = `❌ Errore: ${data.message || 'Sconosciuto'}\nStep: ${data.step || 'N/A'}`;
-                if (data.cmd_output) {
-                    msg += "\nComandi eseguiti:\n" + data.cmd_output.map(c => `[${c.return}] ${c.command}\nOutput: ${c.output.join("\n")}`).join("\n\n");
-                }
-                alert(msg);
-            }
-        })
-        .catch(err => {
-            btn.disabled = false;
-            console.error(err);
-            alert("❌ Errore imprevisto durante la richiesta. Controlla la console.");
-        });
-}
-        function controlServer(serverId, action) {
-            fetch('ajax_server_control.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success && data.status) {
-                        const statusEl = document.getElementById('status-' + serverId);
-                        if (statusEl) {
-                            statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
-                            statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
-                        }
-                        updateButtons(serverId, data.status);
+        fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
+                    
+                    // Aggiorna lo slot visualizzato
+                    const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
+                    if (slotSpan) {
+                        let current = parseInt(slotSpan.textContent) || 0;
+                        current = Math.max(0, current - 1);
+                        slotSpan.textContent = current + " slot disponibili";
                     }
-                    if (data.recalculateSlots) {
-                        recalcSlots(data.recalculateSlots);
-                    }
-                })
-                .catch(err => console.error('Errore comunicazione server:', err));
-        }
 
-        function startServer(serverId) { controlServer(serverId, 'start'); }
-        function stopServer(serverId) { controlServer(serverId, 'stop'); }
-
-        // Aggiorna stato dei server via fetch
-        function updateStatus(serverId) {
-            fetch('check_status.php?id=' + serverId)
-                .then(res => res.json())
-                .then(data => {
-                    const statusEl = document.getElementById('status-' + serverId);
-                    if (statusEl) {
-                        statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
-                        statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
-                        updateButtons(serverId, data.status);
-                    }
-                })
-                .catch(err => console.error('Errore nel fetch:', err));
-        }
-
-        // Ricrea/aggiorna bottoni "Crea/Ricrea Server" per slot
-        function recalcSlots(slotsData) {
-            for (const planCode in slotsData) {
-                const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
-                if (!btn) continue;
-
-                const slots = slotsData[planCode];
-                if (slots > 0) {
-                    btn.textContent = 'Ricrea Server';
-                    btn.classList.remove('disabled');
+                    location.reload(); // ricarica per mostrare il nuovo server
                 } else {
-                    btn.textContent = 'Slot Esauriti';
-                    btn.classList.add('disabled');
+                    alert("Errore: " + data.message);
                 }
-            }
-        }
+            })
+            .catch(err => console.error(err));
+    }
 
-        // Aggiornamento automatico ogni 10 secondi
-        setInterval(() => {
-            <?php foreach ($servers as $server): ?>
-                updateStatus(<?= $server['id'] ?>);
-            <?php endforeach; ?>
+    // Funzione per aggiornare gli slot via AJAX
+    function refreshSlots() {
+        fetch('ajax_check_slots.php')
+            .then(res => res.json())
+            .then(data => {
+                for (const planCode in data) {
+                    const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
+                    const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
+                    if (!slotSpan || !btn) continue;
 
-            // Controlla slot via endpoint
-            fetch('ajax_check_slots.php')
-                .then(res => res.json())
-                .then(data => {
-                    recalcSlots(data);
-                })
-                .catch(err => console.error('Errore fetch slots:', err));
-        }, 10000);
-    </script>
+                    slotSpan.textContent = data[planCode] + " slot disponibili";
+
+                    if (data[planCode] > 0) {
+                        btn.textContent = 'Crea/Ricrea Server';
+                        btn.classList.remove('disabled');
+                    } else {
+                        btn.textContent = 'Slot Esauriti';
+                        btn.classList.add('disabled');
+                    }
+                }
+            })
+            .catch(err => console.error('Errore fetch slots:', err));
+    }
+
+    // Aggiornamento automatico ogni 10 secondi
+    setInterval(refreshSlots, 10000);
+</script>
+
 
 
     <?php include "includes/footer.php"; ?>
