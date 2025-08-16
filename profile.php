@@ -16,6 +16,13 @@ $stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id=?");
 $stmt->execute([$userId]);
 $billing = $stmt->fetch(PDO::FETCH_ASSOC);
 
+// --- Recupero piani attivi (server/subscription) ---
+$stmt = $pdo->prepare("SELECT id, server_name, plan_code, ram, cpu_cores, price, status, created_at 
+                       FROM servers 
+                       WHERE user_id=? AND status='active'");
+$stmt->execute([$userId]);
+$activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // --- Gestione POST ---
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     // cambio password
@@ -80,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         }
     }
 
-    // ricarico i dati per mantenere valori
+    // ricarico i dati
     $stmt = $pdo->prepare("SELECT username,email FROM users WHERE id=?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -88,19 +95,58 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id=?");
     $stmt->execute([$userId]);
     $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $stmt = $pdo->prepare("SELECT id, server_name, plan_code, ram, cpu_cores, price, status, created_at 
+                           FROM servers 
+                           WHERE user_id=? AND status='active'");
+    $stmt->execute([$userId]);
+    $activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
-<!-- QUI il tuo HTML con due form: (1) profilo/billing e (2) cambio password) -->
 <?php include 'includes/header.php'; ?>
 
-<div class="container my-5" style="max-width: 720px;">
+<div class="container my-5" style="max-width: 900px;">
     <h2 class="text-center text-primary mb-4">Il Mio Profilo</h2>
 
     <?php if ($msg): ?>
         <div class="alert alert-success"><?= htmlspecialchars($msg) ?></div>
     <?php endif; ?>
 
+    <!-- Sezione Piani Attivi -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white fw-bold">Piani Attivi</div>
+        <div class="card-body">
+            <?php if ($activePlans): ?>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Server</th>
+                            <th>Piano</th>
+                            <th>RAM</th>
+                            <th>CPU</th>
+                            <th>Prezzo</th>
+                            <th>Attivato il</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($activePlans as $plan): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($plan['server_name']) ?></td>
+                                <td><?= htmlspecialchars($plan['plan_code']) ?></td>
+                                <td><?= htmlspecialchars($plan['ram']) ?> GB</td>
+                                <td><?= htmlspecialchars($plan['cpu_cores']) ?> Core</td>
+                                <td>€ <?= number_format($plan['price'], 2, ',', '.') ?></td>
+                                <td><?= htmlspecialchars(date('d/m/Y', strtotime($plan['created_at']))) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else: ?>
+                <p class="text-muted">Nessun piano attivo al momento.</p>
+            <?php endif; ?>
+        </div>
+    </div>
     <!-- Profilo & Fatturazione -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white fw-bold">Profilo & Fatturazione</div>
