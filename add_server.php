@@ -182,7 +182,7 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
             (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'Spento', $cores, $serverId]);
+        $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, 'Stopped', $cores, $serverId]);
         $containerId = $pdo->lastInsertId();
 
         // --- 4. Aggiorna server con container_id ---
