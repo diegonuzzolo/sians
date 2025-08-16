@@ -279,18 +279,24 @@ include "includes/header.php";
     const cpuProgress = document.getElementById('cpuProgress');
     const priceLabel = document.getElementById('priceLabel');
 
-    function updateCpuAndPrice() {
-        let idx = parseInt(ramInput.value);
-        if(idx < 0) idx = 0;
-        if(idx >= ramOptions.length) idx = ramOptions.length - 1;
+   function updateCpuAndPrice(){
+    let ram = parseInt(ramInput.value) || 4; 
+    ramDisplay.textContent = ram + ' GB';
 
-        let option = ramOptions[idx];
+    let cores = 2, price = 6.5*0.85;
+    if(ram<=2){cores=2;price=6.5*0.85;}
+    else if(ram<=4){cores=2;price=10*0.85;}
+    else if(ram<=6){cores=3;price=15*0.85;}
+    else if(ram<=8){cores=4;price=21.5*0.85;}
+    else if(ram<=16){cores=6;price=35*0.85;}
+    else{cores=8;price=57.5*0.85;}
 
-        ramDisplay.textContent = option.ram + ' GB';
-        cpuLabel.value = option.cores;
-        cpuProgress.style.width = (option.cores / 8 * 100) + '%';
-        priceLabel.textContent = "€ " + option.price.toFixed(2);
-    }
+    cpuLabel.textContent = cores;  // <-- qui dovrebbe aggiornare lo span
+    cpuInput.value = cores;
+    cpuProgress.style.width = (cores/8*100)+'%';
+    priceLabel.textContent = "€ "+price.toFixed(2);
+}
+
 
     ramInput.addEventListener('input', updateCpuAndPrice);
     updateCpuAndPrice(); // inizializza valori
