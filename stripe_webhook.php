@@ -1,70 +1,77 @@
 <?php
-require 'config/config.php';
-require 'config/stripe.php';
-require 'config/env.php';
+require 'vendor/autoload.php';
+require 'config/config.php'; // contiene $pdo e chiavi stripe
 
+\Stripe\Stripe::setApiKey('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');
+
+// Recupero il payload inviato da Stripe
 $payload = @file_get_contents('php://input');
-$sig = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
-$whSecret = env('STRIPE_WEBHOOK_SECRET');
+$sigHeader = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
+$endpointSecret = "whsec_N6FUKDFe7lZcDLjnpNhUskUkBsSsrQAQ"; // <-- sostituisci con il tuo
 
 try {
-  $event = \Stripe\Webhook::constructEvent($payload, $sig, $whSecret);
+    $event = \Stripe\Webhook::constructEvent(
+        $payload, $sigHeader, $endpointSecret
+    );
 } catch(\UnexpectedValueException $e) {
-  http_response_code(400); exit('Invalid payload');
+    http_response_code(400);
+    exit("Invalid payload");
 } catch(\Stripe\Exception\SignatureVerificationException $e) {
-  http_response_code(400); exit('Invalid signature');
+    http_response_code(400);
+    exit("Invalid signature");
 }
 
-// log
-$stmt = $pdo->prepare("INSERT INTO payment_events (user_id, type, payload) VALUES (?, ?, ?)");
-$userId = null;
-$type = $event->type;
-$stmt->execute([$userId, $type, $payload]);
-
 switch ($event->type) {
-  case 'checkout.session.completed':
-    $session = $event->data->object;
-    $userId = intval($session->metadata->user_id ?? 0);
-    $planId = intval($session->metadata->plan_id ?? 0);
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated':
+        $subscription = $event->data->object;
 
-    // recupera subscription id
-    $subId = $session->subscription;
-    $customerId = $session->customer;
+        $stripeSubId = $subscription->id;
+        $stripeCustomerId = $subscription->customer;
+        $status = $subscription->status;
+        $currentPeriodEnd = date('Y-m-d H:i:s', $subscription->current_period_end);
 
-    // salva subscription
-    $ins = $pdo->prepare("INSERT INTO subscriptions (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status) VALUES (?,?,?,?,?)");
-    $ins->execute([$userId, $planId, $customerId, $subId, 'incomplete']);
+        // Qui mappi plan_id dal piano Stripe
+        $planCode = $subscription->items->data[0]->price->id; 
+        $stmt = $pdo->prepare("SELECT id FROM plans WHERE stripe_price_id = ?");
+        $stmt->execute([$planCode]);
+        $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+        $planId = $plan ? $plan['id'] : null;
 
-    // PROVISIONING: crea server per l’utente in base al piano
-    // - leggi RAM/CPU/Storage da plans
-    $p = $pdo->prepare("SELECT ram_gb, cpu_cores, storage_gb FROM plans WHERE id=?");
-    $p->execute([$planId]);
-    $cfg = $p->fetch(PDO::FETCH_ASSOC);
+        // Trova user_id tramite stripe_customer_id
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id = ?");
+        $stmt->execute([$stripeCustomerId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $userId = $user ? $user['id'] : null;
 
-    if ($cfg) {
-        // qui richiami direttamente la tua pipeline di creazione (add_server) in funzione riusabile
-        require_once 'services/provision.php'; // crea una funzione provision_bedrock($userId,$cfg)
-        try {
-            provision_bedrock($pdo, $userId, (int)$cfg['ram_gb'], (int)$cfg['cpu_cores'], (int)$cfg['storage_gb']);
-        } catch(Exception $e) {
-            // log errori ma rispondi 200 a Stripe
-            error_log('Provisioning error: '.$e->getMessage());
+        if ($userId && $planId) {
+            $stmt = $pdo->prepare("
+                INSERT INTO subscriptions (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE
+                    plan_id=VALUES(plan_id),
+                    status=VALUES(status),
+                    current_period_end=VALUES(current_period_end)
+            ");
+            $stmt->execute([
+                $userId,
+                $planId,
+                $stripeCustomerId,
+                $stripeSubId,
+                $status,
+                $currentPeriodEnd
+            ]);
         }
-    }
-    break;
+        break;
 
-  case 'customer.subscription.updated':
-  case 'customer.subscription.created':
-  case 'customer.subscription.deleted':
-    $sub = $event->data->object;
-    $status = $sub->status; // active, past_due, canceled, ...
-    $upd = $pdo->prepare("UPDATE subscriptions SET status=?, current_period_end=FROM_UNIXTIME(?) WHERE stripe_subscription_id=?");
-    $upd->execute([$status, $sub->current_period_end, $sub->id]);
-    // se canceled -> fermare e marcare server come "sospeso"
-    if ($type === 'customer.subscription.deleted') {
-        // TODO: stop dei container dell’utente
-    }
-    break;
+    case 'customer.subscription.deleted':
+        $subscription = $event->data->object;
+        $stripeSubId = $subscription->id;
+
+        $stmt = $pdo->prepare("UPDATE subscriptions SET status='canceled' WHERE stripe_subscription_id=?");
+        $stmt->execute([$stripeSubId]);
+        break;
 }
 
 http_response_code(200);
+echo "success";

@@ -12,3 +12,19 @@ function getActiveSubscriptionForUser($stripeCustomerId) {
 
     return $subscriptions->data[0] ?? null;
 }
+
+function getUserIdByStripeCustomer($customerId) {
+    global $pdo;
+
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id = ?");
+    $stmt->execute([$customerId]);
+    return $stmt->fetchColumn() ?: null;
+}
+
+function mapPlanId($priceId) {
+    global $pdo;
+
+    $stmt = $pdo->prepare("SELECT id FROM plans WHERE stripe_price_id = ?");
+    $stmt->execute([$priceId]);
+    return $stmt->fetchColumn() ?: null;
+}

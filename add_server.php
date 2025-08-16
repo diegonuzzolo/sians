@@ -11,12 +11,14 @@ require 'stripe-php/init.php';
 csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
-if (!$userId) die("Accesso negato.");
+if (!$userId)
+    die("Accesso negato.");
 
 $stmt = $pdo->prepare("SELECT email, stripe_customer_id FROM users WHERE id=?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$user) die("Utente non trovato.");
+if (!$user)
+    die("Utente non trovato.");
 $email = $user['email'];
 $stripeCustomerId = $user['stripe_customer_id'] ?? null;
 
@@ -30,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
     $stmt->execute([$planCode]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$plan) die("Piano non valido.");
+    if (!$plan)
+        die("Piano non valido.");
 
     // Verifica se l'utente ha già subscription
     $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
@@ -47,10 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $session = \Stripe\Checkout\Session::create([
                 'payment_method_types' => ['card'],
                 'customer_email' => $email,
-                'line_items' => [[
-                    'price' => $plan['stripe_price_id'],
-                    'quantity' => 1
-                ]],
+                'line_items' => [
+                    [
+                        'price' => $plan['stripe_price_id'],
+                        'quantity' => 1
+                    ]
+                ],
                 'mode' => 'subscription',
                 'success_url' => "https://tuosito.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
                 'cancel_url' => "https://tuosito.it/add_server.php?cancel=1"
@@ -68,38 +73,40 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
     $planCode = $_GET['plan_code'];
     $checkoutSessionId = $_GET['session_id'];
 
+    // Recupera il piano
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? LIMIT 1");
     $stmt->execute([$planCode]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$plan) die("Piano non trovato.");
+    if (!$plan)
+        die("Piano non trovato.");
 
-    \Stripe\Stripe::setApiKey("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");
+    // Recupera dati da Stripe
+    \Stripe\Stripe::setApiKey("sk_live_...");
     $session = \Stripe\Checkout\Session::retrieve($checkoutSessionId);
     $stripeSubscription = \Stripe\Subscription::retrieve($session->subscription);
 
-    // Inserisci subscription in DB
-    $stmt = $pdo->prepare("
-        INSERT INTO subscriptions
-        (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+    // Salva/aggiorna la subscription nel DB
+    $stmt = $pdo->prepare("INSERT INTO subscriptions 
+        (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at) 
         VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-            stripe_subscription_id=VALUES(stripe_subscription_id),
-            status=VALUES(status),
-            current_period_end=VALUES(current_period_end)
-    ");
+        ON DUPLICATE KEY UPDATE 
+            status = VALUES(status), 
+            current_period_end = VALUES(current_period_end)");
+
     $stmt->execute([
         $userId,
         $plan['id'],
-        $stripeCustomerId ?? $stripeSubscription->customer,
+        $stripeSubscription->customer,
         $stripeSubscription->id,
         $stripeSubscription->status,
         date('Y-m-d H:i:s', $stripeSubscription->current_period_end)
     ]);
 
-    $checkoutSessionId = ''; // non serve più
-    header("Location: dashboard.php");
+    // Redireziona alla dashboard
+    header("Location: dashboard.php?subscription=success");
     exit;
 }
+
 
 include "includes/header.php";
 ?>
