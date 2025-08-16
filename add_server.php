@@ -14,13 +14,15 @@ require 'vendor/autoload.php';
 csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
-if (!$userId) die("Accesso negato.");
+if (!$userId)
+    die("Accesso negato.");
 
 // Recupero email utente
 $stmt = $pdo->prepare("SELECT email, stripe_customer_id FROM users WHERE id=?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$user) die("Utente non trovato.");
+if (!$user)
+    die("Utente non trovato.");
 $email = $user['email'];
 $stripeCustomerId = $user['stripe_customer_id'] ?? null;
 
@@ -39,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
     $stmt->execute([$planCode]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$plan) die("Piano non valido.");
+    if (!$plan)
+        die("Piano non valido.");
 
     // Controllo subscription già esistente
     $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
@@ -65,10 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
             'customer_email' => $email,
-            'line_items' => [[
-                'price' => $plan['stripe_price_id'],
-                'quantity' => 1
-            ]],
+            'line_items' => [
+                [
+                    'price' => $plan['stripe_price_id'],
+                    'quantity' => 1
+                ]
+            ],
             'mode' => 'subscription',
             'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&server_name=" . urlencode($serverName) . "&session_id={CHECKOUT_SESSION_ID}",
             'cancel_url' => "https://sians.it/add_server.php?cancel=1"
@@ -84,8 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
 /**
  * STEP 2: Dopo pagamento (success_url) o ricreazione
  */
-if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['session_id'])) ||
-    isset($_GET['recreate'], $_GET['plan_id'], $_GET['server_name'])) {
+if (
+    (isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['session_id'])) ||
+    isset($_GET['recreate'], $_GET['plan_id'], $_GET['server_name'])
+) {
 
     if (isset($_GET['recreate'])) {
         // Ricreazione server
@@ -95,13 +102,15 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
         $stmt = $pdo->prepare("SELECT * FROM plans WHERE id=? LIMIT 1");
         $stmt->execute([$planId]);
         $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$plan) die("Piano non trovato.");
+        if (!$plan)
+            die("Piano non trovato.");
 
         // Recupero subscription
         $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
         $stmt->execute([$userId, $planId]);
         $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$subscription) die("Subscription non trovata.");
+        if (!$subscription)
+            die("Subscription non trovata.");
         $subscriptionId = $subscription['id'];
 
     } else {
@@ -113,7 +122,8 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
         $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? LIMIT 1");
         $stmt->execute([$planCode]);
         $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$plan) die("Piano non trovato.");
+        if (!$plan)
+            die("Piano non trovato.");
 
         // Recupero Stripe session e subscription
         \Stripe\Stripe::setApiKey("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");
@@ -124,14 +134,14 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
 
         // Inserisci subscription DB
         $stmt = $pdo->prepare("
-            INSERT INTO subscriptions
-            (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, total, used, current_period_end, created_at)
-            VALUES (?, ?, ?, ?, ?, 1, 0, ?, NOW())
-            ON DUPLICATE KEY UPDATE
-                stripe_subscription_id=VALUES(stripe_subscription_id),
-                status=VALUES(status),
-                current_period_end=VALUES(current_period_end)
-        ");
+    INSERT INTO subscriptions
+    (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, NOW())
+    ON DUPLICATE KEY UPDATE
+        stripe_subscription_id = VALUES(stripe_subscription_id),
+        status = VALUES(status),
+        current_period_end = VALUES(current_period_end)
+");
         $stmt->execute([
             $userId,
             $plan['id'],
@@ -155,9 +165,11 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
     // Risorse disponibili
     $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
     $resources = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($cores > $resources['total_cpu_cores'] - $resources['used_cpu_cores'] ||
-        $ramGb*1024 > $resources['total_ram_mb'] ||
-        $storageGb > $resources['total_storage_gb'])
+    if (
+        $cores > $resources['total_cpu_cores'] - $resources['used_cpu_cores'] ||
+        $ramGb * 1024 > $resources['total_ram_mb'] ||
+        $storageGb > $resources['total_storage_gb']
+    )
         die("Risorse insufficienti per creare il server.");
 
     $vmid = getNextFreeVmid($pdo);
@@ -168,7 +180,7 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
         INSERT INTO servers (name, user_id, plan_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
         VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
     ");
-    $stmt->execute([$serverName, $userId, $plan['id'], $vmid, $cores, $ramGb*1024]);
+    $stmt->execute([$serverName, $userId, $plan['id'], $vmid, $cores, $ramGb * 1024]);
     $serverId = $pdo->lastInsertId();
 
     // Inserisci container
@@ -176,7 +188,7 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
         INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
         VALUES (?, ?, ?, ?, ?, ?, 'Stopped', ?, ?)
     ");
-    $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, $cores, $serverId]);
+    $stmt->execute([$vmid, $ramGb * 1024, $storageGb, $userId, $serverName, $vmIp, $cores, $serverId]);
     $containerId = $pdo->lastInsertId();
 
     // Aggiorna server con container_id
@@ -189,11 +201,12 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
 
     // Aggiorna risorse
     $stmt = $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id=1");
-    $stmt->execute([$cores, $ramGb*1024, $storageGb]);
+    $stmt->execute([$cores, $ramGb * 1024, $storageGb]);
 
     // Creazione Proxmox container
     $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
-    if (!$createResult['success']) die("Errore creazione container: " . $createResult['message']);
+    if (!$createResult['success'])
+        die("Errore creazione container: " . $createResult['message']);
 
     sleep(4);
 
@@ -201,7 +214,7 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
     $sshKey = "/var/www/.ssh/id_proxmox";
     $nodeIp = "192.168.1.251";
     $localScript = '/var/www/setup_server.sh';
-    $remoteTemp = "/root/setup_server.sh";  
+    $remoteTemp = "/root/setup_server.sh";
 
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"");
     exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp");
