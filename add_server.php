@@ -9,6 +9,7 @@ require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
 require_once 'init.php';
 require 'stripe_functions.php';
+require 'vendor/autoload.php';
 
 csrf_check_or_die();
 
@@ -132,40 +133,6 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
         $vmIp = getNextFreePrivateIp($pdo);
 
 
-        // Recupera l’ID cliente Stripe dell’utente
-        $stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id=?");
-        $stmt->execute([$userId]);
-        $stripeCustomerId = $stmt->fetchColumn();
-
-        if ($stripeCustomerId) {
-            $subscription = getActiveSubscriptionForUser($stripeCustomerId); // funzione che chiama Stripe API
-            if ($subscription) {
-                // Determina il plan_id locale dalla tabella plans
-                $planId = $plan['id']; // l'id della tabella plans corrispondente al piano acquistato
-                $stripeSubscriptionId = $subscription->id;
-                $status = $subscription->status;
-                $currentPeriodEnd = date('Y-m-d H:i:s', $subscription->current_period_end);
-
-                // Inserisci o aggiorna nella tabella subscriptions
-                $stmt = $pdo->prepare("
-            INSERT INTO subscriptions
-            (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-            ON DUPLICATE KEY UPDATE
-                plan_id = VALUES(plan_id),
-                stripe_customer_id = VALUES(stripe_customer_id),
-                stripe_subscription_id = VALUES(stripe_subscription_id),
-                status = VALUES(status),
-                current_period_end = VALUES(current_period_end)
-        ");
-                $stmt->execute([$userId, $planId, $stripeCustomerId, $stripeSubscriptionId, $status, $currentPeriodEnd]);
-            }
-        } else {
-            throw new Exception("Utente non ha Stripe Customer ID.");
-        }
-
-
-
         // --- 2. Inserisci server nel DB (status = stopped) ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
@@ -174,42 +141,51 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
         ");
         $stmt->execute([$serverName, $userId, $vmid, 'stopped', 'bedrock', $cores, $ramGb * 1024, 0]);
         $serverId = $pdo->lastInsertId();
-
+        $stmt = $pdo->prepare('');
         // Recupera l'abbonamento attivo da Stripe e aggiorna la tabella subscriptions
-        require 'vendor/autoload.php';
         \Stripe\Stripe::setApiKey("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");
 
-        // Recupera l’ID cliente Stripe dell’utente
+        // Verifica se l’utente ha già lo Stripe Customer ID
         $stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id=?");
         $stmt->execute([$userId]);
         $stripeCustomerId = $stmt->fetchColumn();
 
-        if ($stripeCustomerId) {
-            $subscription = getActiveSubscriptionForUser($stripeCustomerId);
-            if ($subscription) {
-                $stmt = $pdo->prepare("
-    INSERT INTO subscriptions 
-    (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, NOW())
-    ON DUPLICATE KEY UPDATE
-        plan_id = VALUES(plan_id),
-        stripe_customer_id = VALUES(stripe_customer_id),
-        stripe_subscription_id = VALUES(stripe_subscription_id),
-        status = VALUES(status),
-        current_period_end = VALUES(current_period_end)
-");
+        if (!$stripeCustomerId) {
+            // Crea il customer su Stripe
+            $customer = \Stripe\Customer::create([
+                'email' => $email,
+                'name' => $serverName,
+            ]);
+            $stripeCustomerId = $customer->id;
 
-                $stmt->execute([
-                    $userId,
-                    $subscription->plan->id ?? $subscription->items->data[0]->price->id, // plan_id
-                    $stripeCustomerId,
-                    $subscription->id,
-                    $subscription->status,
-                    date('Y-m-d H:i:s', $subscription->current_period_end)
-                ]);
-            }
+            // Aggiorna tabella users con il nuovo customer ID
+            $stmt = $pdo->prepare("UPDATE users SET stripe_customer_id=? WHERE id=?");
+            $stmt->execute([$stripeCustomerId, $userId]);
         }
 
+        // Ora puoi procedere a creare la subscription nella tabella subscriptions
+        $subscription = getActiveSubscriptionForUser($stripeCustomerId);
+        if ($subscription) {
+            $stmt = $pdo->prepare("
+        INSERT INTO subscriptions 
+        (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            plan_id = VALUES(plan_id),
+            stripe_customer_id = VALUES(stripe_customer_id),
+            stripe_subscription_id = VALUES(stripe_subscription_id),
+            status = VALUES(status),
+            current_period_end = VALUES(current_period_end)
+    ");
+            $stmt->execute([
+                $userId,
+                $subscription->plan->id ?? $subscription->items->data[0]->price->id,
+                $stripeCustomerId,
+                $subscription->id,
+                $subscription->status,
+                date('Y-m-d H:i:s', $subscription->current_period_end)
+            ]);
+        }
 
         // --- 3. Inserisci container nel DB ---
         $stmt = $pdo->prepare("
