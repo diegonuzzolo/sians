@@ -216,76 +216,70 @@ include "includes/header.php";
             </div>
 
             <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-                <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
-                    Configura le Risorse
-                </div>
-                <div class="card-body">
-                    <div class="mb-4">
-                        <label for="ram_gb" class="form-label text-black fw-semibold">RAM: <span id="ramDisplay"
-                                class="fw-bold"></span></label>
-                        <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="2" max="20" step="2"
-       value="<?= htmlspecialchars($_POST['ram_gb'] ?? 4) ?>">
+    <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
+        Configura le Risorse
+    </div>
+    <div class="card-body">
+        <div class="mb-4">
+            <label for="ram_gb" class="form-label text-black fw-semibold">RAM: <span id="ramDisplay" class="fw-bold"></span></label>
+            <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="0" max="4" step="1"
+                value="1">
+            <div class="d-flex justify-content-between text-black small mt-1" id="ramLabels"></div>
+        </div>
 
-                        <div class="d-flex justify-content-between text-black small mt-1">
-                            <span>2GB</span>
-                            <span>20GB</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-black fw-semibold">CPU Cores: <span id="cpuLabel"
-                                class="fs-5"></span></label>
-                        <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
-                        <div class="progress" style="height: 8px;">
-                            <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                                style="width: 0%; transition: width 0.4s;"></div>
-                        </div>
-                    </div>
-                    <div class="mb-0 text-black fw-semibold fs-5 text-center">
-                        <span id="priceLabel">€ 0.00</span>
-
-                    </div>
-                </div>
+        <div class="mb-3">
+            <label class="form-label text-black fw-semibold">CPU Cores: <span id="cpuLabel" class="fs-5"></span></label>
+            <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
+            <div class="progress" style="height: 8px;">
+                <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
+                    style="width: 0%; transition: width 0.4s;"></div>
             </div>
+        </div>
+
+        <div class="mb-0 text-black fw-semibold fs-5 text-center">
+            <span id="priceLabel">€ 0.00</span>
+        </div>
+    </div>
+</div>
             <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm">Prosegui al Pagamento</button>
         </form>
     <?php endif; ?>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const ramInput = document.getElementById('ram_gb');
-        const ramDisplay = document.getElementById('ramDisplay');
-        const cpuLabel = document.getElementById('cpuLabel');
-        const cpuInput = document.getElementById('cpu_cores');
-        const cpuProgress = document.getElementById('cpuProgress');
-        const priceLabel = document.getElementById('priceLabel');
+    document.addEventListener("DOMContentLoaded", function() {
+    const ramOptions = [
+        {ram: 2, cores: 2, price: 5.53},   // esempio: €6.5*0.85
+        {ram: 4, cores: 2, price: 8.50},
+        {ram: 6, cores: 3, price: 12.75},
+        {ram: 8, cores: 4, price: 18.28},
+        {ram: 16, cores: 6, price: 29.75}
+    ];
 
-        function updateCpuAndPrice() {
-            let ram = parseInt(ramInput.value) || 4; // valore di default se vuoto
-            ramDisplay.textContent = ram + ' GB';
+    const ramInput = document.getElementById('ram_gb');
+    const ramDisplay = document.getElementById('ramDisplay');
+    const ramLabels = document.getElementById('ramLabels');
+    const cpuLabel = document.getElementById('cpuLabel');
+    const cpuInput = document.getElementById('cpu_cores');
+    const cpuProgress = document.getElementById('cpuProgress');
+    const priceLabel = document.getElementById('priceLabel');
 
-            let cores = 2, price = 6.5 * 0.85;
-            if (ram <= 2) { cores = 2; price = 6.5 * 0.85; }
-            else if (ram <= 4) { cores = 2; price = 10 * 0.85; }
-            else if (ram <= 6) { cores = 3; price = 15 * 0.85; }
-            else if (ram <= 8) { cores = 4; price = 21.5 * 0.85; }
-            else if (ram <= 16) { cores = 6; price = 35 * 0.85; }
-            else { cores = 8; price = 57.5 * 0.85; }
+    // Mostra i valori RAM sotto lo slider
+    ramLabels.innerHTML = ramOptions.map(opt => `<span>${opt.ram}GB</span>`).join('');
 
-            cpuLabel.textContent = cores;
-            cpuInput.value = cores;
-            cpuProgress.style.width = (cores / 8 * 100) + '%';
-            priceLabel.textContent = "€ " + price.toFixed(2);
-        }
+    function updateCpuAndPrice(){
+        let idx = parseInt(ramInput.value) || 0;
+        let option = ramOptions[idx];
 
-        ramInput.addEventListener('input', updateCpuAndPrice);
-        updateCpuAndPrice(); // aggiorna valori iniziali
-    });
-    ramInput.addEventListener('input', function() {
-    let ram = parseInt(this.value);
-    if(ram % 2 !== 0) ram--; // arrotonda verso il basso al pari più vicino
-    this.value = ram;
-    updateCpuAndPrice();
+        ramDisplay.textContent = option.ram + ' GB';
+        cpuLabel.textContent = option.cores;
+        cpuInput.value = option.cores;
+        cpuProgress.style.width = (option.cores/8*100)+'%';
+        priceLabel.textContent = "€ "+option.price.toFixed(2);
+    }
+
+    ramInput.addEventListener('input', updateCpuAndPrice);
+    updateCpuAndPrice(); // aggiorna valori iniziali
 });
 
 </script>
