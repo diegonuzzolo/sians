@@ -7,7 +7,7 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'includes/csrf.php';
 require 'vendor/autoload.php';
-s
+
 csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
