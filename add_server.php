@@ -85,22 +85,6 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
     $session = \Stripe\Checkout\Session::retrieve($checkoutSessionId);
     $stripeSubscription = \Stripe\Subscription::retrieve($session->subscription);
 
-    // Salva/aggiorna la subscription nel DB
-    $stmt = $pdo->prepare("INSERT INTO subscriptions 
-        (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE 
-            status = VALUES(status), 
-            current_period_end = VALUES(current_period_end)");
-
-    $stmt->execute([
-        $userId,
-        $plan['id'],
-        $stripeSubscription->customer,
-        $stripeSubscription->id,
-        $stripeSubscription->status,
-        date('Y-m-d H:i:s', $stripeSubscription->current_period_end)
-    ]);
 
     // Redireziona alla dashboard
     header("Location: dashboard.php?subscription=success");
