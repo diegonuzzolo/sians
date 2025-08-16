@@ -54,19 +54,20 @@ function calculatePrice($ramGb)
     return 57.5 * 0.85;
 
 
-    
+
 }
 
 // STEP 1: Generazione Stripe Checkout
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
-     $planCode = $_POST['plan_code'] ?? 'plan_4gb'; // default piano 4GB
+    $planCode = $_POST['plan_code'] ?? 'plan_4gb'; // default piano 4GB
     $serverName = trim($_POST['server_name'] ?? "mcserver");
 
     // Recupero dati piano dalla tabella plans
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code = ? AND active=1 LIMIT 1");
     $stmt->execute([$planCode]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$plan) die("Piano selezionato non valido.");
+    if (!$plan)
+        die("Piano selezionato non valido.");
 
     $ramGb = $plan['ram_gb'];
     $cores = $plan['cpu_cores'];
@@ -78,12 +79,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
             'customer_email' => $email,
-            'line_items' => [[
-                'price' => $stripePriceId,  // Price ID ricorrente Stripe
-                'quantity' => 1
-            ]],
+            'line_items' => [
+                [
+                    'price' => $stripePriceId,  // Price ID ricorrente Stripe
+                    'quantity' => 1
+                ]
+            ],
             'mode' => 'subscription',
-            'success_url' => "https://sians.it/add_server.php?success=1&plan_code=".urlencode($planCode)."&server_name=".urlencode($serverName),
+            'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&server_name=" . urlencode($serverName),
             'cancel_url' => "https://sians.it/add_server.php?cancel=1"
         ]);
 
@@ -103,12 +106,13 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
     $stmt->execute([$planCode]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$plan) die("Piano non trovato.");
+    if (!$plan)
+        die("Piano non trovato.");
 
     $ramGb = $plan['ram_gb'];
     $cores = $plan['cpu_cores'];
     $storageGb = $plan['storage_gb'];
-    
+
     try {
         // --- 0. Controllo risorse disponibili ---
         $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
@@ -216,73 +220,83 @@ include "includes/header.php";
             </div>
 
             <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-    <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
-        Configura le Risorse
-    </div>
-    <div class="card-body">
-        <div class="mb-4">
-            <label for="ram_gb" class="form-label text-black fw-semibold">RAM: <span id="ramDisplay" class="fw-bold"></span></label>
-            <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="0" max="4" step="1"
-                value="1">
-            <div class="d-flex justify-content-between text-black small mt-1" id="ramLabels"></div>
-        </div>
+                <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
+                    Configura le Risorse
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label for="ram_gb" class="form-label text-black fw-semibold">
+                            RAM: <span id="ramDisplay" class="fw-bold"></span>
+                        </label>
+                        <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="0" max="5" step="1" value="1">
+                        <!-- indice iniziale dell'array -->
 
-        <div class="mb-3">
-            <label class="form-label text-black fw-semibold">CPU Cores: <span id="cpuLabel" class="fs-5"></span></label>
-            <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
-            <div class="progress" style="height: 8px;">
-                <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                    style="width: 0%; transition: width 0.4s;"></div>
+                        <div class="d-flex justify-content-between text-black small mt-1">
+                            <span>2GB</span>
+                            <span>4GB</span>
+                            <span>6GB</span>
+                            <span>8GB</span>
+                            <span>16GB</span>
+                            <span>24GB</span>
+                        </div>
+                    </div>
+
+
+                    <div class="mb-3">
+                        <label class="form-label text-black fw-semibold">CPU Cores: <span id="cpuLabel"
+                                class="fs-5"></span></label>
+                        <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
+                        <div class="progress" style="height: 8px;">
+                            <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
+                                style="width: 0%; transition: width 0.4s;"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0 text-black fw-semibold fs-5 text-center">
+                        <span id="priceLabel">€ 0.00</span>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        <div class="mb-0 text-black fw-semibold fs-5 text-center">
-            <span id="priceLabel">€ 0.00</span>
-        </div>
-    </div>
-</div>
             <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm">Prosegui al Pagamento</button>
         </form>
     <?php endif; ?>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-    const ramOptions = [
-        {ram: 2, cores: 2, price: 5.53},   // esempio: €6.5*0.85
-        {ram: 4, cores: 2, price: 8.50},
-        {ram: 6, cores: 3, price: 12.75},
-        {ram: 8, cores: 4, price: 18.28},
-        {ram: 16, cores: 6, price: 29.75},
-        {ram: 24, cores: 8, price: 48.00}
+    document.addEventListener("DOMContentLoaded", function () {
+        const ramOptions = [
+            { ram: 2, cores: 2, price: 5.53 },   // esempio: €6.5*0.85
+            { ram: 4, cores: 2, price: 8.50 },
+            { ram: 6, cores: 3, price: 12.75 },
+            { ram: 8, cores: 4, price: 18.28 },
+            { ram: 16, cores: 6, price: 29.75 }
+        ];
 
-    ];
+        const ramInput = document.getElementById('ram_gb');
+        const ramDisplay = document.getElementById('ramDisplay');
+        const ramLabels = document.getElementById('ramLabels');
+        const cpuLabel = document.getElementById('cpuLabel');
+        const cpuInput = document.getElementById('cpu_cores');
+        const cpuProgress = document.getElementById('cpuProgress');
+        const priceLabel = document.getElementById('priceLabel');
 
-    const ramInput = document.getElementById('ram_gb');
-    const ramDisplay = document.getElementById('ramDisplay');
-    const ramLabels = document.getElementById('ramLabels');
-    const cpuLabel = document.getElementById('cpuLabel');
-    const cpuInput = document.getElementById('cpu_cores');
-    const cpuProgress = document.getElementById('cpuProgress');
-    const priceLabel = document.getElementById('priceLabel');
+        // Mostra i valori RAM sotto lo slider
+        ramLabels.innerHTML = ramOptions.map(opt => `<span>${opt.ram}GB</span>`).join('');
 
-    // Mostra i valori RAM sotto lo slider
-    ramLabels.innerHTML = ramOptions.map(opt => `<span>${opt.ram}GB</span>`).join('');
+        function updateCpuAndPrice() {
+            let idx = parseInt(ramInput.value) || 0;
+            let option = ramOptions[idx];
 
-    function updateCpuAndPrice(){
-        let idx = parseInt(ramInput.value) || 0;
-        let option = ramOptions[idx];
+            ramDisplay.textContent = option.ram + ' GB';
+            cpuLabel.textContent = option.cores;
+            cpuInput.value = option.cores;
+            cpuProgress.style.width = (option.cores / 8 * 100) + '%';
+            priceLabel.textContent = "€ " + option.price.toFixed(2);
+        }
 
-        ramDisplay.textContent = option.ram + ' GB';
-        cpuLabel.textContent = option.cores;
-        cpuInput.value = option.cores;
-        cpuProgress.style.width = (option.cores/8*100)+'%';
-        priceLabel.textContent = "€ "+option.price.toFixed(2);
-    }
-
-    ramInput.addEventListener('input', updateCpuAndPrice);
-    updateCpuAndPrice(); // aggiorna valori iniziali
-});
+        ramInput.addEventListener('input', updateCpuAndPrice);
+        updateCpuAndPrice(); // aggiorna valori iniziali
+    });
 
 </script>
 
