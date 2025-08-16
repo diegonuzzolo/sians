@@ -81,7 +81,7 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
         die("Piano non trovato.");
 
     // Recupera dati da Stripe
-    \Stripe\Stripe::setApiKey("sk_live_...");
+    \Stripe\Stripe::setApiKey("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");
     $session = \Stripe\Checkout\Session::retrieve($checkoutSessionId);
     $stripeSubscription = \Stripe\Subscription::retrieve($session->subscription);
 
