@@ -171,7 +171,7 @@ foreach ($subscriptions as $sub) {
     ?>
         <div class="col-md-4">
             <div class="card-server p-3 text-center">
-                <h5><?= htmlspecialchars($plan['code']) ?> - <?= $plan['ram_gb'] ?> GB</h5>
+                <h5><?= $plan['ram_gb'] ?> GB</h5>
                 <p><?= $plan['cpu_cores'] ?> Cores</p>
                 <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server&recreate=1"
                    class="btn btn-success w-100 mt-2"
