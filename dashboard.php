@@ -121,14 +121,23 @@ foreach ($plans as $plan):
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
+const creatingServers = {}; // tracciamento stato creazione per piano
 
 function createServerSlot(planCode, btnElement) {
-    let serverName = prompt("Inserisci il nome del tuo server:");
-    if (!serverName) return; // Se annulli, non disabilitare
+    if (creatingServers[planCode]) return; // blocca multi-click
+    creatingServers[planCode] = true;
 
-    btnElement.disabled = true;             // Blocca subito il pulsante
+    btnElement.disabled = true;
     const originalText = btnElement.textContent;
     btnElement.textContent = 'Creazione in corso...';
+
+    let serverName = prompt("Inserisci il nome del tuo server:");
+    if (!serverName) {
+        btnElement.disabled = false;
+        btnElement.textContent = originalText;
+        creatingServers[planCode] = false;
+        return;
+    }
 
     fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
         .then(res => res.json())
@@ -161,18 +170,20 @@ function createServerSlot(planCode, btnElement) {
                 }
             } else {
                 alert("Errore: " + data.message);
-                btnElement.disabled = false;      // Riattiva il pulsante se fallisce
+                btnElement.disabled = false;
                 btnElement.textContent = originalText;
             }
         })
         .catch(err => {
             console.error(err);
             alert("Errore durante la creazione del server.");
-            btnElement.disabled = false;          // Riattiva il pulsante se errore
+            btnElement.disabled = false;
             btnElement.textContent = originalText;
+        })
+        .finally(() => {
+            creatingServers[planCode] = false;
         });
 }
-
 
 function controlServer(serverId, action) {
     fetch('ajax_server_control.php', {
