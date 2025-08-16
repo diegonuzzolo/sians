@@ -226,7 +226,7 @@ include "includes/header.php";
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Seleziona Piano</label>
+                            <label class="form-label text-black fw-semibold">Seleziona Piano</label>
                             <select name="plan_code" class="form-select form-select-lg">
                                 <option value="plan_2gb">2 GB</option>
                                 <option value="plan_4gb" selected>4 GB</option>
