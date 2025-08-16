@@ -144,10 +144,10 @@ function updateButtons(serverId, status) {
 
 function controlServer(serverId, action) {
     fetch('ajax_server_control.php', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'action=start&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
-})
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
+    })
     .then(res => res.json())
     .then(data => {
         alert(data.message);
@@ -162,6 +162,7 @@ function controlServer(serverId, action) {
         alert('Errore comunicazione con il server: ' + err);
     });
 }
+
 
 function startServer(serverId) { controlServer(serverId, 'start'); }
 function stopServer(serverId) { controlServer(serverId, 'stop'); }
