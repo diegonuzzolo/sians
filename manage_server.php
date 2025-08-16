@@ -1,5 +1,5 @@
 <?php
-session_start(); // obbligatorio
+include("auth_check.php");
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -8,7 +8,6 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-include("auth_check.php");
 require 'config/config.php';
 $userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_GET['id'] ?? 0);

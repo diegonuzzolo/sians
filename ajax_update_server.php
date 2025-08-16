@@ -1,7 +1,6 @@
 <?php
 
 require_once __DIR__ . '/auth_check.php';
-session_start();
 if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
     echo json_encode(['success' => false, 'message' => 'CSRF token non valido']);
     exit;
