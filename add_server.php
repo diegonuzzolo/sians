@@ -141,7 +141,6 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
         ");
         $stmt->execute([$serverName, $userId, $vmid, 'stopped', 'bedrock', $cores, $ramGb * 1024, 0]);
         $serverId = $pdo->lastInsertId();
-        $stmt = $pdo->prepare('');
         // Recupera l'abbonamento attivo da Stripe e aggiorna la tabella subscriptions
         \Stripe\Stripe::setApiKey("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");
 
@@ -186,7 +185,6 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
                 $subscription->status,
                 date('Y-m-d H:i:s', $subscription->current_period_end)
             ]);
-        }
         // --- 3. Inserisci container nel DB ---
         $stmt = $pdo->prepare("
             INSERT INTO containers
