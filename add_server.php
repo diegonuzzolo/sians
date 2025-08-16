@@ -164,7 +164,6 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
 
         // Ora puoi procedere a creare la subscription nella tabella subscriptions
         $subscription = getActiveSubscriptionForUser($stripeCustomerId);
-        $subscription = getActiveSubscriptionForUser($stripeCustomerId);
         if ($subscription) {
             $stmt = $pdo->prepare("
         INSERT INTO subscriptions 
