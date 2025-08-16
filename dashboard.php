@@ -150,6 +150,10 @@ foreach ($subscriptions as $sub) {
                 $usedSlots = (int) $stmt3->fetchColumn();
 
                 $availableSlots = max(0, $totalSlots - $usedSlots);
+
+                // Mostra solo se ci sono slot disponibili
+                if ($availableSlots <= 0)
+                    continue;
                 ?>
                 <div class="col-md-4 mb-3">
                     <div class="card shadow p-3 rounded card-server">
@@ -158,9 +162,8 @@ foreach ($subscriptions as $sub) {
                             <?= $availableSlots ?> slot disponibili
                         </p>
                         <a href="javascript:void(0);" onclick="createServerSlot('<?= htmlspecialchars($plan['code']) ?>')"
-                            class="btn btn-success btn-slot <?= $availableSlots > 0 ? '' : 'disabled' ?>"
-                            data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
-                            <?= $availableSlots > 0 ? 'Crea Server' : 'Slot Esauriti' ?>
+                            class="btn btn-success btn-slot" data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                            Crea Server
                         </a>
                     </div>
                 </div>
@@ -184,7 +187,8 @@ foreach ($subscriptions as $sub) {
                     <div class="card card-server p-3 shadow">
                         <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
                         <div class="server-ip">VMID: <?= $container['proxmox_containerId'] ?? 'N/A' ?> | IP:
-                            <?= $container['ip'] ?? 'N/A' ?></div>
+                            <?= $container['ip'] ?? 'N/A' ?>
+                        </div>
                         <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>">
                             <?= ucfirst($server['status']) ?>
                         </span>
