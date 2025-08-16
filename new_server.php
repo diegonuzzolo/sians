@@ -66,6 +66,7 @@ if (!$res['success']) {
     die(json_encode(['success' => false, 'message' => 'Errore creazione container: '.$res['message']]));
 }
 
+sleep(4);
 // Inserisci container nel DB
 $stmt = $pdo->prepare("
     INSERT INTO containers (proxmox_containerId, ip, ram_mb, cores, storage_gb, hostname, user_id, server_id, status) 
