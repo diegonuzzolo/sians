@@ -68,13 +68,9 @@ foreach ($subscriptions as $sub):
     $planCode = htmlspecialchars($sub['plan_code']);
     $planName = htmlspecialchars($sub['plan_name']);
 ?>
-<div class="col-md-4 mb-3 card-slot" data-plan-code="<?= $planCode ?>">
-    <div class="card shadow p-3 rounded card-server">
-        <div class="card-header-plan"><?= $planName ?></div>
-        <p class="slot-count" data-plan-code="<?= $planCode ?>">0 slot disponibili</p>
-        <a href="javascript:void(0);" onclick="createServerSlot('<?= $planCode ?>', this)" class="btn btn-success btn-slot" data-plan-code="<?= $planCode ?>">Crea Server</a>
-    </div>
-</div>
+<!-- Slots disponibili -->
+<div id="slots-container" class="row mb-4"></div>
+
 <?php endforeach; ?>
 </div>
 
@@ -222,7 +218,7 @@ function refreshSlots() {
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('slots-container');
-            container.innerHTML = ''; // pulisce tutto
+            container.innerHTML = ''; // pulisce tutte le card
             for (const planCode in data) {
                 if (data[planCode] > 0) {
                     const div = document.createElement('div');
@@ -241,10 +237,12 @@ function refreshSlots() {
         })
         .catch(err => console.error(err));
 }
+document.addEventListener('DOMContentLoaded', () => {
+    refreshSlots();
+});
 
 
-// --- RICHIESTA INIZIALE PER POPOLARE GLI SLOT ---
-refreshSlots();
+
 </script>
 <?php include "includes/footer.php"; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
