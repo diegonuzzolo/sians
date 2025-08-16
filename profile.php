@@ -24,11 +24,11 @@ $stmt->execute([$userId]);
 $activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // --- Gestione POST ---
-if ($_SERVER['REQUEST_METHOD']==='POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // cambio password
     if (isset($_POST['change_password'])) {
         $curr = $_POST['current_password'] ?? '';
-        $new  = $_POST['new_password'] ?? '';
+        $new = $_POST['new_password'] ?? '';
         $new2 = $_POST['new_password_confirm'] ?? '';
 
         if ($new !== $new2) {
@@ -48,13 +48,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
                 $msg = "Password aggiornata";
             }
         }
-    } 
+    }
     // aggiornamento profilo
     else {
         $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
         $username = trim($_POST['username'] ?? '');
-        if (!$email || $username === '') { 
-            $msg = "Dati profilo non validi"; 
+        if (!$email || $username === '') {
+            $msg = "Dati profilo non validi";
         } else {
             $pdo->beginTransaction();
             try {
@@ -66,9 +66,16 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
                 $bp = $stmt->fetchColumn();
 
                 $bpData = [
-                    $_POST['first_name'] ?? '', $_POST['last_name'] ?? '', $_POST['company'] ?? null,
-                    $_POST['vat_number'] ?? null, $_POST['address_line1'] ?? '', $_POST['address_line2'] ?? null,
-                    $_POST['city'] ?? '', $_POST['postal_code'] ?? '', strtoupper($_POST['country_code'] ?? 'IT'), $userId
+                    $_POST['first_name'] ?? '',
+                    $_POST['last_name'] ?? '',
+                    $_POST['company'] ?? null,
+                    $_POST['vat_number'] ?? null,
+                    $_POST['address_line1'] ?? '',
+                    $_POST['address_line2'] ?? null,
+                    $_POST['city'] ?? '',
+                    $_POST['postal_code'] ?? '',
+                    strtoupper($_POST['country_code'] ?? 'IT'),
+                    $userId
                 ];
 
                 if ($bp) {
@@ -80,9 +87,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
                 }
                 $pdo->commit();
                 $msg = "Profilo aggiornato";
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 $pdo->rollBack();
-                $msg = "Errore: ".$e->getMessage();
+                $msg = "Errore: " . $e->getMessage();
             }
         }
     }
@@ -103,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
-
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5" style="max-width: 900px;">
@@ -147,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             <?php endif; ?>
         </div>
     </div>
+
     <!-- Profilo & Fatturazione -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white fw-bold">Profilo & Fatturazione</div>
@@ -194,11 +201,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
                 <div class="mb-3">
                     <label class="form-label">Indirizzo</label>
-                    <input type="text" name="address_line1" class="form-control mb-2"
-                           placeholder="Via / Piazza"
+                    <input type="text" name="address_line1" class="form-control mb-2" placeholder="Via / Piazza"
                            value="<?= htmlspecialchars($_POST['address_line1'] ?? $billing['address_line1'] ?? '') ?>">
-                    <input type="text" name="address_line2" class="form-control"
-                           placeholder="App./Piano / Altro"
+                    <input type="text" name="address_line2" class="form-control" placeholder="App./Piano / Altro"
                            value="<?= htmlspecialchars($_POST['address_line2'] ?? $billing['address_line2'] ?? '') ?>">
                 </div>
 
@@ -256,22 +261,24 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 </div>
 
 <style>
-   <style>
-    body { background-color: #f4f6f9; }
-    .card { border-radius: 12px; }
-    .card-header { font-size: 1.1rem; }
-    /* Etichette leggibili su sfondo chiaro */
-    .form-label, .text-muted {
-        color: #333 !important;
-    }
-    /* Input chiari con bordo discreto */
-    .form-control {
-        background-color: #fff;
-        color: #000;
-        border: 1px solid #ccc;
-    }
-</style>
-
+body {
+    background-color: #f4f6f9;
+}
+.card {
+    border-radius: 12px;
+}
+.card-header {
+    font-size: 1.1rem;
+}
+.form-label,
+.text-muted {
+    color: #333 !important;
+}
+.form-control {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #ccc;
+}
 </style>
 
 <?php include 'includes/footer.php'; ?>
