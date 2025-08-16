@@ -57,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]
                 ],
                 'mode' => 'subscription',
-                'success_url' => "https://tuosito.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
-                'cancel_url' => "https://tuosito.it/add_server.php?cancel=1"
+                'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
+                'cancel_url' => "https://sians.it/add_server.php?cancel=1"
             ]);
             header("Location: " . $session->url);
             exit;
