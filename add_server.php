@@ -224,22 +224,18 @@ include "includes/header.php";
                     Configura le Risorse
                 </div>
                 <div class="card-body">
-                    <div class="mb-4">
-                        <label for="ram_gb" class="form-label text-black fw-semibold">
-                            RAM: <span id="ramDisplay" class="fw-bold"></span>
-                        </label>
-                        <input type="range" name="ram_gb" id="ram_gb" class="form-range" min="0" max="5" step="1" value="1">
-                        <!-- indice iniziale dell'array -->
-
-                        <div class="d-flex justify-content-between text-black small mt-1">
-                            <span>2GB</span>
-                            <span>4GB</span>
-                            <span>6GB</span>
-                            <span>8GB</span>
-                            <span>16GB</span>
-                            <span>24GB</span>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Seleziona Piano</label>
+                        <select name="plan_code" class="form-select">
+                            <option value="plan_2gb">2 GB</option>
+                            <option value="plan_4gb" selected>4 GB</option>
+                            <option value="plan_6gb">6 GB</option>
+                            <option value="plan_8gb">8 GB</option>
+                            <option value="plan_16gb">16 GB</option>
+                            <option value="plan_24gb">24 GB</option>
+                        </select>
                     </div>
+
 
 
                     <div class="mb-3">
@@ -265,42 +261,46 @@ include "includes/header.php";
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const ramOptions = [
-            { ram: 2, cores: 2, price: 5.53 },
-            { ram: 4, cores: 2, price: 8.50 },
-            { ram: 6, cores: 3, price: 12.75 },
-            { ram: 8, cores: 4, price: 18.28 },
-            { ram: 16, cores: 6, price: 29.75 },
-            { ram: 24, cores: 8, price: 48.00 }
-        ];
+document.addEventListener("DOMContentLoaded", function() {
+    // Definizione dei piani
+    const plans = [
+        {code:'plan_2gb', ram:2, cores:2, price:5.53},
+        {code:'plan_4gb', ram:4, cores:2, price:8.50},
+        {code:'plan_6gb', ram:6, cores:3, price:12.75},
+        {code:'plan_8gb', ram:8, cores:4, price:18.28},
+        {code:'plan_16gb', ram:16, cores:6, price:29.75},
+        {code:'plan_24gb', ram:24, cores:8, price:48.00}
+    ];
 
-        const ramInput = document.getElementById('ram_gb');
-        const ramDisplay = document.getElementById('ramDisplay');
-        const cpuLabel = document.getElementById('cpu_cores'); // hidden input
-        const cpuProgress = document.getElementById('cpuProgress');
-        const priceLabel = document.getElementById('priceLabel');
-        const cpuDisplay = document.getElementById('cpuDisplay'); // span visibile
-        function updateCpuAndPrice() {
-            let idx = parseInt(ramInput.value);
-            if (idx < 0) idx = 0;
-            if (idx >= ramOptions.length) idx = ramOptions.length - 1;
+    // Elementi del form
+    const planSelect = document.querySelector('select[name="plan_code"]');
+    const ramDisplay = document.getElementById('ramDisplay');
+    const cpuLabel = document.getElementById('cpu_cores'); // hidden input
+    const cpuDisplay = document.getElementById('cpuLabel'); // span visibile
+    const cpuProgress = document.getElementById('cpuProgress');
+    const priceLabel = document.getElementById('priceLabel');
 
-            let option = ramOptions[idx];
+    function updatePlanDisplay() {
+        const planCode = planSelect.value;
+        const option = plans.find(p => p.code === planCode);
+        if (!option) return;
 
-            ramDisplay.textContent = option.ram + ' GB';
-            cpuLabel.value = option.cores;       // input hidden
-            cpuDisplay.textContent = option.cores; // span visibile
-            cpuProgress.style.width = (option.cores / 8 * 100) + '%';
-            priceLabel.textContent = "€ " + option.price.toFixed(2);
-        }
+        // Aggiorna visualizzazione
+        ramDisplay.textContent = option.ram + ' GB';
+        cpuDisplay.textContent = option.cores;
+        cpuLabel.value = option.cores; // valore hidden per il form
+        cpuProgress.style.width = (option.cores / 8 * 100) + '%';
+        priceLabel.textContent = "€ " + option.price.toFixed(2);
+    }
 
-        ramInput.addEventListener('input', updateCpuAndPrice);
-        updateCpuAndPrice(); // inizializza valori
-    });
+    // Event listener sul select dei piani
+    planSelect.addEventListener('change', updatePlanDisplay);
 
-
+    // Inizializza valori al caricamento
+    updatePlanDisplay();
+});
 </script>
+
 
 
 <?php include 'includes/footer.php'; ?>
