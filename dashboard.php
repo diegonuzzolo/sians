@@ -31,15 +31,76 @@ foreach ($subscriptions as $sub) {
     $subsByPlan[$sub['plan_code']] = $sub;
 }
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
 
-<div class="container my-5">
-    <h2 class="mb-4 text-center" style="color:#00c8ff;">🖥️ I tuoi server</h2>
-
-    <?php if (empty($servers)): ?>
-        <div class="alert alert-info">Non hai ancora server attivi.</div>
-    <?php else: ?>
-        <div class="row g-4">
-            <?php foreach ($servers as $server):
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+        }
+        
+        .card-server {
+            background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
+            border-radius: 20px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card-server:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 200, 255, 0.3);
+        }
+        
+        .server-name {
+            color: #00c8ff;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+        
+        .server-ip {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+        }
+        
+        .btn-server {
+            width: 48%;
+        }
+        
+        .status-badge {
+            padding: 0.4em 0.7em;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-running {
+            background-color: #28a745;
+            color: #fff;
+        }
+        
+        .status-stopped {
+            background-color: #dc3545;
+            color: #fff;
+        }
+    </style>
+        </head>
+<body>
+    <?php include('includes/header.php');   ?>
+    <div class="container my-5">
+        <h2 class="mb-4 text-center" style="color:#00c8ff;">🖥️ I tuoi server</h2>
+        
+        <?php if (empty($servers)): ?>
+            <div class="alert alert-info">Non hai ancora server attivi.</div>
+            <?php else: ?>
+                <div class="row g-4">
+                    <?php foreach ($servers as $server):
                 $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
                 $statusText = ($server['status'] === 'running') ? 'Attivo' : 'Spento';
                 ?>
@@ -53,34 +114,34 @@ foreach ($subscriptions as $sub) {
                         </div>
                         <p class="server-ip mb-2">IP: <?= htmlspecialchars($server['ip']) ?></p>
                         <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
-
+                        
                         <div class="d-flex justify-content-between">
                             <button class="btn btn-success btn-server" id="start-<?= $server['id'] ?>"
-                                onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
+                            onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
                             <button class="btn btn-danger btn-server" id="stop-<?= $server['id'] ?>"
-                                onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
+                            onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
                         </div>
-
+                        
                         <div class="mt-3 d-flex justify-content-between">
                             <a href="manage_server.php?id=<?= htmlspecialchars($server['id']) ?>"
-                                class="btn btn-primary btn-sm w-100 me-1">Gestisci</a>
+                            class="btn btn-primary btn-sm w-100 me-1">Gestisci</a>
                             <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>"
-                                class="btn btn-outline-danger btn-sm w-100 ms-1"
-                                onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                Elimina
-                            </a>
-                        </div>
+                            class="btn btn-outline-danger btn-sm w-100 ms-1"
+                            onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+                            Elimina
+                        </a>
                     </div>
                 </div>
+            </div>
             <?php endforeach; ?>
         </div>
-    <?php endif; ?>
-
-    <hr class="my-5">
-
-    <h3 class="text-center mb-4 text-warning">🎮 Crea o Ricrea un Server</h3>
-    <div class="row g-4">
-        <?php
+        <?php endif; ?>
+        
+        <hr class="my-5">
+        
+        <h3 class="text-center mb-4 text-warning">🎮 Crea o Ricrea un Server</h3>
+        <div class="row g-4">
+            <?php
         // Loop piani
         $stmt = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
         $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -88,7 +149,7 @@ foreach ($subscriptions as $sub) {
         $stmt = $pdo->prepare("SELECT plan_id FROM subscriptions WHERE user_id = ? AND status='active'");
         $stmt->execute([$userId]);
         $activePlans = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
+        
         // Recupera i server attivi per ogni piano
         $stmt = $pdo->prepare("SELECT plan_id, COUNT(*) AS server_count 
                        FROM servers 
@@ -96,7 +157,7 @@ foreach ($subscriptions as $sub) {
                        GROUP BY plan_id");
         $stmt->execute([$userId]);
         $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
+        
         // Ora per ogni piano calcola quanti slot sono disponibili
         $slotsAvailablePerPlan = [];
         foreach ($activePlans as $planId) {
@@ -108,7 +169,7 @@ foreach ($subscriptions as $sub) {
             $sub = $subsByPlan[$plan['code']] ?? null;
             $slotsAvailable = $sub ? ($sub['total'] - $sub['used']) : 0;
             $btnText = $sub ? ($slotsAvailable > 0 ? "Ricrea Server" : "Slot Esauriti") : "Crea Server";
-
+            
             $btnDisabled = ($sub && $slotsAvailable <= 0) ? "disabled" : "";
             ?>
             <div class="col-md-4">
@@ -121,44 +182,44 @@ foreach ($subscriptions as $sub) {
                     $btnDisabled = ($slotsAvailable > 0) ? '' : 'disabled';
                     ?>
                     <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server<?= ($slotsAvailable > 0 ? '&recreate=1' : '') ?>"
-                        class="btn btn-success w-100 mt-2 <?= $btnDisabled ?>"
-                        data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
-                        <?= $btnText ?>
+                    class="btn btn-success w-100 mt-2 <?= $btnDisabled ?>"
+                    data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                    <?= $btnText ?>
                     </a>
-
-
+                    
+                    
                 </div>
             </div>
-        <?php endforeach; ?>
+            <?php endforeach; ?>
+        </div>
     </div>
-</div>
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
+        
+        // Funzioni base per start/stop server
+        function updateButtons(serverId, status) {
+            const startBtn = document.getElementById('start-' + serverId);
+            const stopBtn = document.getElementById('stop-' + serverId);
+            if (!startBtn || !stopBtn) return;
 
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-
-    // Funzioni base per start/stop server
-    function updateButtons(serverId, status) {
-        const startBtn = document.getElementById('start-' + serverId);
-        const stopBtn = document.getElementById('stop-' + serverId);
-        if (!startBtn || !stopBtn) return;
-
-        if (status === 'running') {
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-        } else {
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
+            if (status === 'running') {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
         }
-    }
-
-    function controlServer(serverId, action) {
-        fetch('ajax_server_control.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
-        })
+        
+        function controlServer(serverId, action) {
+            fetch('ajax_server_control.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
+            })
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.status) {
@@ -174,14 +235,14 @@ foreach ($subscriptions as $sub) {
                 }
             })
             .catch(err => console.error('Errore comunicazione server:', err));
-    }
+        }
 
-    function startServer(serverId) { controlServer(serverId, 'start'); }
-    function stopServer(serverId) { controlServer(serverId, 'stop'); }
-
-    // Aggiorna stato dei server via fetch
-    function updateStatus(serverId) {
-        fetch('check_status.php?id=' + serverId)
+        function startServer(serverId) { controlServer(serverId, 'start'); }
+        function stopServer(serverId) { controlServer(serverId, 'stop'); }
+        
+        // Aggiorna stato dei server via fetch
+        function updateStatus(serverId) {
+            fetch('check_status.php?id=' + serverId)
             .then(res => res.json())
             .then(data => {
                 const statusEl = document.getElementById('status-' + serverId);
@@ -192,40 +253,40 @@ foreach ($subscriptions as $sub) {
                 }
             })
             .catch(err => console.error('Errore nel fetch:', err));
-    }
-
-    // Ricrea/aggiorna bottoni "Crea/Ricrea Server" per slot
-    function recalcSlots(slotsData) {
-        for (const planCode in slotsData) {
-            const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
-            if (!btn) continue;
-
-            const slots = slotsData[planCode];
-            if (slots > 0) {
-                btn.textContent = 'Ricrea Server';
-                btn.classList.remove('disabled');
-            } else {
-                btn.textContent = 'Slot Esauriti';
-                btn.classList.add('disabled');
+        }
+        
+        // Ricrea/aggiorna bottoni "Crea/Ricrea Server" per slot
+        function recalcSlots(slotsData) {
+            for (const planCode in slotsData) {
+                const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
+                if (!btn) continue;
+                
+                const slots = slotsData[planCode];
+                if (slots > 0) {
+                    btn.textContent = 'Ricrea Server';
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.textContent = 'Slot Esauriti';
+                    btn.classList.add('disabled');
+                }
             }
         }
-    }
-
-    // Aggiornamento automatico ogni 10 secondi
-    setInterval(() => {
-        <?php foreach ($servers as $server): ?>
-            updateStatus(<?= $server['id'] ?>);
-        <?php endforeach; ?>
-
-        // Controlla slot via endpoint
-        fetch('ajax_check_slots.php')
-            .then(res => res.json())
-            .then(data => {
-                recalcSlots(data);
-            })
-            .catch(err => console.error('Errore fetch slots:', err));
-    }, 10000);
-</script>
+        
+        // Aggiornamento automatico ogni 10 secondi
+        setInterval(() => {
+            <?php foreach ($servers as $server): ?>
+                updateStatus(<?= $server['id'] ?>);
+                <?php endforeach; ?>
+                
+                // Controlla slot via endpoint
+                fetch('ajax_check_slots.php')
+                .then(res => res.json())
+                .then(data => {
+                    recalcSlots(data);
+                })
+                .catch(err => console.error('Errore fetch slots:', err));
+            }, 10000);
+        </script>
 
 
 <?php include "includes/footer.php"; ?>
