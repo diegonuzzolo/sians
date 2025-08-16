@@ -126,51 +126,36 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    function updateButtons(serverId, status) {
+<script>
+const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>'; // Prendi il token CSRF dalla sessione
+
+function updateButtons(serverId, status) {
     const startBtn = document.getElementById('start-' + serverId);
-    const stopBtn  = document.getElementById('stop-' + serverId);
+    const stopBtn = document.getElementById('stop-' + serverId);
 
     if (status === 'running') {
         startBtn.disabled = true;
-        stopBtn.disabled  = false;
-    } else { // stopped
+        stopBtn.disabled = false;
+    } else {
         startBtn.disabled = false;
-        stopBtn.disabled  = true;
+        stopBtn.disabled = true;
     }
-}
-
-function updateStatus(serverId) {
-    fetch('check_status.php?id=' + serverId)
-        .then(res => res.json())
-        .then(data => {
-            const statusEl = document.getElementById('status-' + serverId);
-            if (statusEl && data.status) {
-                statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
-                statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
-                updateButtons(serverId, data.status);
-            }
-        });
 }
 
 function controlServer(serverId, action) {
     fetch('ajax_server_control.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=' + action + '&id=' + serverId
+        body: 'action=' + action + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
     })
     .then(res => res.json())
     .then(data => {
         alert(data.message);
-
-        // Aggiorna lo stato solo se successo
         if (data.success && data.status) {
             const statusEl = document.getElementById('status-' + serverId);
-            if (statusEl) {
-                statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
-                statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
-                updateButtons(serverId, data.status);
-            }
+            statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
+            statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
+            updateButtons(serverId, data.status);
         }
     })
     .catch(err => {
@@ -178,25 +163,16 @@ function controlServer(serverId, action) {
     });
 }
 
-// Wrapper per start/stop
 function startServer(serverId) { controlServer(serverId, 'start'); }
 function stopServer(serverId) { controlServer(serverId, 'stop'); }
 
 // Aggiornamento automatico stato ogni 10 secondi
 setInterval(() => {
     <?php foreach ($servers as $server): ?>
-        updateStatus(<?= $server['id'] ?>);
+        updateButtons(<?= $server['id'] ?>, '<?= $server['status'] ?>');
     <?php endforeach; ?>
 }, 10000);
-
-// Inizializza pulsanti in base allo stato attuale
-<?php foreach ($servers as $server): ?>
-    updateButtons(<?= $server['id'] ?>, '<?= $server['status'] ?>');
-<?php endforeach; ?>
-
-    
-    
-    </script>
+</script>
 
 <?php include "includes/footer.php"; ?>
 </body>
