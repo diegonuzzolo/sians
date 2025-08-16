@@ -162,6 +162,15 @@ if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['se
     $stmt->execute([$serverName, $userId, $plan['id'], $vmid, $cores, $ramGb * 1024]);
     $serverId = $pdo->lastInsertId();
 
+
+
+// Ricalcola subito i server per il piano appena creato
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id = ? AND plan_id = ?");
+$stmt->execute([$userId, $plan['id']]);
+$usedSlots = $stmt->fetchColumn();
+
+// Aggiorna l’array degli slot disponibili
+$slotsAvailablePerPlan[$plan['id']] = max(0, 1 - $usedSlots);
     // Inserisci container
     $stmt = $pdo->prepare("
         INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
