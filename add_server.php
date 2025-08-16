@@ -30,7 +30,7 @@ $error = '';
 $checkoutSessionId = '';
 
 /**
- * STEP 1: Se POST senza success -> generazione Stripe Checkout
+ * STEP 1: POST senza success → generazione Stripe Checkout
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
 
@@ -41,78 +41,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
     $stmt->execute([$planCode]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$plan)
-        die("Piano non valido.");
+    if (!$plan) die("Piano non valido.");
 
-    // Controllo subscription già esistente
+    // Verifica se l'utente ha già subscription per questo piano
     $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
     $stmt->execute([$userId, $plan['id']]);
     $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($subscription) {
-        // Subscription esiste → verifica slot disponibile
-        $availableSlots = $subscription['total'] - $subscription['used'];
-        if ($availableSlots <= 0) {
-            die("Hai già utilizzato tutti gli slot disponibili di questo piano.");
-        }
-
-        // Possiamo creare server senza pagare
+        // Subscription esiste → ricreazione server senza pagamento
         header("Location: add_server.php?recreate=1&plan_id={$plan['id']}&server_name=" . urlencode($serverName));
         exit;
     }
 
-    // Altrimenti, prima creazione → pagamento Stripe
-    \Stripe\Stripe::setApiKey("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");
+    // Altrimenti creazione prima volta → Stripe Checkout
+    \Stripe\Stripe::setApiKey("sk_live_XXXXXXXXXXXXXXXXXXXXXXXX");
 
     try {
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
             'customer_email' => $email,
-            'line_items' => [
-                [
-                    'price' => $plan['stripe_price_id'],
-                    'quantity' => 1
-                ]
-            ],
+            'line_items' => [[
+                'price' => $plan['stripe_price_id'],
+                'quantity' => 1
+            ]],
             'mode' => 'subscription',
             'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&server_name=" . urlencode($serverName) . "&session_id={CHECKOUT_SESSION_ID}",
             'cancel_url' => "https://sians.it/add_server.php?cancel=1"
         ]);
         header("Location: " . $session->url);
         exit;
-
     } catch (Exception $e) {
         die("Errore Stripe: " . $e->getMessage());
     }
 }
 
 /**
- * STEP 2: Dopo pagamento (success_url) o ricreazione
+ * STEP 2: Dopo pagamento (success) o ricreazione server
  */
-if (
-    (isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['session_id'])) ||
-    isset($_GET['recreate'], $_GET['plan_id'], $_GET['server_name'])
-) {
+if ((isset($_GET['success'], $_GET['plan_code'], $_GET['server_name'], $_GET['session_id'])) ||
+    isset($_GET['recreate'], $_GET['plan_id'], $_GET['server_name'])) {
 
     if (isset($_GET['recreate'])) {
-        // Ricreazione server
+        // Ricreazione
         $planId = $_GET['plan_id'];
         $serverName = trim($_GET['server_name']);
 
         $stmt = $pdo->prepare("SELECT * FROM plans WHERE id=? LIMIT 1");
         $stmt->execute([$planId]);
         $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$plan)
-            die("Piano non trovato.");
+        if (!$plan) die("Piano non trovato.");
 
-        // Recupero subscription
         $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
         $stmt->execute([$userId, $planId]);
         $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$subscription)
-            die("Subscription non trovata.");
-        $subscriptionId = $subscription['id'];
-
+        if (!$subscription) die("Subscription non trovata.");
     } else {
         // Prima creazione via Stripe
         $planCode = $_GET['plan_code'];
@@ -122,26 +105,22 @@ if (
         $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? LIMIT 1");
         $stmt->execute([$planCode]);
         $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$plan)
-            die("Piano non trovato.");
+        if (!$plan) die("Piano non trovato.");
 
-        // Recupero Stripe session e subscription
-        \Stripe\Stripe::setApiKey("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");
+        \Stripe\Stripe::setApiKey("sk_live_XXXXXXXXXXXXXXXXXXXXXXXX");
         $session = \Stripe\Checkout\Session::retrieve($checkoutSessionId);
         $stripeSubscription = \Stripe\Subscription::retrieve($session->subscription);
 
-        $subscriptionId = $stripeSubscription->id;
-
         // Inserisci subscription DB
         $stmt = $pdo->prepare("
-    INSERT INTO subscriptions
-    (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, NOW())
-    ON DUPLICATE KEY UPDATE
-        stripe_subscription_id = VALUES(stripe_subscription_id),
-        status = VALUES(status),
-        current_period_end = VALUES(current_period_end)
-");
+            INSERT INTO subscriptions
+            (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                stripe_subscription_id=VALUES(stripe_subscription_id),
+                status=VALUES(status),
+                current_period_end=VALUES(current_period_end)
+        ");
         $stmt->execute([
             $userId,
             $plan['id'],
@@ -151,13 +130,12 @@ if (
             date('Y-m-d H:i:s', $stripeSubscription->current_period_end)
         ]);
 
-        // Aggiorna subscription dal DB per uso slot
         $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
         $stmt->execute([$userId, $plan['id']]);
         $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // --- Creazione server e container ---
+    // --- Creazione server/container ---
     $ramGb = $plan['ram_gb'];
     $cores = $plan['cpu_cores'];
     $storageGb = $plan['storage_gb'];
@@ -165,12 +143,13 @@ if (
     // Risorse disponibili
     $stmt = $pdo->query("SELECT * FROM resources WHERE id=1");
     $resources = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (
-        $cores > $resources['total_cpu_cores'] - $resources['used_cpu_cores'] ||
-        $ramGb * 1024 > $resources['total_ram_mb'] ||
-        $storageGb > $resources['total_storage_gb']
-    )
+    $availableCpu = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
+    $availableRam = $resources['total_ram_gb'] * 1024 - $resources['used_ram_mb'];
+    $availableStorage = $resources['total_storage_gb'] - $resources['used_storage_gb'];
+
+    if ($cores > $availableCpu || ($ramGb * 1024) > $availableRam || $storageGb > $availableStorage) {
         die("Risorse insufficienti per creare il server.");
+    }
 
     $vmid = getNextFreeVmid($pdo);
     $vmIp = getNextFreePrivateIp($pdo);
@@ -194,10 +173,6 @@ if (
     // Aggiorna server con container_id
     $stmt = $pdo->prepare("UPDATE servers SET container_id=? WHERE id=?");
     $stmt->execute([$containerId, $serverId]);
-
-    // Aggiorna subscription.used
-    $stmt = $pdo->prepare("UPDATE subscriptions SET used = used + 1 WHERE id=?");
-    $stmt->execute([$subscription['id']]);
 
     // Aggiorna risorse
     $stmt = $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id=1");
@@ -224,9 +199,9 @@ if (
     header("Location: dashboard.php");
     exit;
 }
+
 include "includes/header.php";
 ?>
-
 
 
 
