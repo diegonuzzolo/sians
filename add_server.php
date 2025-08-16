@@ -211,6 +211,7 @@ include "includes/header.php";
     <?php else: ?>
         <!-- Form selezione risorse -->
         <form method="POST" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
+    <?php echo csrf_field(); ?>
 
     <div class="mb-4">
         <label for="server_name" class="form-label text-black fw-semibold fs-5">Nome Server</label>
