@@ -8,7 +8,7 @@ require 'config/config.php';
 require_once 'includes/csrf.php';
 require 'vendor/autoload.php';
 
-csrf_check_or_die();
+csrf_check_or_die(); 
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) die("Accesso negato.");
