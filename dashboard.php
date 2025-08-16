@@ -99,173 +99,164 @@ foreach ($subscriptions as $sub) {
 
 <body>
     <?php include('includes/header.php'); ?>
-    <div class="container my-5">
-        <h2 class="mb-4 text-center" style="color:#00c8ff;">🖥️ I tuoi server</h2>
+   <div class="container my-5">
 
-        <?php if (empty($servers)): ?>
-            <div class="alert alert-info">Non hai ancora server attivi.</div>
-        <?php else: ?>
-            <div class="row g-4">
-                <?php foreach ($servers as $server):
-                    $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
-                    $statusText = ($server['status'] === 'running') ? 'Attivo' : 'Spento';
-                    ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card-server shadow">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
-                                <span class="status-badge <?= $statusClass ?>" id="status-<?= $server['id'] ?>">
-                                    <?= $statusText ?>
-                                </span>
-                            </div>
-                            <p class="server-ip mb-2">IP: <?= htmlspecialchars($server['ip']) ?></p>
-                            <p class="server-ip mb-3">RAM: <?= htmlspecialchars($server['ram_mb']) ?> MB</p>
+    <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 I tuoi server</h2>
 
-                            <div class="d-flex justify-content-between">
-                                <button class="btn btn-success btn-server" id="start-<?= $server['id'] ?>"
-                                    onclick="startServer(<?= $server['id'] ?>)">Avvia</button>
-                                <button class="btn btn-danger btn-server" id="stop-<?= $server['id'] ?>"
-                                    onclick="stopServer(<?= $server['id'] ?>)">Ferma</button>
-                            </div>
+    <!-- Slots disponibili -->
+    <div class="row mb-4">
+        <?php
+        $stmt = $pdo->prepare("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
+        $stmt->execute();
+        $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                            <div class="mt-3 d-flex justify-content-between">
-                                <a href="manage_server.php?id=<?= htmlspecialchars($server['id']) ?>"
-                                    class="btn btn-primary btn-sm w-100 me-1">Gestisci</a>
-                                <a href="delete_server.php?vmid=<?= htmlspecialchars($server['proxmox_containerId']) ?>"
-                                    class="btn btn-outline-danger btn-sm w-100 ms-1"
-                                    onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                    Elimina
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        foreach ($plans as $plan):
+            // Calcola slot disponibili per l'utente
+            $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM subscriptions WHERE user_id=? AND plan_id=?");
+            $stmt2->execute([$_SESSION['user_id'], $plan['id']]);
+            $totalSlots = (int)$stmt2->fetchColumn();
 
-        <div class="row g-4">
-            <?php
-            // Loop piani attivi
-            $stmt = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
-            $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt3 = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE user_id=? AND plan_id=?");
+            $stmt3->execute([$_SESSION['user_id'], $plan['id']]);
+            $usedSlots = (int)$stmt3->fetchColumn();
 
-            // Recupera tutte le subscription attive dell'utente
-            $stmt = $pdo->prepare("SELECT plan_id FROM subscriptions WHERE user_id = ? AND status='active'");
-            $stmt->execute([$userId]);
-            $activePlans = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            // Recupera i server attivi per ogni piano
-            $stmt = $pdo->prepare("SELECT plan_id, COUNT(*) AS server_count 
-               FROM servers 
-               WHERE user_id = ? 
-               GROUP BY plan_id");
-            $stmt->execute([$userId]);
-            $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
-            // Calcola gli slot disponibili per ogni piano
-            $slotsAvailablePerPlan = [];
-            foreach ($activePlans as $planId) {
-                $maxSlots = 1; // ogni piano permette 1 server, modifica se vuoi più slot
-                $usedSlots = $serversPerPlan[$planId] ?? 0;
-                $slotsAvailablePerPlan[$planId] = max(0, $maxSlots - $usedSlots);
-            }
-
-            // Mostra solo i piani con slot disponibili
-            foreach ($plans as $plan):
-                $slotsAvailable = $slotsAvailablePerPlan[$plan['id']] ?? 0;
-                if ($slotsAvailable <= 0)
-                    continue; // salta i piani senza slot disponibili
-                ?>
-                <div class="col-md-4">
-                    <div class="card-server p-3 text-center">
-                        <h5><?= $plan['ram_gb'] ?> GB</h5>
-                        <p><?= $plan['cpu_cores'] ?> Cores</p>
-
-                        <a href="#" class="btn btn-success w-100 mt-2"
-                            data-plan-code="<?= htmlspecialchars($plan['code']) ?>"
-                            onclick="createServerSlot('<?= $plan['code'] ?>')">
-                            Crea Server
-                        </a>
-
-                        <div class="slot-badge mt-2">
-                            <span class="slot-count" data-plan-code="<?= htmlspecialchars($plan['code']) ?>" style="
-              display:inline-block;
-              background: #00c8ff33;
-              color: #00c8ff;
-              font-weight:bold;
-              padding: 5px 12px;
-              border-radius: 12px;
-              font-size: 0.9rem;
-              transition: background 0.3s;
-          ">
-                                <?= $slotsAvailable ?> slot disponibili
-                            </span>
-                        </div>
-
-                    </div>
+            $availableSlots = max(0, $totalSlots - $usedSlots);
+        ?>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow p-3 rounded">
+                <h5 class="card-title text-center"><?= htmlspecialchars($plan['name']) ?></h5>
+                <p class="text-center slot-count" data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                    <?= $availableSlots ?> slot disponibili
+                </p>
+                <div class="text-center">
+                    <a href="javascript:void(0);" onclick="createServerSlot('<?= htmlspecialchars($plan['code']) ?>')"
+                        class="btn btn-success <?= $availableSlots > 0 ? '' : 'disabled' ?>"
+                        data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                        <?= $availableSlots > 0 ? 'Crea/Ricrea Server' : 'Slot Esauriti' ?>
+                    </a>
                 </div>
-            <?php endforeach; ?>
+            </div>
         </div>
-
-
+        <?php endforeach; ?>
     </div>
+
+    <!-- Lista server -->
+    <div id="server-list" class="row">
+        <?php
+        $stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id=? ORDER BY created_at DESC");
+        $stmt->execute([$_SESSION['user_id']]);
+        $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($servers as $server):
+            $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
+            $container = $pdo->prepare("SELECT * FROM containers WHERE server_id=? LIMIT 1");
+            $container->execute([$server['id']]);
+            $container = $container->fetch(PDO::FETCH_ASSOC);
+        ?>
+        <div class="col-md-4 mb-3">
+            <div class="server-item card mb-3 p-3 shadow rounded">
+                <h5><?= htmlspecialchars($server['name']) ?></h5>
+                <p>VMID: <?= $container['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $container['ip'] ?? 'N/A' ?></p>
+                <p>Status: <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>">
+                    <?= ucfirst($server['status']) ?>
+                </span></p>
+                <button id="start-<?= $server['id'] ?>" class="btn btn-success me-2"
+                    onclick="startServer(<?= $server['id'] ?>)" <?= $server['status'] === 'running' ? 'disabled' : '' ?>>
+                    Avvia
+                </button>
+                <button id="stop-<?= $server['id'] ?>" class="btn btn-danger"
+                    onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status'] === 'stopped' ? 'disabled' : '' ?>>
+                    Ferma
+                </button>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+</div>
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
  <script>
-    // Funzione per creare server da slot
-    function createServerSlot(planCode) {
-        let serverName = prompt("Inserisci il nome del tuo server:");
-        if (!serverName) return;
+   const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
-        fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
-                    
-                    // Aggiorna lo slot visualizzato
-                    const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
-                    if (slotSpan) {
-                        let current = parseInt(slotSpan.textContent) || 0;
-                        current = Math.max(0, current - 1);
-                        slotSpan.textContent = current + " slot disponibili";
-                    }
+function createServerSlot(planCode) {
+    let serverName = prompt("Inserisci il nome del tuo server:");
+    if (!serverName) return;
 
-                    location.reload(); // ricarica per mostrare il nuovo server
-                } else {
-                    alert("Errore: " + data.message);
+    fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
+
+                // Aggiorna slot
+                const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
+                if (slotSpan) {
+                    let current = parseInt(slotSpan.textContent) || 0;
+                    current = Math.max(0, current - 1);
+                    slotSpan.textContent = current + " slot disponibili";
                 }
-            })
-            .catch(err => console.error(err));
-    }
 
-    // Funzione per aggiornare gli slot via AJAX
-    function refreshSlots() {
-        fetch('ajax_check_slots.php')
-            .then(res => res.json())
-            .then(data => {
-                for (const planCode in data) {
-                    const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
-                    const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
-                    if (!slotSpan || !btn) continue;
-
-                    slotSpan.textContent = data[planCode] + " slot disponibili";
-
-                    if (data[planCode] > 0) {
-                        btn.textContent = 'Crea/Ricrea Server';
-                        btn.classList.remove('disabled');
-                    } else {
-                        btn.textContent = 'Slot Esauriti';
-                        btn.classList.add('disabled');
-                    }
+                // Aggiungi server dinamicamente alla lista frontend
+                const serverList = document.getElementById('server-list'); // Assicurati di avere un container con questo ID
+                if (serverList) {
+                    const div = document.createElement('div');
+                    div.className = 'server-item card mb-3 p-3 shadow rounded';
+                    div.innerHTML = `
+                        <h5>${serverName}</h5>
+                        <p>VMID: ${data.vmid} | IP: ${data.ip}</p>
+                        <p>Status: <span id="status-${data.server_id}" class="status-badge status-stopped">Spento</span></p>
+                        <button id="start-${data.server_id}" class="btn btn-success me-2" onclick="startServer(${data.server_id})">Avvia</button>
+                        <button id="stop-${data.server_id}" class="btn btn-danger" onclick="stopServer(${data.server_id})" disabled>Ferma</button>
+                    `;
+                    serverList.prepend(div);
                 }
-            })
-            .catch(err => console.error('Errore fetch slots:', err));
-    }
 
-    // Aggiornamento automatico ogni 10 secondi
-    setInterval(refreshSlots, 10000);
+            } else {
+                alert("Errore: " + data.message);
+            }
+        })
+        .catch(err => console.error('Errore creazione server:', err));
+}
+
+// Funzioni start/stop server
+function controlServer(serverId, action) {
+    fetch('ajax_server_control.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.status) {
+            const statusEl = document.getElementById('status-' + serverId);
+            if (statusEl) {
+                statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
+                statusEl.className = 'status-badge ' + (data.status === 'running' ? 'status-running' : 'status-stopped');
+            }
+            updateButtons(serverId, data.status);
+        }
+    })
+    .catch(err => console.error('Errore comunicazione server:', err));
+}
+
+function startServer(serverId) { controlServer(serverId, 'start'); }
+function stopServer(serverId) { controlServer(serverId, 'stop'); }
+
+function updateButtons(serverId, status) {
+    const startBtn = document.getElementById('start-' + serverId);
+    const stopBtn = document.getElementById('stop-' + serverId);
+    if (!startBtn || !stopBtn) return;
+    if (status === 'running') {
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+    } else {
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
+}
+
 </script>
 
 
