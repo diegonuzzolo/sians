@@ -127,7 +127,7 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>'; // Prendi il token CSRF dalla sessione
+    const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>'; // dal PHP
 
 function updateButtons(serverId, status) {
     const startBtn = document.getElementById('start-' + serverId);
@@ -144,10 +144,10 @@ function updateButtons(serverId, status) {
 
 function controlServer(serverId, action) {
     fetch('ajax_server_control.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=' + action + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
-    })
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'action=start&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
+})
     .then(res => res.json())
     .then(data => {
         alert(data.message);

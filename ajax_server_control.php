@@ -1,9 +1,15 @@
 <?php
 include("auth_check.php");
 require 'config/config.php';
-require_once 'includes/csrf.php';
 
-header('Content-Type: application/json');
+function csrf_check_or_die_json() {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'message' => 'CSRF token non valido']);
+        exit;
+    }
+}
+
+
 csrf_check_or_die();
 
 try {
