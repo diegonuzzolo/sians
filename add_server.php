@@ -254,6 +254,8 @@ include "includes/header.php";
         {ram: 6, cores: 3, price: 12.75},
         {ram: 8, cores: 4, price: 18.28},
         {ram: 16, cores: 6, price: 29.75}
+        {ram: 24, cores: 8, price: 48.00}
+
     ];
 
     const ramInput = document.getElementById('ram_gb');
