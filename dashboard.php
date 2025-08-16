@@ -225,21 +225,33 @@ foreach ($subscriptions as $sub) {
             }
         }
         function createServerSlot(planCode) {
-            let serverName = prompt("Inserisci il nome del tuo server:");
-            if (!serverName) return;
+    let serverName = prompt("Inserisci il nome del tuo server:");
+    if (!serverName) return;
 
-            fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
-                        location.reload(); // aggiorna la dashboard per mostrare il nuovo server
-                    } else {
-                        alert("Errore: " + data.message);
-                    }
-                })
-                .catch(err => console.error(err));
-        }
+    const btn = document.querySelector(`a[data-plan-code="${planCode}"]`);
+    btn.disabled = true; // disabilita il pulsante temporaneamente
+
+    fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false; // riabilita pulsante
+            if (data.success) {
+                alert(`✅ Server creato con successo!\nVMID: ${data.vmid}\nIP: ${data.ip}`);
+                location.reload(); // aggiorna la dashboard per mostrare il nuovo server
+            } else {
+                let msg = `❌ Errore: ${data.message || 'Sconosciuto'}\nStep: ${data.step || 'N/A'}`;
+                if (data.cmd_output) {
+                    msg += "\nComandi eseguiti:\n" + data.cmd_output.map(c => `[${c.return}] ${c.command}\nOutput: ${c.output.join("\n")}`).join("\n\n");
+                }
+                alert(msg);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            console.error(err);
+            alert("❌ Errore imprevisto durante la richiesta. Controlla la console.");
+        });
+}
         function controlServer(serverId, action) {
             fetch('ajax_server_control.php', {
                 method: 'POST',
