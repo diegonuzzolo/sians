@@ -123,54 +123,56 @@ foreach ($plans as $plan):
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
 function createServerSlot(planCode, btnElement) {
-    if (!btnElement) return;
-    btnElement.disabled = true;
+    let serverName = prompt("Inserisci il nome del tuo server:");
+    if (!serverName) return; // Se annulli, non disabilitare
+
+    btnElement.disabled = true;             // Blocca subito il pulsante
     const originalText = btnElement.textContent;
     btnElement.textContent = 'Creazione in corso...';
 
-    let serverName = prompt("Inserisci il nome del tuo server:");
-    if (!serverName) {
-        btnElement.disabled = false;
-        btnElement.textContent = originalText;
-        return;
-    }
-
     fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
-            const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
-            if (slotSpan) slotSpan.textContent = "0 slot disponibili";
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
+                const slotSpan = document.querySelector(`.slot-count[data-plan-code="${planCode}"]`);
+                if (slotSpan) slotSpan.textContent = "0 slot disponibili";
 
-            const serverList = document.getElementById('server-list');
-            if (serverList) {
-                const div = document.createElement('div');
-                div.className = 'col-md-4 mb-3';
-                div.innerHTML = `
-                    <div class="card card-server p-3 shadow">
-                        <div class="server-name">${serverName}</div>
-                        <div class="server-ip">VMID: ${data.vmid} | IP: ${data.ip}</div>
-                        <span id="status-${data.server_id}" class="status-badge status-stopped">Spento</span>
-                        <div class="server-actions mt-2">
-                            <button id="start-${data.server_id}" class="btn btn-success btn-server" onclick="startServer(${data.server_id})">Avvia</button>
-                            <button id="stop-${data.server_id}" class="btn btn-danger btn-server" onclick="stopServer(${data.server_id})" disabled>Ferma</button>
+                const serverList = document.getElementById('server-list');
+                if (serverList) {
+                    const div = document.createElement('div');
+                    div.className = 'col-md-4 mb-3';
+                    div.innerHTML = `
+                        <div class="card card-server p-3 shadow">
+                            <div class="server-name">${serverName}</div>
+                            <div class="server-ip">VMID: ${data.vmid} | IP: ${data.ip}</div>
+                            <span id="status-${data.server_id}" class="status-badge status-stopped">Spento</span>
+                            <div class="server-actions mt-2">
+                                <button id="start-${data.server_id}" class="btn btn-success btn-server" onclick="startServer(${data.server_id})">Avvia</button>
+                                <button id="stop-${data.server_id}" class="btn btn-danger btn-server" onclick="stopServer(${data.server_id})" disabled>Ferma</button>
+                            </div>
+                            <div class="server-actions mt-2">
+                                <a href="manage_server.php?id=${data.server_id}" class="btn btn-primary btn-server">Gestisci</a>
+                                <a href="delete_server.php?vmid=${data.vmid}" class="btn btn-outline-danger btn-server" onclick="return confirm('Sei sicuro di voler eliminare questo server?');">Elimina</a>
+                            </div>
                         </div>
-                        <div class="server-actions mt-2">
-                            <a href="manage_server.php?id=${data.server_id}" class="btn btn-primary btn-server">Gestisci</a>
-                            <a href="delete_server.php?vmid=${data.vmid}" class="btn btn-outline-danger btn-server" onclick="return confirm('Sei sicuro di voler eliminare questo server?');">Elimina</a>
-                        </div>
-                    </div>
-                `;
-                serverList.prepend(div);
+                    `;
+                    serverList.prepend(div);
+                }
+            } else {
+                alert("Errore: " + data.message);
+                btnElement.disabled = false;      // Riattiva il pulsante se fallisce
+                btnElement.textContent = originalText;
             }
-        } else {
-            alert("Errore: " + data.message);
-        }
-    })
-    .catch(err => { console.error(err); alert("Errore durante la creazione del server."); })
-    .finally(() => { btnElement.disabled = false; btnElement.textContent = originalText; });
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Errore durante la creazione del server.");
+            btnElement.disabled = false;          // Riattiva il pulsante se errore
+            btnElement.textContent = originalText;
+        });
 }
+
 
 function controlServer(serverId, action) {
     fetch('ajax_server_control.php', {
