@@ -160,7 +160,7 @@ foreach ($subscriptions as $sub) {
                         <a href="javascript:void(0);" onclick="createServerSlot('<?= htmlspecialchars($plan['code']) ?>')"
                             class="btn btn-success btn-slot <?= $availableSlots > 0 ? '' : 'disabled' ?>"
                             data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
-                            <?= $availableSlots > 0 ? 'Crea/Ricrea Server' : 'Slot Esauriti' ?>
+                            <?= $availableSlots > 0 ? 'Crea Server' : 'Slot Esauriti' ?>
                         </a>
                     </div>
                 </div>
