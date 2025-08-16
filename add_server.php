@@ -185,6 +185,7 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
                 $subscription->status,
                 date('Y-m-d H:i:s', $subscription->current_period_end)
             ]);
+        }
         // --- 3. Inserisci container nel DB ---
         $stmt = $pdo->prepare("
             INSERT INTO containers
