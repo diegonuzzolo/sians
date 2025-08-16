@@ -131,6 +131,41 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
         $vmid = getNextFreeVmid($pdo);
         $vmIp = getNextFreePrivateIp($pdo);
 
+
+        // Recupera l’ID cliente Stripe dell’utente
+        $stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id=?");
+        $stmt->execute([$userId]);
+        $stripeCustomerId = $stmt->fetchColumn();
+
+        if ($stripeCustomerId) {
+            $subscription = getActiveSubscriptionForUser($stripeCustomerId); // funzione che chiama Stripe API
+            if ($subscription) {
+                // Determina il plan_id locale dalla tabella plans
+                $planId = $plan['id']; // l'id della tabella plans corrispondente al piano acquistato
+                $stripeSubscriptionId = $subscription->id;
+                $status = $subscription->status;
+                $currentPeriodEnd = date('Y-m-d H:i:s', $subscription->current_period_end);
+
+                // Inserisci o aggiorna nella tabella subscriptions
+                $stmt = $pdo->prepare("
+            INSERT INTO subscriptions
+            (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                plan_id = VALUES(plan_id),
+                stripe_customer_id = VALUES(stripe_customer_id),
+                stripe_subscription_id = VALUES(stripe_subscription_id),
+                status = VALUES(status),
+                current_period_end = VALUES(current_period_end)
+        ");
+                $stmt->execute([$userId, $planId, $stripeCustomerId, $stripeSubscriptionId, $status, $currentPeriodEnd]);
+            }
+        } else {
+            throw new Exception("Utente non ha Stripe Customer ID.");
+        }
+
+
+
         // --- 2. Inserisci server nel DB (status = stopped) ---
         $stmt = $pdo->prepare("
             INSERT INTO servers
