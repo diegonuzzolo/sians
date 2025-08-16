@@ -30,10 +30,9 @@ foreach ($subscriptions as $sub) {
     $planId = $sub['plan_id'];
     $planCode = $sub['plan_code'];
 
-    // Ogni subscription attiva vale 1 slot
-    $maxSlots = (int)$sub['quantity'] ?? 1;
-
+    $maxSlots = 1; // almeno 1 slot per ogni subscription attiva
     $usedSlots = $serversPerPlan[$planId] ?? 0;
+
     $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
 }
 
