@@ -263,40 +263,39 @@ include "includes/header.php";
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const ramOptions = [
-            { ram: 2, cores: 2, price: 5.53 },   // esempio: €6.5*0.85
-            { ram: 4, cores: 2, price: 8.50 },
-            { ram: 6, cores: 3, price: 12.75 },
-            { ram: 8, cores: 4, price: 18.28 },
-            { ram: 16, cores: 6, price: 29.75 }
-        ];
+    document.addEventListener("DOMContentLoaded", function() {
+    const ramOptions = [
+        {ram: 2, cores: 2, price: 5.53},
+        {ram: 4, cores: 2, price: 8.50},
+        {ram: 6, cores: 3, price: 12.75},
+        {ram: 8, cores: 4, price: 18.28},
+        {ram: 16, cores: 6, price: 29.75},
+        {ram: 24, cores: 8, price: 48.00}
+    ];
 
-        const ramInput = document.getElementById('ram_gb');
-        const ramDisplay = document.getElementById('ramDisplay');
-        const ramLabels = document.getElementById('ramLabels');
-        const cpuLabel = document.getElementById('cpuLabel');
-        const cpuInput = document.getElementById('cpu_cores');
-        const cpuProgress = document.getElementById('cpuProgress');
-        const priceLabel = document.getElementById('priceLabel');
+    const ramInput = document.getElementById('ram_gb');
+    const ramDisplay = document.getElementById('ramDisplay');
+    const cpuLabel = document.getElementById('cpu_cores'); // hidden input
+    const cpuProgress = document.getElementById('cpuProgress');
+    const priceLabel = document.getElementById('priceLabel');
 
-        // Mostra i valori RAM sotto lo slider
-        ramLabels.innerHTML = ramOptions.map(opt => `<span>${opt.ram}GB</span>`).join('');
+    function updateCpuAndPrice() {
+        let idx = parseInt(ramInput.value);
+        if(idx < 0) idx = 0;
+        if(idx >= ramOptions.length) idx = ramOptions.length - 1;
 
-        function updateCpuAndPrice() {
-            let idx = parseInt(ramInput.value) || 0;
-            let option = ramOptions[idx];
+        let option = ramOptions[idx];
 
-            ramDisplay.textContent = option.ram + ' GB';
-            cpuLabel.textContent = option.cores;
-            cpuInput.value = option.cores;
-            cpuProgress.style.width = (option.cores / 8 * 100) + '%';
-            priceLabel.textContent = "€ " + option.price.toFixed(2);
-        }
+        ramDisplay.textContent = option.ram + ' GB';
+        cpuLabel.value = option.cores;
+        cpuProgress.style.width = (option.cores / 8 * 100) + '%';
+        priceLabel.textContent = "€ " + option.price.toFixed(2);
+    }
 
-        ramInput.addEventListener('input', updateCpuAndPrice);
-        updateCpuAndPrice(); // aggiorna valori iniziali
-    });
+    ramInput.addEventListener('input', updateCpuAndPrice);
+    updateCpuAndPrice(); // inizializza valori
+});
+
 
 </script>
 
