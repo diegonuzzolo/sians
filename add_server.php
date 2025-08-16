@@ -243,9 +243,11 @@ include "includes/header.php";
 
 
                     <div class="mb-3">
-                        <label class="form-label text-black fw-semibold">CPU Cores: <span id="cpuLabel"
-                                class="fs-5"></span></label>
+                        <label class="form-label text-black fw-semibold">
+                            CPU Cores: <span id="cpuDisplay" class="fs-5"></span>
+                        </label>
                         <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
+
                         <div class="progress" style="height: 8px;">
                             <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
                                 style="width: 0%; transition: width 0.4s;"></div>
@@ -263,38 +265,39 @@ include "includes/header.php";
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-    const ramOptions = [
-        {ram: 2, cores: 2, price: 5.53},
-        {ram: 4, cores: 2, price: 8.50},
-        {ram: 6, cores: 3, price: 12.75},
-        {ram: 8, cores: 4, price: 18.28},
-        {ram: 16, cores: 6, price: 29.75},
-        {ram: 24, cores: 8, price: 48.00}
-    ];
+    document.addEventListener("DOMContentLoaded", function () {
+        const ramOptions = [
+            { ram: 2, cores: 2, price: 5.53 },
+            { ram: 4, cores: 2, price: 8.50 },
+            { ram: 6, cores: 3, price: 12.75 },
+            { ram: 8, cores: 4, price: 18.28 },
+            { ram: 16, cores: 6, price: 29.75 },
+            { ram: 24, cores: 8, price: 48.00 }
+        ];
 
-    const ramInput = document.getElementById('ram_gb');
-    const ramDisplay = document.getElementById('ramDisplay');
-    const cpuLabel = document.getElementById('cpuLabel'); // hidden input
-    const cpuProgress = document.getElementById('cpuProgress');
-    const priceLabel = document.getElementById('priceLabel');
+        const ramInput = document.getElementById('ram_gb');
+        const ramDisplay = document.getElementById('ramDisplay');
+        const cpuLabel = document.getElementById('cpu_cores'); // hidden input
+        const cpuProgress = document.getElementById('cpuProgress');
+        const priceLabel = document.getElementById('priceLabel');
+        const cpuDisplay = document.getElementById('cpuDisplay'); // span visibile
+        function updateCpuAndPrice() {
+            let idx = parseInt(ramInput.value);
+            if (idx < 0) idx = 0;
+            if (idx >= ramOptions.length) idx = ramOptions.length - 1;
 
-    function updateCpuAndPrice() {
-        let idx = parseInt(ramInput.value);
-        if(idx < 0) idx = 0;
-        if(idx >= ramOptions.length) idx = ramOptions.length - 1;
+            let option = ramOptions[idx];
 
-        let option = ramOptions[idx];
+            ramDisplay.textContent = option.ram + ' GB';
+            cpuLabel.value = option.cores;       // input hidden
+            cpuDisplay.textContent = option.cores; // span visibile
+            cpuProgress.style.width = (option.cores / 8 * 100) + '%';
+            priceLabel.textContent = "€ " + option.price.toFixed(2);
+        }
 
-        ramDisplay.textContent = option.ram + ' GB';
-        cpuLabel.value = option.cores;
-        cpuProgress.style.width = (option.cores / 8 * 100) + '%';
-        priceLabel.textContent = "€ " + option.price.toFixed(2);
-    }
-
-    ramInput.addEventListener('input', updateCpuAndPrice);
-    updateCpuAndPrice(); // inizializza valori
-});
+        ramInput.addEventListener('input', updateCpuAndPrice);
+        updateCpuAndPrice(); // inizializza valori
+    });
 
 
 </script>
