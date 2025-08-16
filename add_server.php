@@ -6,7 +6,8 @@ error_reporting(E_ALL);
 require 'auth_check.php';
 require 'config/config.php';
 require_once 'includes/csrf.php';
-include 'vendor/autoload.php';
+require 'vendor/autoload.php';
+require 'vendor/stripe/stripe-php/init.php';
 
 csrf_check_or_die();
 
