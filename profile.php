@@ -2,33 +2,42 @@
 require 'auth_check.php';
 require 'config/config.php';
 require 'includes/csrf.php';
-csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
+if (!$userId) {
+    header('Location: login.php');
+    exit;
+}
+
 $msg = '';
 
-// --- Recupero dati utente e billing dal DB ---
-$stmt = $pdo->prepare("SELECT username,email FROM users WHERE id=?");
+// --- Recupero dati utente e billing ---
+$stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
 $stmt->execute([$userId]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-$stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id=?");
+$stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id = ?");
 $stmt->execute([$userId]);
-$billing = $stmt->fetch(PDO::FETCH_ASSOC);
+$billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-// --- Recupero piani attivi (server/subscription) ---
-$stmt = $pdo->prepare("SELECT id, server_name, plan_code, ram, cpu_cores, price, status, created_at 
-                       FROM servers 
-                       WHERE user_id=? AND status='active'");
+// --- Recupero server attivi (campi reali della tabella servers) ---
+// NB: uso name AS server_name e (ram_mb/1024) AS ram_gb per mostrare dati leggibili
+$stmt = $pdo->prepare("
+    SELECT id, name AS server_name, cpu_cores, (ram_mb/1024) AS ram_gb, status
+    FROM servers
+    WHERE user_id = ? AND status IN ('active','running')
+");
 $stmt->execute([$userId]);
 $activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // --- Gestione POST ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // cambio password
+    csrf_check_or_die(); // <-- controlla CSRF solo su POST
+
+    // Cambio password
     if (isset($_POST['change_password'])) {
         $curr = $_POST['current_password'] ?? '';
-        $new = $_POST['new_password'] ?? '';
+        $new  = $_POST['new_password'] ?? '';
         $new2 = $_POST['new_password_confirm'] ?? '';
 
         if ($new !== $new2) {
@@ -36,32 +45,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{10,}$/', $new)) {
             $msg = "Password troppo debole";
         } else {
-            $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id=?");
+            $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $hash = $stmt->fetchColumn();
+
             if (!$hash || !password_verify($curr, $hash)) {
                 $msg = "Password attuale errata";
             } else {
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
-                $upd = $pdo->prepare("UPDATE users SET password_hash=?, password_changed_at=NOW(), force_password_reset=0 WHERE id=?");
+                $upd = $pdo->prepare("
+                    UPDATE users 
+                    SET password_hash = ?, password_changed_at = NOW(), force_password_reset = 0 
+                    WHERE id = ?
+                ");
                 $upd->execute([$newHash, $userId]);
                 $msg = "Password aggiornata";
             }
         }
     }
-    // aggiornamento profilo
+    // Aggiornamento profilo & billing
     else {
         $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
         $username = trim($_POST['username'] ?? '');
+
         if (!$email || $username === '') {
             $msg = "Dati profilo non validi";
         } else {
             $pdo->beginTransaction();
             try {
-                $stmt = $pdo->prepare("UPDATE users SET username=?, email=? WHERE id=?");
+                $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
                 $stmt->execute([$username, $email, $userId]);
 
-                $stmt = $pdo->prepare("SELECT id FROM billing_profiles WHERE user_id=?");
+                $stmt = $pdo->prepare("SELECT id FROM billing_profiles WHERE user_id = ?");
                 $stmt->execute([$userId]);
                 $bp = $stmt->fetchColumn();
 
@@ -79,12 +94,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
 
                 if ($bp) {
-                    $upd = $pdo->prepare("UPDATE billing_profiles SET first_name=?, last_name=?, company=?, vat_number=?, address_line1=?, address_line2=?, city=?, postal_code=?, country_code=?, updated_at=NOW() WHERE user_id=?");
+                    $upd = $pdo->prepare("
+                        UPDATE billing_profiles 
+                        SET first_name = ?, last_name = ?, company = ?, vat_number = ?, 
+                            address_line1 = ?, address_line2 = ?, city = ?, postal_code = ?, 
+                            country_code = ?, updated_at = NOW()
+                        WHERE user_id = ?
+                    ");
                     $upd->execute($bpData);
                 } else {
-                    $ins = $pdo->prepare("INSERT INTO billing_profiles (first_name,last_name,company,vat_number,address_line1,address_line2,city,postal_code,country_code,user_id) VALUES (?,?,?,?,?,?,?,?,?,?)");
+                    $ins = $pdo->prepare("
+                        INSERT INTO billing_profiles 
+                        (first_name, last_name, company, vat_number, address_line1, address_line2, city, postal_code, country_code, user_id)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)
+                    ");
                     $ins->execute($bpData);
                 }
+
                 $pdo->commit();
                 $msg = "Profilo aggiornato";
             } catch (Exception $e) {
@@ -94,22 +120,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ricarico i dati
-    $stmt = $pdo->prepare("SELECT username,email FROM users WHERE id=?");
+    // ricarico i dati dopo POST
+    $stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
     $stmt->execute([$userId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    $stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id=?");
+    $stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id = ?");
     $stmt->execute([$userId]);
-    $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+    $billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    $stmt = $pdo->prepare("SELECT id, server_name, plan_code, ram, cpu_cores, price, status, created_at 
-                           FROM servers 
-                           WHERE user_id=? AND status='active'");
+    $stmt = $pdo->prepare("
+        SELECT id, name AS server_name, cpu_cores, (ram_mb/1024) AS ram_gb, status
+        FROM servers
+        WHERE user_id = ? AND status IN ('active','running')
+    ");
     $stmt->execute([$userId]);
     $activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
+
 <?php include 'includes/header.php'; ?>
 
 <div class="container my-5" style="max-width: 900px;">
@@ -123,27 +152,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-success text-white fw-bold">Piani Attivi</div>
         <div class="card-body">
-            <?php if ($activePlans): ?>
+            <?php if (!empty($activePlans)): ?>
                 <table class="table table-striped">
                     <thead>
                         <tr>
                             <th>Server</th>
-                            <th>Piano</th>
                             <th>RAM</th>
                             <th>CPU</th>
-                            <th>Prezzo</th>
-                            <th>Attivato il</th>
+                            <th>Stato</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($activePlans as $plan): ?>
                             <tr>
                                 <td><?= htmlspecialchars($plan['server_name']) ?></td>
-                                <td><?= htmlspecialchars($plan['plan_code']) ?></td>
-                                <td><?= htmlspecialchars($plan['ram']) ?> GB</td>
+                                <td><?= htmlspecialchars(number_format((float)$plan['ram_gb'], 0)) ?> GB</td>
                                 <td><?= htmlspecialchars($plan['cpu_cores']) ?> Core</td>
-                                <td>€ <?= number_format($plan['price'], 2, ',', '.') ?></td>
-                                <td><?= htmlspecialchars(date('d/m/Y', strtotime($plan['created_at']))) ?></td>
+                                <td><?= htmlspecialchars($plan['status']) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -261,24 +286,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <style>
-body {
-    background-color: #f4f6f9;
-}
-.card {
-    border-radius: 12px;
-}
-.card-header {
-    font-size: 1.1rem;
-}
-.form-label,
-.text-muted {
-    color: #333 !important;
-}
-.form-control {
-    background-color: #fff;
-    color: #000;
-    border: 1px solid #ccc;
-}
+body { background-color: #f4f6f9; }
+.card { border-radius: 12px; }
+.card-header { font-size: 1.1rem; }
+.form-label, .text-muted { color: #333 !important; }
+.form-control { background-color: #fff; color: #000; border: 1px solid #ccc; }
 </style>
 
 <?php include 'includes/footer.php'; ?>
