@@ -138,50 +138,67 @@ foreach ($subscriptions as $sub) {
         <?php endif; ?>
         
         <div class="row g-4">
-    <?php
-    // Loop piani attivi
-    $stmt = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
-    $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+<?php
+// Loop piani attivi
+$stmt = $pdo->query("SELECT * FROM plans WHERE active=1 ORDER BY ram_gb ASC");
+$plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Recupera tutte le subscription attive dell'utente
-    $stmt = $pdo->prepare("SELECT plan_id FROM subscriptions WHERE user_id = ? AND status='active'");
-    $stmt->execute([$userId]);
-    $activePlans = $stmt->fetchAll(PDO::FETCH_COLUMN);
+// Recupera tutte le subscription attive dell'utente
+$stmt = $pdo->prepare("SELECT plan_id FROM subscriptions WHERE user_id = ? AND status='active'");
+$stmt->execute([$userId]);
+$activePlans = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // Recupera i server attivi per ogni piano
-    $stmt = $pdo->prepare("SELECT plan_id, COUNT(*) AS server_count 
-                   FROM servers 
-                   WHERE user_id = ? 
-                   GROUP BY plan_id");
-    $stmt->execute([$userId]);
-    $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+// Recupera i server attivi per ogni piano
+$stmt = $pdo->prepare("SELECT plan_id, COUNT(*) AS server_count 
+               FROM servers 
+               WHERE user_id = ? 
+               GROUP BY plan_id");
+$stmt->execute([$userId]);
+$serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-    // Calcola gli slot disponibili per ogni piano
-    $slotsAvailablePerPlan = [];
-    foreach ($activePlans as $planId) {
-        $maxSlots = 1; // ogni piano permette 1 server, modifica se vuoi più slot
-        $usedSlots = $serversPerPlan[$planId] ?? 0;
-        $slotsAvailablePerPlan[$planId] = max(0, $maxSlots - $usedSlots);
-    }
+// Calcola gli slot disponibili per ogni piano
+$slotsAvailablePerPlan = [];
+foreach ($activePlans as $planId) {
+    $maxSlots = 1; // ogni piano permette 1 server, modifica se vuoi più slot
+    $usedSlots = $serversPerPlan[$planId] ?? 0;
+    $slotsAvailablePerPlan[$planId] = max(0, $maxSlots - $usedSlots);
+}
 
-    // Mostra solo i piani con slot disponibili
-    foreach ($plans as $plan):
-        $slotsAvailable = $slotsAvailablePerPlan[$plan['id']] ?? 0;
-        if ($slotsAvailable <= 0) continue; // salta i piani senza slot disponibili
-    ?>
-        <div class="col-md-4">
-            <div class="card-server p-3 text-center">
-                <h5><?= $plan['ram_gb'] ?> GB</h5>
-                <p><?= $plan['cpu_cores'] ?> Cores</p>
-                <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server&recreate=1"
-                   class="btn btn-success w-100 mt-2"
-                   data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
-                    Crea Server
-                </a>
+// Mostra solo i piani con slot disponibili
+foreach ($plans as $plan):
+    $slotsAvailable = $slotsAvailablePerPlan[$plan['id']] ?? 0;
+    if ($slotsAvailable <= 0) continue; // salta i piani senza slot disponibili
+?>
+    <div class="col-md-4">
+        <div class="card-server p-3 text-center">
+            <h5><?= $plan['ram_gb'] ?> GB</h5>
+            <p><?= $plan['cpu_cores'] ?> Cores</p>
+            
+            <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server&recreate=1"
+               class="btn btn-success w-100 mt-2 mb-2"
+               data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
+                Crea Server
+            </a>
+            
+            <div class="slot-badge mt-2">
+                <span style="
+                    display:inline-block;
+                    background: #00c8ff33;
+                    color: #00c8ff;
+                    font-weight:bold;
+                    padding: 5px 12px;
+                    border-radius: 12px;
+                    font-size: 0.9rem;
+                    transition: background 0.3s;
+                ">
+                    <?= $slotsAvailable ?> slot disponibili
+                </span>
             </div>
         </div>
-    <?php endforeach; ?>
+    </div>
+<?php endforeach; ?>
 </div>
+
 
     </div>
     
