@@ -53,57 +53,50 @@ foreach ($subscriptions as $sub) {
 
     .card-server {
         background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
-        border-radius: 20px;
-        padding: 20px;
+        border-radius: 15px;           /* leggermente più piccolo */
+        padding: 15px;                 /* ridotto da 20px */
         transition: transform 0.2s, box-shadow 0.3s;
         position: relative;
+        font-size: 0.9rem;             /* testo leggermente più piccolo */
     }
 
     .card-server:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 40px rgba(0, 200, 255, 0.4);
+        transform: translateY(-3px);   /* spostamento minore */
+        box-shadow: 0 10px 25px rgba(0, 200, 255, 0.4);
     }
 
     .server-name {
         color: #00c8ff;
         font-weight: bold;
-        font-size: 1.3rem;
-        margin-bottom: 0.3rem;
+        font-size: 1.1rem;             /* ridotto da 1.3rem */
+        margin-bottom: 0.2rem;
     }
 
     .server-ip {
         color: #a0a0a0;
-        font-size: 0.9rem;
-        margin-bottom: 0.7rem;
+        font-size: 0.8rem;             /* leggermente più piccolo */
+        margin-bottom: 0.5rem;
     }
 
     .status-badge {
-        padding: 0.4em 0.8em;
-        border-radius: 12px;
-        font-size: 0.85rem;
+        padding: 0.3em 0.6em;          /* leggermente più piccolo */
+        border-radius: 10px;
+        font-size: 0.75rem;            /* ridotto */
         font-weight: bold;
         text-transform: uppercase;
     }
 
-    .status-running {
-        background-color: #28a745;
-        color: #fff;
-    }
-
-    .status-stopped {
-        background-color: #dc3545;
-        color: #fff;
-    }
-
     .btn-server {
-        width: 48%;
-        margin-top: 5px;
+        width: 45%;                     /* leggermente più piccolo */
+        margin-top: 4px;
+        font-size: 0.85rem;             /* più compatto */
+        padding: 0.35rem 0.6rem;
     }
 
     .server-actions {
         display: flex;
         justify-content: space-between;
-        margin-top: 10px;
+        margin-top: 8px;
     }
 
     .card-header-plan {
@@ -111,21 +104,25 @@ foreach ($subscriptions as $sub) {
         text-align: center;
         background-color: #00c8ff;
         color: #121212;
-        padding: 10px;
-        border-radius: 12px;
-        margin-bottom: 10px;
+        padding: 7px 10px;             /* ridotto */
+        border-radius: 10px;
+        margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 1px;
+        font-size: 0.9rem;
     }
 
     .slot-count {
         text-align: center;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
     }
 
     .btn-slot {
         width: 100%;
+        font-size: 0.85rem;
+        padding: 0.35rem 0.6rem;
     }
 </style>
 
