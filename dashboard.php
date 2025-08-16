@@ -176,7 +176,7 @@ foreach ($subscriptions as $sub) {
                 <a href="add_server.php?plan_code=<?= urlencode($plan['code']) ?>&server_name=Il Mio Server&recreate=1"
                    class="btn btn-success w-100 mt-2"
                    data-plan-code="<?= htmlspecialchars($plan['code']) ?>">
-                    Crea/Ricrea Server
+                    Crea Server
                 </a>
             </div>
         </div>
