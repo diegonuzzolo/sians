@@ -153,25 +153,23 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
             $subscription = getActiveSubscriptionForUser($stripeCustomerId);
             if ($subscription) {
                 $stmt = $pdo->prepare("
-            INSERT INTO subscriptions (user_id, server_id, stripe_subscription_id, plan_code, status, price, start_date, end_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                stripe_subscription_id=VALUES(stripe_subscription_id),
-                plan_code=VALUES(plan_code),
-                status=VALUES(status),
-                price=VALUES(price),
-                start_date=VALUES(start_date),
-                end_date=VALUES(end_date)
-        ");
+    INSERT INTO subscriptions 
+    (user_id, plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, NOW())
+    ON DUPLICATE KEY UPDATE
+        plan_id = VALUES(plan_id),
+        stripe_customer_id = VALUES(stripe_customer_id),
+        stripe_subscription_id = VALUES(stripe_subscription_id),
+        status = VALUES(status),
+        current_period_end = VALUES(current_period_end)
+");
 
                 $stmt->execute([
                     $userId,
-                    $serverId,
+                    $subscription->plan->id ?? $subscription->items->data[0]->price->id, // plan_id
+                    $stripeCustomerId,
                     $subscription->id,
-                    $subscription->plan->id ?? $subscription->items->data[0]->price->nickname,
                     $subscription->status,
-                    ($subscription->plan->amount ?? $subscription->items->data[0]->price->unit_amount) / 100,
-                    date('Y-m-d H:i:s', $subscription->current_period_start),
                     date('Y-m-d H:i:s', $subscription->current_period_end)
                 ]);
             }
