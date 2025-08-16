@@ -275,7 +275,7 @@ include "includes/header.php";
 
     const ramInput = document.getElementById('ram_gb');
     const ramDisplay = document.getElementById('ramDisplay');
-    const cpuLabel = document.getElementById('cpu_cores'); // hidden input
+    const cpuLabel = document.getElementById('cpuLabel'); // hidden input
     const cpuProgress = document.getElementById('cpuProgress');
     const priceLabel = document.getElementById('priceLabel');
 
