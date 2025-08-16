@@ -51,60 +51,71 @@ foreach ($subscriptions as $sub) {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .card-server {
-            background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
-            border-radius: 20px;
-            padding: 20px;
-            transition: transform 0.2s, box-shadow 0.3s;
-            position: relative;
-        }
+            #server-list .card-server {
+        background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
+        border-radius: 15px;
+        padding: 15px;
+        transition: transform 0.2s, box-shadow 0.3s;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
 
-        .card-server:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 200, 255, 0.4);
-        }
+         #server-list .card-server:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 200, 255, 0.3);
+    }
 
-        .server-name {
-            color: #00c8ff;
-            font-weight: bold;
-            font-size: 1.3rem;
-            margin-bottom: 0.3rem;
-        }
+          .server-name {
+        color: #00c8ff;
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin-bottom: 0.2rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
 
         .server-ip {
-            color: #a0a0a0;
-            font-size: 0.9rem;
-            margin-bottom: 0.7rem;
-        }
+        color: #a0a0a0;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
 
-        .status-badge {
-            padding: 0.4em 0.8em;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .status-running {
-            background-color: #28a745;
-            color: #fff;
-        }
-
-        .status-stopped {
-            background-color: #dc3545;
-            color: #fff;
-        }
+         .status-badge {
+        padding: 0.3em 0.6em;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+        margin-bottom: 5px;
+    }
+  .status-running { background-color: #28a745; color: #fff; }
+    .status-stopped { background-color: #dc3545; color: #fff; }
 
         .btn-server {
             width: 48%;
             margin-top: 5px;
         }
 
-        .server-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-        }
+          .server-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: space-between;
+        margin-top: 8px;
+    }
+        .btn-server {
+        flex: 1 1 48%;
+        font-size: 0.8rem;
+        padding: 0.35rem 0.5rem;
+    }
+
+    @media (max-width: 576px) {
+        .btn-server { flex: 1 1 100%; }
+    }
 
         .card-header-plan {
             font-weight: bold;
@@ -170,54 +181,49 @@ foreach ($subscriptions as $sub) {
             <?php endforeach; ?>
         </div>
 
-        <!-- Lista server -->
-        <div id="server-list" class="row">
-            <?php
-            $stmt = $pdo->prepare("SELECT * FROM servers WHERE user_id=? ORDER BY created_at DESC");
-            $stmt->execute([$_SESSION['user_id']]);
-            $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+      <div id="server-list" class="row">
+    <?php
+    // Ordina per VMID crescente (più vecchi prima)
+    $stmt = $pdo->prepare("SELECT s.*, c.proxmox_containerId, c.ip FROM servers s 
+                           LEFT JOIN containers c ON c.server_id = s.id
+                           WHERE s.user_id=? ORDER BY c.proxmox_containerId ASC");
+    $stmt->execute([$_SESSION['user_id']]);
+    $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach ($servers as $server):
-                $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
-                $container = $pdo->prepare("SELECT * FROM containers WHERE server_id=? LIMIT 1");
-                $container->execute([$server['id']]);
-                $container = $container->fetch(PDO::FETCH_ASSOC);
-                ?>
-                <div class="col-md-4 mb-3">
-                    <div class="card card-server p-3 shadow">
-                        <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
-                        <div class="server-ip">VMID: <?= $container['proxmox_containerId'] ?? 'N/A' ?> | IP:
-                            <?= $container['ip'] ?? 'N/A' ?>
-                        </div>
-                        <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>">
-                            <?= ucfirst($server['status']) ?>
-                        </span>
+    foreach ($servers as $server):
+        $statusClass = ($server['status'] === 'running') ? 'status-running' : 'status-stopped';
+    ?>
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card card-server shadow">
+            <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
+            <div class="server-ip">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></div>
+            <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>">
+                <?= ucfirst($server['status']) ?>
+            </span>
 
-                        <div class="server-actions">
-                            <button id="start-<?= $server['id'] ?>" class="btn btn-success btn-server"
-                                onclick="startServer(<?= $server['id'] ?>)" <?= $server['status'] === 'running' ? 'disabled' : '' ?>>
-                                Avvia
-                            </button>
-                            <button id="stop-<?= $server['id'] ?>" class="btn btn-danger btn-server"
-                                onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status'] === 'stopped' ? 'disabled' : '' ?>>
-                                Ferma
-                            </button>
-                        </div>
+            <div class="server-actions">
+                <button id="start-<?= $server['id'] ?>" class="btn btn-success btn-server"
+                        onclick="startServer(<?= $server['id'] ?>)" <?= $server['status'] === 'running' ? 'disabled' : '' ?>>
+                    Avvia
+                </button>
+                <button id="stop-<?= $server['id'] ?>" class="btn btn-danger btn-server"
+                        onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status'] === 'stopped' ? 'disabled' : '' ?>>
+                    Ferma
+                </button>
+            </div>
 
-                        <div class="server-actions mt-2">
-                            <a href="manage_server.php?id=<?= $server['id'] ?>"
-                                class="btn btn-primary btn-server">Gestisci</a>
-                            <a href="delete_server.php?vmid=<?= $container['proxmox_containerId'] ?>"
-                                class="btn btn-outline-danger btn-server"
-                                onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
-                                Elimina
-                            </a>
-
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+            <div class="server-actions">
+                <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-server">Gestisci</a>
+                <a href="delete_server.php?vmid=<?= $server['proxmox_containerId'] ?>" 
+                   class="btn btn-outline-danger btn-server"
+                   onclick="return confirm('Sei sicuro di voler eliminare questo server?');">
+                   Elimina
+                </a>
+            </div>
         </div>
+    </div>
+    <?php endforeach; ?>
+</div>
     </div>
 
 
