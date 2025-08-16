@@ -34,12 +34,16 @@ if ($usedSlots >= $maxSlots) {
     die(json_encode(['success' => false, 'message' => 'Slot esauriti']));
 }
 
-// Genera il prossimo VMID libero direttamente con PDO
-$stmt = $pdo->query("SELECT MAX(proxmox_containerId) FROM containers");
-$maxVmid = $stmt->fetchColumn();
-$vmid = $maxVmid ? $maxVmid + 1 : 100; // parte da 100 se non ci sono VMID
+// Genera il prossimo VMID libero partendo da 101
+$startVmid = 101;
+$stmt = $pdo->query("SELECT proxmox_containerId FROM containers");
+$usedVmids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$vmid = $startVmid;
+while (in_array($vmid, $usedVmids)) {
+    $vmid++;
+}
 
-// Genera IP privato libero direttamente con PDO
+// Genera IP privato libero
 $baseIp = "192.168.1."; // subnet privata
 $stmt = $pdo->query("SELECT ip FROM containers");
 $usedIps = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -49,9 +53,10 @@ while (in_array($baseIp . $ipSuffix, $usedIps)) {
 }
 $ip = $baseIp . $ipSuffix;
 
+// Parametri server
 $cores = $plan['cpu_cores'];
 $ramGb = $plan['ram_gb'];
-$storageGb = $plan['storage_gb'] ?? 64; // default
+$storageGb = $plan['storage_gb'] ?? 64;
 
 // Crea container
 $hostname = "mcserver-$vmid";
@@ -61,21 +66,21 @@ if (!$res['success']) {
     die(json_encode(['success' => false, 'message' => 'Errore creazione container: '.$res['message']]));
 }
 
-// Inserisci server nel DB prima del container per avere server_id
-$stmt = $pdo->prepare("
-    INSERT INTO servers (name, user_id, plan_id, status, type, cpu_cores, ram_mb, progress) 
-    VALUES (?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
-");
-$stmt->execute([$serverName, $userId, $plan['id'], $cores, $ramGb * 1024]);
-$serverId = $pdo->lastInsertId();
-
 // Inserisci container nel DB
 $stmt = $pdo->prepare("
-    INSERT INTO containers (proxmox_containerId, ip, hostname, user_id, server_id, cores, ram_mb, storage_gb, status) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'stopped')
+    INSERT INTO containers (proxmox_containerId, ip, ram_mb, cores, storage_gb, hostname, user_id, server_id, status) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'stopped')
 ");
-$stmt->execute([$vmid, $ip, $hostname, $userId, $serverId, $cores, $ramGb * 1024, $storageGb]);
+$stmt->execute([$vmid, $ip, $ramGb * 1024, $cores, $storageGb, $hostname, $userId]);
 $containerId = $pdo->lastInsertId();
+
+// Inserisci server nel DB
+$stmt = $pdo->prepare("
+    INSERT INTO servers (name, user_id, plan_id, container_id, status, type, cpu_cores, ram_mb, progress) 
+    VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
+");
+$stmt->execute([$serverName, $userId, $plan['id'], $containerId, $cores, $ramGb * 1024]);
+$serverId = $pdo->lastInsertId();
 
 // Percorsi SSH/SCP
 $sshKey = "/var/www/.ssh/id_proxmox";
