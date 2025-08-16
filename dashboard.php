@@ -137,9 +137,7 @@ foreach ($subscriptions as $sub) {
         </div>
         <?php endif; ?>
         
-        <hr class="my-5">
         
-        <h3 class="text-center mb-4 text-warning">🎮 Crea o Ricrea un Server</h3>
         <div class="row g-4">
             <?php
         // Loop piani
