@@ -165,6 +165,7 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
 
         // Ora puoi procedere a creare la subscription nella tabella subscriptions
         $subscription = getActiveSubscriptionForUser($stripeCustomerId);
+        $subscription = getActiveSubscriptionForUser($stripeCustomerId);
         if ($subscription) {
             $stmt = $pdo->prepare("
         INSERT INTO subscriptions 
@@ -179,14 +180,13 @@ if (isset($_GET['success']) && isset($_GET['plan_code']) && isset($_GET['server_
     ");
             $stmt->execute([
                 $userId,
-                $subscription->plan->id ?? $subscription->items->data[0]->price->id,
+                $plan['id'],  // ID del piano dal DB
                 $stripeCustomerId,
                 $subscription->id,
                 $subscription->status,
                 date('Y-m-d H:i:s', $subscription->current_period_end)
             ]);
         }
-
         // --- 3. Inserisci container nel DB ---
         $stmt = $pdo->prepare("
             INSERT INTO containers
