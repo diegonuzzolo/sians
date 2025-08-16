@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role'] = $user['role'];
 
             // Controllo cambio password periodico (90 giorni)
-            $pwdChangedAt = $user['password_changed_at'];
+            $pwdChangedAt = $user['last_password_change'];
             $needsReset = (bool)$user['force_password_reset'];
             $forceReset = $needsReset || !$pwdChangedAt || (time() - strtotime($pwdChangedAt)) > 90*24*3600;
 
