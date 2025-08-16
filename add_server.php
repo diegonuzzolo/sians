@@ -75,8 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_GET['success'])) {
                 ]
             ],
             'mode' => 'subscription',
-            'success_url' => "https://{$yourDomain}/payment_success.php?session_id={CHECKOUT_SESSION_ID}",
-            'cancel_url' => "https://{$yourDomain}/payment_cancelled.php"
+            'success_url' => "https://sians.it/add_server.php?success=1&server_name=".urlencode($serverName)."&ram_gb=$ramGb",
+            'cancel_url' => "https://sians.it/add_server.php?cancel=1"
         ]);
 
 
