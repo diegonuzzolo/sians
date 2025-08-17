@@ -172,49 +172,149 @@ include "includes/header.php";
     <?php endif; ?>
 </div>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const plans = [
-            { code: 'plan_2gb', ram: 2, cores: 2, price: 5.53 },
-            { code: 'plan_4gb', ram: 4, cores: 2, price: 8.50 },
-            { code: 'plan_6gb', ram: 6, cores: 3, price: 12.75 },
-            { code: 'plan_8gb', ram: 8, cores: 4, price: 18.28 },
-            { code: 'plan_16gb', ram: 16, cores: 6, price: 29.75 },
-            { code: 'plan_24gb', ram: 24, cores: 8, price: 48.00 }
-        ];
+const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
+const creatingServers = {}; // Stato creazione per piano
 
-        const planSelect = document.querySelector('select[name="plan_code"]');
-        const ramDisplay = document.getElementById('ramDisplay');
-        const cpuLabel = document.getElementById('cpu_cores'); // hidden
-        const cpuDisplay = document.getElementById('cpuDisplay'); // badge
-        const cpuProgress = document.getElementById('cpuProgress');
-        const priceLabel = document.getElementById('priceLabel');
+// --- FUNZIONE CREAZIONE SERVER ---
+function createServerSlot(planCode, btnElement) {
+    if (creatingServers[planCode]) return;
+    creatingServers[planCode] = true;
 
-        function updatePlanDisplay() {
-            const planCode = planSelect.value;
-            const option = plans.find(p => p.code === planCode);
-            if (!option) return;
+    btnElement.disabled = true;
+    const originalText = btnElement.textContent;
+    btnElement.textContent = 'Creazione in corso...';
 
-            // Aggiorna badge RAM
-            ramDisplay.textContent = option.ram + ' GB';
-            ramDisplay.classList.add('animate__animated', 'animate__fadeIn');
-            setTimeout(() => ramDisplay.classList.remove('animate__animated', 'animate__fadeIn'), 500);
+    let serverName = prompt("Inserisci il nome del tuo server:");
+    if (!serverName) {
+        btnElement.disabled = false;
+        btnElement.textContent = originalText;
+        creatingServers[planCode] = false;
+        return;
+    }
 
-            // Aggiorna badge CPU
-            cpuDisplay.textContent = option.cores + ' Cores';
-            cpuDisplay.classList.add('animate__animated', 'animate__pulse');
-            setTimeout(() => cpuDisplay.classList.remove('animate__animated', 'animate__pulse'), 500);
+    fetch(`new_server.php?plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
+                addServerCard(data.server_id, serverName, data.vmid, data.ip);
+            } else {
+                alert("Errore: " + data.message);
+            }
+        })
+        .catch(err => console.error(err))
+        .finally(() => {
+            creatingServers[planCode] = false;
+            refreshSlots();
+        });
+}
 
-            cpuLabel.value = option.cores;
-            cpuProgress.style.width = (option.cores / 8 * 100) + '%';
+// --- AGGIUNGE IL SERVER ALLA LISTA ---
+function addServerCard(serverId, serverName, vmid, ip) {
+    const serverList = document.getElementById('server-list');
+    if (!serverList) return;
 
-            // Aggiorna prezzo
-            priceLabel.textContent = "€ " + option.price.toFixed(2);
+    const div = document.createElement('div');
+    div.className = 'col-md-4 mb-3';
+    div.id = 'server-' + serverId;
+    div.innerHTML = `
+        <div class="card card-server p-3 shadow">
+            <div class="server-name">${serverName}</div>
+            <div class="server-ip">VMID: ${vmid} | IP: ${ip}</div>
+            <span id="status-${serverId}" class="status-badge status-stopped">Spento</span>
+            <div class="server-actions mt-2">
+                <button id="start-${serverId}" class="btn btn-success btn-server" onclick="startServer(${serverId})">Avvia</button>
+                <button id="stop-${serverId}" class="btn btn-danger btn-server" onclick="stopServer(${serverId})" disabled>Ferma</button>
+            </div>
+            <div class="server-actions mt-2">
+                <a href="manage_server.php?id=${serverId}" class="btn btn-primary btn-server">Gestisci</a>
+                <button class="btn btn-outline-danger btn-server" onclick="deleteServer(${serverId}, '${vmid}')">Elimina</button>
+            </div>
+        </div>
+    `;
+    serverList.prepend(div);
+}
+
+// --- ELIMINA SERVER ---
+function deleteServer(serverId, vmid) {
+    if (!confirm('Sei sicuro di voler eliminare questo server?')) return;
+
+    fetch(`delete_server.php?vmid=${vmid}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('server-' + serverId)?.remove();
+                refreshSlots();
+            } else {
+                alert("Errore eliminazione server: " + data.message);
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+// --- CONTROLLO SERVER (start/stop) ---
+function controlServer(serverId, action) {
+    fetch('ajax_server_control.php', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.status) {
+            const statusEl = document.getElementById('status-' + serverId);
+            if (statusEl) {
+                statusEl.textContent = (data.status==='running')?'Attivo':'Spento';
+                statusEl.className = 'status-badge ' + (data.status==='running'?'status-running':'status-stopped');
+            }
+            updateButtons(serverId, data.status);
         }
+    })
+    .catch(err => console.error(err));
+}
 
-        planSelect.addEventListener('change', updatePlanDisplay);
+function startServer(serverId){ controlServer(serverId,'start'); }
+function stopServer(serverId){ controlServer(serverId,'stop'); }
 
-        updatePlanDisplay(); // inizializza valori
-    });
+function updateButtons(serverId,status){
+    const startBtn=document.getElementById('start-'+serverId);
+    const stopBtn=document.getElementById('stop-'+serverId);
+    if(!startBtn || !stopBtn) return;
+    if(status==='running'){ startBtn.disabled=true; stopBtn.disabled=false; }
+    else{ startBtn.disabled=false; stopBtn.disabled=true; }
+}
+
+// --- AGGIORNA GLI SLOT DISPONIBILI ---
+function refreshSlots() {
+    fetch('ajax_check_slots.php')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('slots-container');
+            container.innerHTML = ''; // Pulisce tutte le card
+            for (const planCode in data) {
+                const slots = data[planCode];
+                if (slots > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'col-md-4 mb-3 card-slot';
+                    div.dataset.planCode = planCode;
+                    div.innerHTML = `
+                        <div class="card shadow p-3 rounded card-server">
+                            <div class="card-header-plan">${planCode}</div>
+                            <p class="slot-count">${slots} slot disponibili</p>
+                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot">Crea Server</a>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+// --- CHIAMATA INIZIALE AL CARICAMENTO PAGINA ---
+document.addEventListener('DOMContentLoaded', () => {
+    refreshSlots();
+});
 </script>
 
 <!-- Aggiungi Animate.css per le animazioni -->

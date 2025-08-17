@@ -2,39 +2,34 @@
 include 'auth_check.php';
 require 'config/config.php';
 
+header('Content-Type: application/json');
+
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Recupera tutte le subscription attive dell'utente
+// Recupera tutti gli slot dell'utente
 $stmt = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code
-    FROM subscriptions sub
-    JOIN plans p ON p.id = sub.plan_id
-    WHERE sub.user_id = ? AND sub.status='active'
+    SELECT plan_id, status, COUNT(*) AS total
+    FROM server_slots
+    WHERE user_id = ?
+    GROUP BY plan_id, status
 ");
 $stmt->execute([$userId]);
-$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$slotsData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Recupera i server attivi per ogni piano
-$stmt = $pdo->prepare("
-    SELECT plan_id, COUNT(*) AS server_count
-    FROM servers
-    WHERE user_id = ? AND status != 'deleted'
-    GROUP BY plan_id
-");
-$stmt->execute([$userId]);
-$serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
-// Calcola slot disponibili per ogni piano
+// Prepara array finale slot disponibili
 $slotsAvailable = [];
-foreach ($subscriptions as $sub) {
-    $planId = $sub['plan_id'];
-    $planCode = $sub['plan_code'];
 
-    $maxSlots = 1; // almeno 1 slot per ogni subscription attiva
-    $usedSlots = $serversPerPlan[$planId] ?? 0;
+foreach ($slotsData as $row) {
+    $planId = $row['plan_id'];
+    $status = $row['status'];
+    $count = intval($row['total']);
 
-    $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
+    if (!isset($slotsAvailable[$planId])) $slotsAvailable[$planId] = 0;
+
+    if ($status === 'pending') {
+        $slotsAvailable[$planId] += $count; // slot ancora disponibili
+    }
 }
 
-header('Content-Type: application/json');
+// Ritorna JSON: plan_id => slot disponibili
 echo json_encode($slotsAvailable);

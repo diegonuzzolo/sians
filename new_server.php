@@ -87,4 +87,9 @@ echo json_encode([
     'ip' => $vmIp,
     'message' => 'Server creato correttamente'
 ]);
+
+// Dopo aver creato il server
+$stmt = $pdo->prepare("UPDATE server_slots SET status='created', server_id=? WHERE id=?");
+$stmt->execute([$serverId, $slotId]);
+
 exit;
