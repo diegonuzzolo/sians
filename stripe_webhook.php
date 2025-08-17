@@ -90,14 +90,7 @@ switch ($event->type) {
 
         logStripe("Subscription update: " . json_encode($subscription));
 
-        // Funzione per recuperare user_id
-        function getUserIdByCustomer($pdo, $stripeCustomerId)
-        {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id COLLATE utf8mb4_general_ci = ? COLLATE utf8mb4_general_ci");
-            $stmt->execute([$stripeCustomerId]);
-            return $stmt->fetchColumn();
-        }
-
+        
         $subscriptionId = $subscription->id ?? null;
         $customerId = $subscription->customer ?? null;
         $status = $subscription->status ?? null;
@@ -107,15 +100,13 @@ switch ($event->type) {
             : null;
 
         if ($subscriptionId && $customerId) {
-            $userId = getUserIdByCustomer($pdo, $customerId);
-
             $stmt = $pdo->prepare("INSERT INTO subscriptions 
-                (user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
+                VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE stripe_price_id=VALUES(stripe_price_id),
                                         status=VALUES(status),
                                         current_period_end=VALUES(current_period_end)");
-            $stmt->execute([$userId, $customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
+            $stmt->execute([$customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
         }
         break;
 
