@@ -20,13 +20,24 @@ $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Subscription e slot disponibili
-$stmt = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
-    FROM subscriptions sub
-    JOIN plans p ON p.id = sub.stripe_price_id
-    WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
-");
-$stmt->execute([$stripeCustomerId]);
+// Recupera lo Stripe Customer ID dell'utente loggato
+$stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$stripeCustomerId = $stmt->fetchColumn();
+
+if (!$stripeCustomerId) {
+    $subscriptions = []; // Nessuna subscription
+} else {
+    // Subscription e slot disponibili
+    $stmt = $pdo->prepare("
+        SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
+        FROM subscribes sub
+        JOIN plans p ON p.id = sub.stripe_price_id
+        WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
+    ");
+    $stmt->execute([$stripeCustomerId]);
+}
+
 
 $stmt->execute([$userId]);
 $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
