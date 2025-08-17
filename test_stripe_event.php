@@ -1,6 +1,6 @@
 <?php
 // URL del tuo webhook locale o remoto
-$webhookUrl = 'https://127.0.0.1/stripe_webhook.php';
+$webhookUrl = 'http://127.0.0.1/stripe_webhook.php';
 
 // Simulazione di payload di Stripe (checkout.session.completed)
 $payload = json_encode([
