@@ -77,16 +77,18 @@ switch ($event->type) {
             $stmtUser = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id = ?");
             $stmtUser->execute([$customerId]);
             $userId = $stmtUser->fetchColumn();
-            if ($planId) {
-                $stmt = $pdo->prepare("INSERT INTO subscriptions 
+           if ($planId && $userId) {
+    $stmt = $pdo->prepare("INSERT INTO subscriptions 
         (user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
         VALUES (?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE 
             stripe_price_id=VALUES(stripe_price_id),
             status=VALUES(status),
             current_period_end=VALUES(current_period_end)");
-                $stmt->execute([$userId, $customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
-            }
+    $stmt->execute([$userId, $customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
+} else {
+    logStripe("❌ Nessun user_id trovato per customer=$customerId (skip insert)");
+}
         }
         break;
 
@@ -105,14 +107,23 @@ switch ($event->type) {
             : null;
 
         if ($subscriptionId && $customerId) {
-            $stmt = $pdo->prepare("INSERT INTO subscriptions 
-                (stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE stripe_price_id=VALUES(stripe_price_id),
-                                        status=VALUES(status),
-                                        current_period_end=VALUES(current_period_end)");
-            $stmt->execute([$customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
-        }
+    $stmtUser = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id = ?");
+    $stmtUser->execute([$customerId]);
+    $userId = $stmtUser->fetchColumn();
+
+    if ($userId) {
+        $stmt = $pdo->prepare("INSERT INTO subscriptions 
+            (user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                stripe_price_id=VALUES(stripe_price_id),
+                status=VALUES(status),
+                current_period_end=VALUES(current_period_end)");
+        $stmt->execute([$userId, $customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
+    } else {
+        logStripe("❌ Nessun user_id trovato per customer=$customerId (skip insert)");
+    }
+}
         break;
 
     case 'customer.subscription.deleted':
