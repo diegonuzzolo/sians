@@ -18,6 +18,9 @@ if (!defined('DB_HOST')) {
     define('PROXMOX_TEMPLATE', 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst');
     define('CONTAINER_GATEWAY', '192.168.1.254');
     define('CONTAINER_SUBNET', '192.168.1.0/24');
+
+        define('STRIPE_SECRET_KEY', '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');
+
 }
 
 try {
