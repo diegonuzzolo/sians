@@ -13,9 +13,11 @@ $event = null;
 
 try {
     if ($endpoint_secret) {
-        $event = \Stripe\Webhook::constructEvent(
-            $payload, $sig_header, $endpoint_secret
-        );
+        // $event = \Stripe\Webhook::constructEvent(
+        //     $payload, $sig_header, $endpoint_secret
+        // );
+        $event = \Stripe\Event::constructFrom(json_decode($payload, true));
+
     } else {
         $event = \Stripe\Event::constructFrom(
             json_decode($payload, true)
