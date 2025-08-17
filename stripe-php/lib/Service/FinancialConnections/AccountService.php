@@ -93,7 +93,7 @@ class AccountService extends \Stripe\Service\AbstractService
     }
 
     /**
-     * Subscribes to periodic refreshes of data associated with a Financial Connections
+     * subscriptions to periodic refreshes of data associated with a Financial Connections
      * <code>Account</code>.
      *
      * @param string $id
@@ -110,7 +110,7 @@ class AccountService extends \Stripe\Service\AbstractService
     }
 
     /**
-     * Unsubscribes from periodic refreshes of data associated with a Financial
+     * Unsubscriptions from periodic refreshes of data associated with a Financial
      * Connections <code>Account</code>.
      *
      * @param string $id
