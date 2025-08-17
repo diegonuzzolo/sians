@@ -1,40 +1,40 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-session_start();
-require __DIR__ . '/config/config.php';
-
-header('Content-Type: application/json');
+include 'auth_check.php';
+require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
-if (!$userId) {
-    echo json_encode(['error' => 'Utente non autenticato']);
-    exit;
-}
 
-// Recupera le subscription attive
+// Recupera tutte le subscription attive dell'utente
 $stmt = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
+    SELECT sub.*, p.code AS plan_code
     FROM subscriptions sub
-    JOIN plans p ON p.id = sub.stripe_price_id
-    WHERE sub.user_id = ? AND sub.status = 'active'
+    JOIN plans p ON p.id = sub.plan_id
+    WHERE sub.user_id = ? AND sub.status='active'
 ");
 $stmt->execute([$userId]);
 $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Recupera server slots dell'utente
+// Recupera i server attivi per ogni piano
 $stmt = $pdo->prepare("
-    SELECT ss.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
-    FROM server_slots ss
-    JOIN plans p ON p.id = ss.plan_id
-    WHERE ss.user_id = ?
+    SELECT plan_id, COUNT(*) AS server_count
+    FROM servers
+    WHERE user_id = ? AND status != 'deleted'
+    GROUP BY plan_id
 ");
 $stmt->execute([$userId]);
-$slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-echo json_encode([
-    'subscriptions' => $subscriptions,
-    'slots' => $slots
-]);
+// Calcola slot disponibili per ogni piano
+$slotsAvailable = [];
+foreach ($subscriptions as $sub) {
+    $planId = $sub['plan_id'];
+    $planCode = $sub['plan_code'];
+
+    $maxSlots = 1; // almeno 1 slot per ogni subscription attiva
+    $usedSlots = $serversPerPlan[$planId] ?? 0;
+
+    $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
+}
+
+header('Content-Type: application/json');
+echo json_encode($slotsAvailable);
