@@ -8,33 +8,44 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// --- Recupera i server attivi dell'utente ---
-$stmtServers = $pdo->prepare("
+// Server attivi
+$stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type,
            c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id=? AND s.status != 'deleted'
 ");
-$stmtServers->execute([$userId]);
-$servers = $stmtServers->fetchAll(PDO::FETCH_ASSOC);
+$stmt->execute([$userId]);
+$servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// --- Recupera Stripe Customer ID ---
-$stmtUser = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
-$stmtUser->execute([$userId]);
-$stripeCustomerId = $stmtUser->fetchColumn();
+// Subscription e slot disponibili
+// Recupera lo Stripe Customer ID dell'utente loggato
+$stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$stripeCustomerId = $stmt->fetchColumn();
 
-// --- Recupera subscription attive con info piano ---
-$subscriptions = [];
-if ($stripeCustomerId) {
-    $stmtSub = $pdo->prepare("
+if (!$stripeCustomerId) {
+    $subscriptions = []; // Nessuna subscription
+} else {
+    // Subscription e slot disponibili
+    $stmt = $pdo->prepare("
         SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
         FROM subscriptions sub
         JOIN plans p ON p.id = sub.stripe_price_id
         WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
     ");
-    $stmtSub->execute([$stripeCustomerId]);
-    $subscriptions = $stmtSub->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$stripeCustomerId]);
+}
+
+
+$stmt->execute([$userId]);
+$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Mappa piano -> subscription
+$subsByPlan = [];
+foreach ($subscriptions as $sub) {
+    $subsByPlan[$sub['plan_code']] = $sub;
 }
 ?>
 <!DOCTYPE html>
@@ -64,7 +75,17 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 <h2 class="mb-4 text-center display-5 fw-bold">🎮 I tuoi server</h2>
 
 <!-- Slots disponibili -->
+<div id="slots-container" class="row mb-4">
+<?php
+foreach ($subscriptions as $sub):
+    $planCode = htmlspecialchars($sub['plan_code']);
+    $planName = htmlspecialchars($sub['plan_name']);
+?>
+<!-- Slots disponibili -->
 <div id="slots-container" class="row mb-4"></div>
+
+<?php endforeach; ?>
+</div>
 
 <!-- Lista server -->
 <div id="server-list" class="row">
@@ -94,9 +115,9 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 
 <script>
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-const creatingServers = {};
+const creatingServers = {}; // Stato creazione per piano
 
-// --- Creazione server ---
+// --- FUNZIONE CREAZIONE SERVER ---
 function createServerSlot(planCode, btnElement) {
     if (creatingServers[planCode]) return;
     creatingServers[planCode] = true;
@@ -117,7 +138,7 @@ function createServerSlot(planCode, btnElement) {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                alert("Server creato! VMID: " + data.vmid + " IP: " + data.ip);
+                alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
                 addServerCard(data.server_id, serverName, data.vmid, data.ip);
             } else {
                 alert("Errore: " + data.message);
@@ -130,7 +151,7 @@ function createServerSlot(planCode, btnElement) {
         });
 }
 
-// --- Aggiunge server alla lista ---
+// --- AGGIUNGE IL SERVER ALLA LISTA ---
 function addServerCard(serverId, serverName, vmid, ip) {
     const serverList = document.getElementById('server-list');
     if (!serverList) return;
@@ -156,16 +177,16 @@ function addServerCard(serverId, serverName, vmid, ip) {
     serverList.prepend(div);
 }
 
-// --- Elimina server ---
+// --- ELIMINA SERVER ---
 function deleteServer(serverId, vmid) {
-    if (!confirm('Sei sicuro di eliminare questo server?')) return;
+    if (!confirm('Sei sicuro di voler eliminare questo server?')) return;
 
     fetch(`delete_server.php?vmid=${vmid}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
                 document.getElementById('server-' + serverId)?.remove();
-                refreshSlots();
+                refreshSlots(); // ricompare slot se disponibile
             } else {
                 alert("Errore eliminazione server: " + data.message);
             }
@@ -173,7 +194,7 @@ function deleteServer(serverId, vmid) {
         .catch(err => console.error(err));
 }
 
-// --- Controllo server start/stop ---
+// --- CONTROLLO SERVER (start/stop) ---
 function controlServer(serverId, action) {
     fetch('ajax_server_control.php', {
         method: 'POST',
@@ -199,28 +220,27 @@ function updateButtons(serverId,status){
     const startBtn=document.getElementById('start-'+serverId);
     const stopBtn=document.getElementById('stop-'+serverId);
     if(!startBtn || !stopBtn) return;
-    startBtn.disabled = (status==='running');
-    stopBtn.disabled = (status!=='running');
+    if(status==='running'){ startBtn.disabled=true; stopBtn.disabled=false; }
+    else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
 
-// --- Aggiorna slot disponibili ---
+// --- AGGIORNA GLI SLOT E LE CARDS ---
 function refreshSlots() {
     fetch('ajax_check_slots.php')
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('slots-container');
-            container.innerHTML = '';
+            container.innerHTML = ''; // pulisce tutte le card
             for (const planCode in data) {
-                const slots = data[planCode];
-                if (slots > 0) {
+                if (data[planCode] > 0) {
                     const div = document.createElement('div');
                     div.className = 'col-md-4 mb-3 card-slot';
                     div.dataset.planCode = planCode;
                     div.innerHTML = `
                         <div class="card shadow p-3 rounded card-server">
                             <div class="card-header-plan">${planCode}</div>
-                            <p class="slot-count">${slots} slot disponibili</p>
-                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot">Crea Server</a>
+                            <p class="slot-count" data-plan-code="${planCode}">${data[planCode]} slot disponibili</p>
+                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot" data-plan-code="${planCode}">Crea Server</a>
                         </div>
                     `;
                     container.appendChild(div);
@@ -229,12 +249,15 @@ function refreshSlots() {
         })
         .catch(err => console.error(err));
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     refreshSlots();
 });
+
+
+
 </script>
 <?php include "includes/footer.php"; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
