@@ -75,17 +75,7 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 <h2 class="mb-4 text-center display-5 fw-bold">🎮 I tuoi server</h2>
 
 <!-- Slots disponibili -->
-<div id="slots-container" class="row mb-4">
-<?php
-foreach ($subscriptions as $sub):
-    $planCode = htmlspecialchars($sub['plan_code']);
-    $planName = htmlspecialchars($sub['plan_name']);
-?>
-<!-- Slots disponibili -->
 <div id="slots-container" class="row mb-4"></div>
-
-<?php endforeach; ?>
-</div>
 
 <!-- Lista server -->
 <div id="server-list" class="row">
