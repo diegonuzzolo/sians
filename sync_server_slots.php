@@ -3,8 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require 'stripe-php/init.php';
-require 'config/config.php';
+require __DIR__ . '/config/config.php';
 
 echo "[".date('Y-m-d H:i:s')."] Inizio sync server slots...\n";
 
@@ -19,17 +18,26 @@ $stmt = $pdo->prepare("
 $stmt->execute();
 $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
 if (!$activeSubscriptions) {
     echo "Nessuna subscription attiva trovata.\n";
 }
 
 foreach ($activeSubscriptions as $sub) {
-    $userId = $sub['user_id'];
-    $planId = $sub['plan_id'];
     $subscriptionId = $sub['subscription_id'];
+    $stripeCustomerId = $sub['stripe_customer_id'];
+    $planId = $sub['plan_id'];
 
-    // Controlla se lo slot esiste già
+    // --- Recupera user_id corrispondente ---
+    $stmtUser = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id COLLATE utf8mb4_general_ci = ? COLLATE utf8mb4_general_ci");
+    $stmtUser->execute([$stripeCustomerId]);
+    $userId = $stmtUser->fetchColumn();
+
+    if (!$userId) {
+        echo "⚠ Nessun utente trovato per stripe_customer_id={$stripeCustomerId}, subscription_id={$subscriptionId}\n";
+        continue; // salta questa subscription
+    }
+
+    // --- Controlla se lo slot esiste già ---
     $stmtCheck = $pdo->prepare("
         SELECT COUNT(*) 
         FROM server_slots
@@ -39,15 +47,15 @@ foreach ($activeSubscriptions as $sub) {
     $exists = $stmtCheck->fetchColumn();
 
     if (!$exists) {
-        // Inserisce nuovo slot
+        // --- Inserisce nuovo slot ---
         $stmtInsert = $pdo->prepare("
             INSERT INTO server_slots (user_id, plan_id, stripe_subscription_id, status)
             VALUES (?, ?, ?, 'pending')
         ");
         $stmtInsert->execute([$userId, $planId, $subscriptionId]);
-        echo "✔ Slot creato per user_id={$userId}, plan_id={$planId}\n";
+        echo "✔ Slot creato per user_id={$userId}, plan_id={$planId}, subscription_id={$subscriptionId}\n";
     } else {
-        echo "ℹ Slot già esistente per user_id={$userId}, plan_id={$planId}\n";
+        echo "ℹ Slot già esistente per user_id={$userId}, plan_id={$planId}, subscription_id={$subscriptionId}\n";
     }
 }
 
