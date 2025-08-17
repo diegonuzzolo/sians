@@ -82,6 +82,7 @@ foreach ($subscriptions as $sub):
     $planName = htmlspecialchars($sub['plan_name']);
 ?>
 <!-- Slots disponibili -->
+<div id="slots-container" class="row mb-4"></div>
 
 <?php endforeach; ?>
 </div>
@@ -185,7 +186,7 @@ function deleteServer(serverId, vmid) {
         .then(data => {
             if (data.success) {
                 document.getElementById('server-' + serverId)?.remove();
-                refreshSlots(); // ricompare slot se disponibile
+                refreshSlots();
             } else {
                 alert("Errore eliminazione server: " + data.message);
             }
@@ -213,8 +214,10 @@ function controlServer(serverId, action) {
     })
     .catch(err => console.error(err));
 }
+
 function startServer(serverId){ controlServer(serverId,'start'); }
 function stopServer(serverId){ controlServer(serverId,'stop'); }
+
 function updateButtons(serverId,status){
     const startBtn=document.getElementById('start-'+serverId);
     const stopBtn=document.getElementById('stop-'+serverId);
@@ -223,24 +226,24 @@ function updateButtons(serverId,status){
     else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
 
-    function refreshSlots() {
+// --- AGGIORNA GLI SLOT DISPONIBILI ---
+function refreshSlots() {
     fetch('ajax_check_slots.php')
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('slots-container');
-            container.innerHTML = '';
-
-            for (const planId in data) {
-                const slots = data[planId];
+            container.innerHTML = ''; // Pulisce tutte le card
+            for (const planCode in data) {
+                const slots = data[planCode];
                 if (slots > 0) {
                     const div = document.createElement('div');
                     div.className = 'col-md-4 mb-3 card-slot';
-                    div.dataset.planId = planId;
+                    div.dataset.planCode = planCode;
                     div.innerHTML = `
                         <div class="card shadow p-3 rounded card-server">
-                            <div class="card-header-plan">${planId}</div>
+                            <div class="card-header-plan">${planCode}</div>
                             <p class="slot-count">${slots} slot disponibili</p>
-                            <a href="javascript:void(0);" onclick="createServerSlot('${planId}', this)" class="btn btn-success btn-slot">Crea Server</a>
+                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot">Crea Server</a>
                         </div>
                     `;
                     container.appendChild(div);
@@ -250,9 +253,12 @@ function updateButtons(serverId,status){
         .catch(err => console.error(err));
 }
 
-
-
+// --- CHIAMATA INIZIALE AL CARICAMENTO PAGINA ---
+document.addEventListener('DOMContentLoaded', () => {
+    refreshSlots();
+});
 </script>
+
 <?php include "includes/footer.php"; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
