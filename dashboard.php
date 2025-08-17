@@ -29,16 +29,18 @@ if (!$stripeCustomerId) {
     $subscriptions = []; // Nessuna subscription
 } else {
     // Subscription e slot disponibili
-   $stmtSub = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
-    FROM subscriptions sub
-    JOIN plans p ON p.id = sub.stripe_price_id
-    WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
-");
+    $stmt = $pdo->prepare("
+        SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
+        FROM subscriptions sub
+        JOIN plans p ON p.id = sub.stripe_price_id
+        WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
+    ");
+    $stmt->execute([$stripeCustomerId]);
 }
 
-$stmtSub->execute([$stripeCustomerId]);
-$subscriptions = $stmtSub->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt->execute([$userId]);
+$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Mappa piano -> subscription
 $subsByPlan = [];
