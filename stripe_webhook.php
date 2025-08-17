@@ -10,10 +10,22 @@ require_once("config/config.php");
 
 // Secret del webhook (lo trovi nella dashboard o da CLI con "stripe listen")
 $endpoint_secret = 'whsec_N6FUKDFe7lZcDLjnpNhUskUkBsSsrQAQ';
+$sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
 
 $payload = @file_get_contents('php://input');
-$sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
-$event = null;
+if (!$payload) {
+    http_response_code(400);
+    exit('Payload vuoto');
+}
+
+$data = json_decode($payload, true);
+if (json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(400);
+    exit('JSON non valido: ' . json_last_error_msg());
+}
+
+$event = \Stripe\Event::constructFrom($data);
+
 
 try {
     if ($endpoint_secret) {
@@ -36,7 +48,8 @@ try {
 }
 
 // Funzione per loggare debug
-function logStripe($msg) {
+function logStripe($msg)
+{
     file_put_contents("stripe_debug.log", date("[Y-m-d H:i:s] ") . $msg . "\n", FILE_APPEND);
 }
 
