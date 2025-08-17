@@ -224,7 +224,6 @@ function updateButtons(serverId,status){
     else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
 
-// --- AGGIORNA GLI SLOT E LE CARDS ---
 function refreshSlots() {
     fetch('ajax_check_slots.php')
         .then(res => res.json())
@@ -232,15 +231,16 @@ function refreshSlots() {
             const container = document.getElementById('slots-container');
             container.innerHTML = ''; // pulisce tutte le card
             for (const planCode in data) {
-                if (data[planCode] > 0) {
+                const slots = data[planCode];
+                if (slots > 0) {
                     const div = document.createElement('div');
                     div.className = 'col-md-4 mb-3 card-slot';
                     div.dataset.planCode = planCode;
                     div.innerHTML = `
                         <div class="card shadow p-3 rounded card-server">
                             <div class="card-header-plan">${planCode}</div>
-                            <p class="slot-count" data-plan-code="${planCode}">${data[planCode]} slot disponibili</p>
-                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot" data-plan-code="${planCode}">Crea Server</a>
+                            <p class="slot-count">${slots} slot disponibili</p>
+                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot">Crea Server</a>
                         </div>
                     `;
                     container.appendChild(div);
@@ -249,6 +249,7 @@ function refreshSlots() {
         })
         .catch(err => console.error(err));
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     refreshSlots();
 });
