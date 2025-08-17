@@ -53,6 +53,7 @@ function logStripe($msg)
     file_put_contents("stripe_debug.log", date("[Y-m-d H:i:s] ") . $msg . "\n", FILE_APPEND);
 }
 
+
 // Gestione eventi
 switch ($event->type) {
 
@@ -73,13 +74,18 @@ switch ($event->type) {
             $currentPeriodEnd = isset($subscription->current_period_end)
                 ? date('Y-m-d H:i:s', $subscription->current_period_end)
                 : null;
-
+            $stmtUser = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id = ?");
+            $stmtUser->execute([$customerId]);
+            $userId = $stmtUser->fetchColumn();
             if ($planId) {
                 $stmt = $pdo->prepare("INSERT INTO subscriptions 
-                    (stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE status=VALUES(status), current_period_end=VALUES(current_period_end)");
-                $stmt->execute([$customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
+        (user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+            stripe_price_id=VALUES(stripe_price_id),
+            status=VALUES(status),
+            current_period_end=VALUES(current_period_end)");
+                $stmt->execute([$userId, $customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
             }
         }
         break;
