@@ -85,12 +85,7 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
     $session = \Stripe\Checkout\Session::retrieve($checkoutSessionId);
     $stripeSubscription = \Stripe\Subscription::retrieve($session->subscription);
 
-    $stmtInsert = $pdo->prepare("
-    INSERT IGNORE INTO server_slots (user_id, plan_id, stripe_subscription_id, status)
-    VALUES (?, ?, ?, 'pending')
-");
-    $stmtInsert->execute([$userId, $planId, $stripeSubscriptionId]);
-
+    include "sync_server_slots.php";
 
     // Redireziona alla dashboard
     header("Location: dashboard.php?subscription=success");
