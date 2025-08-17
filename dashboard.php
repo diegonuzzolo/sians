@@ -22,10 +22,12 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Subscription e slot disponibili
 $stmt = $pdo->prepare("
     SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
-    FROM subscriptions sub
-    JOIN plans p ON p.id = sub.plan_id
-    WHERE sub.customer_id = ? AND sub.status = 'active'
+    FROM subscribes sub
+    JOIN plans p ON p.id = sub.stripe_price_id
+    WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
 ");
+$stmt->execute([$stripeCustomerId]);
+
 $stmt->execute([$userId]);
 $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
