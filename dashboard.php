@@ -8,7 +8,12 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Server attivi
+// --- Recupera lo Stripe Customer ID dell'utente loggato ---
+$stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$stripeCustomerId = $stmt->fetchColumn();
+
+// --- Server attivi ---
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type,
            c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
@@ -19,16 +24,9 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Subscription e slot disponibili
-// Recupera lo Stripe Customer ID dell'utente loggato
-$stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
-$stmt->execute([$userId]);
-$stripeCustomerId = $stmt->fetchColumn();
-
-if (!$stripeCustomerId) {
-    $subscriptions = []; // Nessuna subscription
-} else {
-    // Subscription e slot disponibili
+// --- Subscription e slot disponibili ---
+$subscriptions = [];
+if ($stripeCustomerId) {
     $stmt = $pdo->prepare("
         SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
         FROM subscriptions sub
@@ -36,13 +34,10 @@ if (!$stripeCustomerId) {
         WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
     ");
     $stmt->execute([$stripeCustomerId]);
+    $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-
-$stmt->execute([$userId]);
-$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Mappa piano -> subscription
+// --- Mappa piano -> subscription ---
 $subsByPlan = [];
 foreach ($subscriptions as $sub) {
     $subsByPlan[$sub['plan_code']] = $sub;
@@ -76,14 +71,15 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 
 <!-- Slots disponibili -->
 <div id="slots-container" class="row mb-4">
-<?php
-foreach ($subscriptions as $sub):
-    $planCode = htmlspecialchars($sub['plan_code']);
-    $planName = htmlspecialchars($sub['plan_name']);
-?>
-<!-- Slots disponibili -->
-<div id="slots-container" class="row mb-4"></div>
-
+<?php foreach ($subscriptions as $sub): ?>
+    <?php $planCode = htmlspecialchars($sub['plan_code']); ?>
+    <div class="col-md-4 mb-3 card-slot" data-plan-code="<?= $planCode ?>">
+        <div class="card shadow p-3 rounded card-server">
+            <div class="card-header-plan"><?= $planCode ?></div>
+            <p class="slot-count" data-plan-code="<?= $planCode ?>">Slot in caricamento...</p>
+            <a href="javascript:void(0);" onclick="createServerSlot('<?= $planCode ?>', this)" class="btn btn-success btn-slot" data-plan-code="<?= $planCode ?>">Crea Server</a>
+        </div>
+    </div>
 <?php endforeach; ?>
 </div>
 
@@ -224,40 +220,27 @@ function updateButtons(serverId,status){
     else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
 
-// --- AGGIORNA GLI SLOT E LE CARDS ---
+// --- AGGIORNA GLI SLOT ---
 function refreshSlots() {
     fetch('ajax_check_slots.php')
         .then(res => res.json())
         .then(data => {
-            const container = document.getElementById('slots-container');
-            container.innerHTML = ''; // pulisce tutte le card
-            for (const planCode in data) {
-                if (data[planCode] > 0) {
-                    const div = document.createElement('div');
-                    div.className = 'col-md-4 mb-3 card-slot';
-                    div.dataset.planCode = planCode;
-                    div.innerHTML = `
-                        <div class="card shadow p-3 rounded card-server">
-                            <div class="card-header-plan">${planCode}</div>
-                            <p class="slot-count" data-plan-code="${planCode}">${data[planCode]} slot disponibili</p>
-                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot" data-plan-code="${planCode}">Crea Server</a>
-                        </div>
-                    `;
-                    container.appendChild(div);
+            document.querySelectorAll('.slot-count').forEach(el => {
+                const planCode = el.dataset.planCode;
+                if (data[planCode] !== undefined) {
+                    el.textContent = data[planCode] + " slot disponibili";
+                } else {
+                    el.textContent = "0 slot disponibili";
                 }
-            }
+            });
         })
         .catch(err => console.error(err));
 }
 document.addEventListener('DOMContentLoaded', () => {
     refreshSlots();
 });
-
-
-
 </script>
 <?php include "includes/footer.php"; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
