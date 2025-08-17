@@ -90,7 +90,6 @@ switch ($event->type) {
 
         logStripe("Subscription update: " . json_encode($subscription));
 
-        
         $subscriptionId = $subscription->id ?? null;
         $customerId = $subscription->customer ?? null;
         $status = $subscription->status ?? null;
