@@ -8,19 +8,17 @@ require 'config/config.php';
 
 echo "[".date('Y-m-d H:i:s')."] Inizio sync server slots...\n";
 
-// --- Recupera tutte le subscription attive e gli user_id ---
+// --- Recupera tutte le subscription attive ---
 $stmt = $pdo->prepare("
-    SELECT sub.id AS subscription_id,
-           sub.stripe_customer_id,
-           sub.stripe_price_id AS plan_id,
-           u.id AS user_id
-    FROM subscriptions sub
-    JOIN users u 
-      ON u.stripe_customer_id COLLATE utf8mb4_general_ci = sub.stripe_customer_id COLLATE utf8mb4_general_ci
-    WHERE sub.status = 'active'
+    SELECT id AS subscription_id,
+           stripe_customer_id,
+           stripe_price_id AS plan_id
+    FROM subscriptions
+    WHERE status = 'active'
 ");
 $stmt->execute();
 $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 
 if (!$activeSubscriptions) {
     echo "Nessuna subscription attiva trovata.\n";
