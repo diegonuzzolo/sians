@@ -5,35 +5,23 @@ error_reporting(E_ALL);
 
 require_once("stripe-php/init.php");
 require_once("config/config.php");
-// Imposta API key
+
 \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
 
-// Secret del webhook (lo trovi nella dashboard o da CLI con "stripe listen")
 $endpoint_secret = 'whsec_N6FUKDFe7lZcDLjnpNhUskUkBsSsrQAQ';
 $sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
-
 $payload = @file_get_contents('php://input');
+
 if (!$payload) {
     http_response_code(400);
     exit('Payload vuoto');
 }
 
-$data = json_decode($payload, true);
-if (json_last_error() !== JSON_ERROR_NONE) {
-    http_response_code(400);
-    exit('JSON non valido: ' . json_last_error_msg());
-}
-
-$event = \Stripe\Event::constructFrom($data);
-
-
 try {
     if ($endpoint_secret) {
-        // $event = \Stripe\Webhook::constructEvent(
-        //     $payload, $sig_header, $endpoint_secret
-        // );
-        $event = \Stripe\Event::constructFrom(json_decode($payload, true));
-
+        $event = \Stripe\Webhook::constructEvent(
+            $payload, $sig_header, $endpoint_secret
+        );
     } else {
         $event = \Stripe\Event::constructFrom(
             json_decode($payload, true)
@@ -47,39 +35,32 @@ try {
     exit("⚠️ Invalid signature");
 }
 
-// Funzione per loggare debug
-function logStripe($msg)
-{
+// Funzione log
+function logStripe($msg) {
     file_put_contents("stripe_debug.log", date("[Y-m-d H:i:s] ") . $msg . "\n", FILE_APPEND);
 }
 
-// Gestione eventi
 switch ($event->type) {
 
     case 'checkout.session.completed':
         $session = $event->data->object;
-
         logStripe("Checkout session completed: " . json_encode($session));
 
         $customerId = $session->customer ?? null;
         $subscriptionId = $session->subscription ?? null;
 
         if ($customerId && $subscriptionId) {
-            // Recupera la subscription per avere il price_id
             $subscription = \Stripe\Subscription::retrieve($subscriptionId);
-
             $planId = $subscription->items->data[0]->price->id ?? null;
-            $status = $subscription->status ?? null;
-            $currentPeriodEnd = isset($subscription->current_period_end)
-                ? date('Y-m-d H:i:s', $subscription->current_period_end)
-                : null;
 
+            // Inserisci slot
             if ($planId) {
-                $stmt = $pdo->prepare("INSERT INTO subscriptions 
-                    (stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE status=VALUES(status), current_period_end=VALUES(current_period_end)");
-                $stmt->execute([$customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
+                $stmt = $pdo->prepare("INSERT INTO server_slots (user_id, plan_id, stripe_subscription_id, status) 
+                                        VALUES (?, ?, ?, 'pending')
+                                        ON DUPLICATE KEY UPDATE plan_id=VALUES(plan_id), status='pending'");
+                // ⚠️ user_id andrebbe mappato: qui serve logica per ricavarlo dal customer Stripe
+                $userId = 1; // esempio: sostituisci con lookup in tabella users
+                $stmt->execute([$userId, $planId, $subscriptionId]);
             }
         }
         break;
@@ -87,36 +68,29 @@ switch ($event->type) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
         $subscription = $event->data->object;
-
         logStripe("Subscription update: " . json_encode($subscription));
 
         $subscriptionId = $subscription->id ?? null;
         $customerId = $subscription->customer ?? null;
         $status = $subscription->status ?? null;
         $planId = $subscription->items->data[0]->price->id ?? null;
-        $currentPeriodEnd = isset($subscription->current_period_end)
-            ? date('Y-m-d H:i:s', $subscription->current_period_end)
-            : null;
 
         if ($subscriptionId && $customerId) {
-            $stmt = $pdo->prepare("INSERT INTO subscriptions 
-                (stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE stripe_price_id=VALUES(stripe_price_id),
-                                        status=VALUES(status),
-                                        current_period_end=VALUES(current_period_end)");
-            $stmt->execute([$customerId, $subscriptionId, $planId, $status, $currentPeriodEnd]);
+            // Aggiorna slot
+            $stmt = $pdo->prepare("UPDATE server_slots 
+                                   SET plan_id=?, status=? 
+                                   WHERE stripe_subscription_id=?");
+            $stmt->execute([$planId, $status === 'active' ? 'created' : 'pending', $subscriptionId]);
         }
         break;
 
     case 'customer.subscription.deleted':
         $subscription = $event->data->object;
         $subscriptionId = $subscription->id ?? null;
-
         logStripe("Subscription deleted: " . json_encode($subscription));
 
         if ($subscriptionId) {
-            $stmt = $pdo->prepare("UPDATE subscriptions SET status='canceled' WHERE stripe_subscription_id=?");
+            $stmt = $pdo->prepare("DELETE FROM server_slots WHERE stripe_subscription_id=?");
             $stmt->execute([$subscriptionId]);
         }
         break;
