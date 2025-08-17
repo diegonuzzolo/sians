@@ -24,7 +24,7 @@ $stmt = $pdo->prepare("
     SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
     FROM subscriptions sub
     JOIN plans p ON p.id = sub.plan_id
-    WHERE sub.user_id=? AND sub.status='active'
+    WHERE sub.customer_id = ? AND sub.status = 'active'
 ");
 $stmt->execute([$userId]);
 $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
