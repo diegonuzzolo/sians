@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Piano non valido.");
 
     // Verifica se l'utente ha già subscription
-    $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE stripe_customer_id=? AND stripe_subscription_id=? LIMIT 1");
     $stmt->execute([$userId, $plan['id']]);
     $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
