@@ -32,6 +32,12 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 // Includi l'header all'inizio del file per generare l'HTML corretto
 include 'includes/header.php';
 ?>
+<style>
+    .collapse.show {
+    display: block !important;
+}
+
+</style>
 
 <div class="container my-5">
     <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
@@ -241,6 +247,7 @@ include 'includes/header.php';
 
 <?php include "includes/footer.php"; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 
 </html>
