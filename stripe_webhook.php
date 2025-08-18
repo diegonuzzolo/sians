@@ -149,6 +149,20 @@ switch ($event->type) {
         if (!$userId) { logStripe("❌ user_id non risolto per customer=$customerId"); break; }
 
         upsertSubscription($pdo, $userId, $customerId, $subscriptionId, $priceId, $status, $cpe);
+        // Crea uno slot pending se non esiste già per questa subscription
+$stmt = $pdo->prepare("SELECT id FROM server_slots WHERE stripe_subscription_id = ?");
+$stmt->execute([$subscriptionId]);
+$exists = $stmt->fetchColumn();
+
+if (!$exists) {
+    $stmt = $pdo->prepare("
+        INSERT INTO server_slots (user_id, plan_id, stripe_subscription_id, status, server_id, created_at)
+        VALUES (?, ?, ?, 'pending', NULL, NOW())
+    ");
+    $stmt->execute([$userId, $priceId, $subscriptionId]);
+    logStripe("✅ Creato nuovo slot pending per user=$userId, sub=$subscriptionId, plan=$priceId");
+}
+
         break;
     }
 
