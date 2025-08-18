@@ -2,9 +2,7 @@
 require_once __DIR__ . '/../includes/force_https.php';
 
 ?>
-<!DOCTYPE html>
-<html lang="it">
-<head>
+
 <?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -29,9 +27,6 @@ if (isset($_SESSION['user_id'])) {
 // Usa username dalla variabile $username se esiste, altrimenti dalla sessione, altrimenti fallback "Utente"
 $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
 ?>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sians - Minecraft Bedrock</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
@@ -250,8 +245,6 @@ $username_display = $username ?? ($_SESSION['username'] ?? 'Utente');
     text-decoration: underline;
   }
 </style>
-</head>
-<body>
 
 <?php
 // Usa questa variabile per mostrare username nella navbar
