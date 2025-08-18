@@ -17,7 +17,7 @@ if ($vmid <= 0) {
 try {
     $pdo->beginTransaction();
 
-    // --- Recupera l'ID del server, l'ID dello slot e le risorse ---
+    // --- Recupera server, slot e risorse ---
     $stmt = $pdo->prepare("
         SELECT s.id AS server_id, s.slot_id, s.cpu_cores, c.ram_mb, c.storage_gb, c.proxmox_containerId
         FROM servers s
@@ -37,7 +37,7 @@ try {
     $usedRam = intval($server['ram_mb']);
     $usedStorage = intval($server['storage_gb']);
 
-    // --- Stop container su Proxmox (se non già spento) ---
+    // --- Stop container su Proxmox ---
     $stopUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop";
     $stopResult = callProxmox($stopUrl, 'POST');
     if (!$stopResult['success']) {
@@ -45,13 +45,13 @@ try {
     }
     sleep(4);
 
-    // --- Distruggi container ---
+    // --- Distruggi container su Proxmox ---
     $destroyUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
     $destroyResult = callProxmox($destroyUrl, 'DELETE');
     if (!$destroyResult['success']) {
         throw new Exception("Errore durante la distruzione del container: " . $destroyResult['message']);
     }
-    
+
     // --- Aggiorna tabella resources ---
     $stmt = $pdo->prepare("
         UPDATE resources
@@ -63,7 +63,7 @@ try {
     ");
     $stmt->execute([$usedCpu, $usedRam, $usedStorage]);
     
-    // --- LIBERA LO SLOT nella tabella server_slots ---
+    // --- Libera lo slot nella tabella server_slots ---
     $stmt = $pdo->prepare("UPDATE server_slots SET server_id=NULL, status='active' WHERE id = ?");
     $stmt->execute([$slotId]);
 

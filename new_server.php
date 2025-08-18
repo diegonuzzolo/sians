@@ -96,15 +96,7 @@ exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remo
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp /root/setup_server.sh\"");
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"");
 
-// Risposta JSON per frontend
-echo json_encode([
-    'success' => true,
-    'server_id' => $serverId,
-    'container_id' => $containerId,
-    'vmid' => $vmid,
-    'ip' => $vmIp,
-    'message' => 'Server creato correttamente'
-]);
+header("Location: dashboard.php?msg=Server creato con successo");
 
 exit;
 ?>
