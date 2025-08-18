@@ -242,41 +242,26 @@ include 'includes/header.php';
             });
         });
     });
- const modal = document.getElementById('customModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalMessage = document.getElementById('modalMessage');
+function promptAndCreateServer(planCode, slotId) {
+    let serverName = prompt("Inserisci un nome per il tuo server:");
 
-    function showModal(title, message) {
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-        modal.classList.remove('hidden');
+    if (serverName === null) return; // Annulla
+    serverName = serverName.trim();
+    if (serverName === "") {
+        alert("Il nome del server non può essere vuoto.");
+        return;
     }
 
-    function hideModal() {
-        modal.classList.add('hidden');
+    const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
+        btn.textContent = "Creazione in corso…";
     }
 
-    // Funzione per chiedere il nome del server e reindirizzare
-    function promptAndCreateServer(planCode, slotId) {
-        let serverName = prompt("Inserisci un nome per il tuo server:");
-        
-        if (serverName === null) return;
-        serverName = serverName.trim();
-        if (serverName === "") {
-            showModal("Nome non valido", "Il nome del server non può essere vuoto.");
-            return;
-        }
+    window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
+}
 
-        const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
-        if (btn) {
-            // Blocca il pulsante e cambia il testo
-            btn.disabled = true;
-            btn.textContent = "Creazione in corso…";
-        }
-
-        // Reindirizza alla pagina di creazione con il nome
-        window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
-    }
 
 </script>
 </body>
