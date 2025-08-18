@@ -230,6 +230,79 @@ include 'includes/header.php';
             })
             .catch(err => console.error(err));
     }
+       document.addEventListener('DOMContentLoaded', function() {
+        const slotsContainer = document.querySelector('#slots-container');
+
+        // Funzione per aggiornare lo stato di un singolo slot
+        function updateSlotStatus(slotId) {
+            fetch(`check_slot_status.php?slot_id=${slotId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
+                    if (slotCard) {
+                        if (data.status === 'created') {
+                            // Se lo stato è "created", nascondi lo slot
+                            slotCard.style.display = 'none';
+                            // Opzionale: mostra un messaggio o un loader
+                        } else if (data.status === 'pending') {
+                            // Se lo stato è "pending", mostra un loader o un messaggio di attesa
+                            slotCard.classList.add('pending');
+                            slotCard.innerHTML = `
+                                <div class="text-center p-4">
+                                    <i class="bi bi-gear-wide-connected text-6xl animate-spin text-blue-500"></i>
+                                    <p class="mt-4 text-white font-semibold">Creazione server in corso...</p>
+                                </div>
+                            `;
+                        } else {
+                            // Se lo stato è "active", mostra lo slot come disponibile
+                            slotCard.style.display = 'block';
+                            slotCard.classList.remove('pending');
+                            slotCard.innerHTML = `
+                                `;
+                        }
+                    }
+                })
+                .catch(error => console.error('Errore durante il fetch dello stato dello slot:', error));
+        }
+
+        // Funzione che fa il polling su tutti gli slot "pending"
+        function pollSlots() {
+            // Seleziona solo le card con lo stato "pending" o "creating"
+            const pendingSlots = document.querySelectorAll('.slot-card.pending');
+            if (pendingSlots.length > 0) {
+                pendingSlots.forEach(slotCard => {
+                    const slotId = slotCard.dataset.slotId;
+                    updateSlotStatus(slotId);
+                });
+            }
+        }
+
+        // Avvia il polling ogni 5 secondi
+        setInterval(pollSlots, 5000);
+
+        // Funzione per gestire la creazione del server
+        // Questa parte gestisce il click e aggiorna l'UI immediatamente
+        document.querySelectorAll('.create-server-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                const slotId = this.dataset.slotId;
+                const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
+                
+                // Aggiorna l'UI per mostrare lo stato di attesa
+                if (slotCard) {
+                    slotCard.classList.add('pending');
+                    slotCard.innerHTML = `
+                        <div class="text-center p-4">
+                            <i class="bi bi-gear-wide-connected text-6xl animate-spin text-blue-500"></i>
+                            <p class="mt-4 text-white font-semibold">Creazione server in corso...</p>
+                        </div>
+                    `;
+                }
+
+                // Qui dovresti avviare la chiamata AJAX per la creazione del server (new_server.php)
+                // e gestire la risposta
+            });
+        });
+    });
 </script>
 </body>
 </html>
