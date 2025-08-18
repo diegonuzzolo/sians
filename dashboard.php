@@ -8,7 +8,7 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// --- Server attivi ---
+// Server attivi
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type,
            c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
@@ -19,25 +19,37 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// --- Slots disponibili (per render iniziale) ---
-$slots = [];
-if ($userId) {
+// Subscription e slot disponibili
+// Recupera lo Stripe Customer ID dell'utente loggato
+$stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$stripeCustomerId = $stmt->fetchColumn();
+
+if (!$stripeCustomerId) {
+    $subscriptions = []; // Nessuna subscription
+} else {
+    // Subscription e slot disponibili
     $stmt = $pdo->prepare("
-        SELECT ss.*, 
-               p.code AS plan_code, 
-               p.name AS plan_name, 
-               p.ram_gb, 
-               p.cpu_cores
-        FROM server_slots ss
-        JOIN plans p ON p.id = ss.plan_id
-        WHERE ss.user_id = ?
+        SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
+        FROM subscriptions sub
+        JOIN plans p ON p.id = sub.stripe_price_id
+        WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
     ");
-    $stmt->execute([$userId]);
-    $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$stripeCustomerId]);
+}
+
+
+$stmt->execute([$userId]);
+$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Mappa piano -> subscription
+$subsByPlan = [];
+foreach ($subscriptions as $sub) {
+    $subsByPlan[$sub['plan_code']] = $sub;
 }
 ?>
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -55,73 +67,61 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 .btn-server { width:48%; margin-top:5px;}
 .server-actions { display:flex; justify-content:space-between; margin-top:8px;}
 .card-header-plan { font-weight:bold; text-align:center; background-color:#00c8ff; color:#121212; padding:8px; border-radius:10px; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;}
+.slot-count { text-align:center; font-weight:bold; margin-bottom:8px;}
 .btn-slot { width:100%; }
 </style>
 <?php include('includes/header.php'); ?>
 <div class="container my-5">
-    <h2 class="mb-4 text-center display-5 fw-bold">🎮 I tuoi server</h2>
+<h2 class="mb-4 text-center display-5 fw-bold">🎮 I tuoi server</h2>
 
-    <!-- Slots disponibili -->
-    <h4 class="mb-3">🟦 Slot disponibili</h4>
-    <div id="slots-container" class="row mb-4">
-        <?php if (!empty($slots)): ?>
-            <?php foreach ($slots as $slot): ?>
-                <div class="col-md-4 mb-3 card-slot" data-plan-code="<?= htmlspecialchars($slot['plan_code']) ?>">
-                    <div class="card shadow-sm text-dark">
-                        <div class="card-body">
-                            <h5 class="card-title"><?= htmlspecialchars($slot['plan_name']) ?></h5>
-                            <p>RAM: <?= htmlspecialchars($slot['ram_gb']) ?>GB | CPU: <?= htmlspecialchars($slot['cpu_cores']) ?> core</p>
-                            <p>Status: <?= htmlspecialchars($slot['status']) ?></p>
-                            <?php if ($slot['server_id']): ?>
-                                <span class="badge bg-success">Server collegato: <?= htmlspecialchars($slot['server_id']) ?></span>
-                            <?php else: ?>
-                                <a href="javascript:void(0);" class="btn btn-success btn-slot" onclick="createServerSlot('<?= $slot['plan_code'] ?>', this)">Crea Server</a>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <p>Nessuno slot disponibile.</p>
-        <?php endif; ?>
-    </div>
+<!-- Slots disponibili -->
+<div id="slots-container" class="row mb-4">
+<?php
+foreach ($subscriptions as $sub):
+    $planCode = htmlspecialchars($sub['plan_code']);
+    $planName = htmlspecialchars($sub['plan_name']);
+?>
+<!-- Slots disponibili -->
+<div id="slots-container" class="row mb-4"></div>
 
-    <!-- Lista server -->
-    <h4 class="mb-3">🟩 Server attivi</h4>
-    <div id="server-list" class="row">
-        <?php foreach ($servers as $server):
-            $statusClass = ($server['status']==='running')?'status-running':'status-stopped';
-        ?>
-        <div class="col-md-4 mb-3" id="server-<?= $server['id'] ?>">
-            <div class="card card-server p-3 shadow">
-                <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
-                <div class="server-ip">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></div>
-                <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>"><?= ucfirst($server['status']) ?></span>
-
-                <div class="server-actions">
-                    <button id="start-<?= $server['id'] ?>" class="btn btn-success btn-server" onclick="startServer(<?= $server['id'] ?>)" <?= $server['status']==='running'?'disabled':'' ?>>Avvia</button>
-                    <button id="stop-<?= $server['id'] ?>" class="btn btn-danger btn-server" onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status']==='stopped'?'disabled':'' ?>>Ferma</button>
-                </div>
-
-                <div class="server-actions mt-2">
-                    <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-server">Gestisci</a>
-                    <button class="btn btn-outline-danger btn-server" onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')">Elimina</button>
-                </div>
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
+<?php endforeach; ?>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Lista server -->
+<div id="server-list" class="row">
+<?php foreach ($servers as $server):
+    $statusClass = ($server['status']==='running')?'status-running':'status-stopped';
+?>
+<div class="col-md-4 mb-3" id="server-<?= $server['id'] ?>">
+    <div class="card card-server p-3 shadow">
+        <div class="server-name"><?= htmlspecialchars($server['name']) ?></div>
+        <div class="server-ip">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></div>
+        <span id="status-<?= $server['id'] ?>" class="status-badge <?= $statusClass ?>"><?= ucfirst($server['status']) ?></span>
+
+        <div class="server-actions">
+            <button id="start-<?= $server['id'] ?>" class="btn btn-success btn-server" onclick="startServer(<?= $server['id'] ?>)" <?= $server['status']==='running'?'disabled':'' ?>>Avvia</button>
+            <button id="stop-<?= $server['id'] ?>" class="btn btn-danger btn-server" onclick="stopServer(<?= $server['id'] ?>)" <?= $server['status']==='stopped'?'disabled':'' ?>>Ferma</button>
+        </div>
+
+        <div class="server-actions mt-2">
+            <a href="manage_server.php?id=<?= $server['id'] ?>" class="btn btn-primary btn-server">Gestisci</a>
+            <button class="btn btn-outline-danger btn-server" onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')">Elimina</button>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
+</div>
+</div>
+
 <script>
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-const creatingServers = {};
+const creatingServers = {}; // Stato creazione per piano
 
-// --- Creazione server ---
+// --- FUNZIONE CREAZIONE SERVER ---
 function createServerSlot(planCode, btnElement) {
     if (creatingServers[planCode]) return;
     creatingServers[planCode] = true;
+
     btnElement.disabled = true;
     const originalText = btnElement.textContent;
     btnElement.textContent = 'Creazione in corso...';
@@ -151,100 +151,113 @@ function createServerSlot(planCode, btnElement) {
         });
 }
 
-// --- Aggiunge server alla lista ---
+// --- AGGIUNGE IL SERVER ALLA LISTA ---
 function addServerCard(serverId, serverName, vmid, ip) {
-    const serverList = $("#server-list");
-    const div = $(`
-        <div class="col-md-4 mb-3" id="server-${serverId}">
-            <div class="card card-server p-3 shadow">
-                <div class="server-name">${serverName}</div>
-                <div class="server-ip">VMID: ${vmid} | IP: ${ip}</div>
-                <span id="status-${serverId}" class="status-badge status-stopped">Spento</span>
-                <div class="server-actions mt-2">
-                    <button id="start-${serverId}" class="btn btn-success btn-server" onclick="startServer(${serverId})">Avvia</button>
-                    <button id="stop-${serverId}" class="btn btn-danger btn-server" onclick="stopServer(${serverId})" disabled>Ferma</button>
-                </div>
-                <div class="server-actions mt-2">
-                    <a href="manage_server.php?id=${serverId}" class="btn btn-primary btn-server">Gestisci</a>
-                    <button class="btn btn-outline-danger btn-server" onclick="deleteServer(${serverId}, '${vmid}')">Elimina</button>
-                </div>
+    const serverList = document.getElementById('server-list');
+    if (!serverList) return;
+
+    const div = document.createElement('div');
+    div.className = 'col-md-4 mb-3';
+    div.id = 'server-' + serverId;
+    div.innerHTML = `
+        <div class="card card-server p-3 shadow">
+            <div class="server-name">${serverName}</div>
+            <div class="server-ip">VMID: ${vmid} | IP: ${ip}</div>
+            <span id="status-${serverId}" class="status-badge status-stopped">Spento</span>
+            <div class="server-actions mt-2">
+                <button id="start-${serverId}" class="btn btn-success btn-server" onclick="startServer(${serverId})">Avvia</button>
+                <button id="stop-${serverId}" class="btn btn-danger btn-server" onclick="stopServer(${serverId})" disabled>Ferma</button>
+            </div>
+            <div class="server-actions mt-2">
+                <a href="manage_server.php?id=${serverId}" class="btn btn-primary btn-server">Gestisci</a>
+                <button class="btn btn-outline-danger btn-server" onclick="deleteServer(${serverId}, '${vmid}')">Elimina</button>
             </div>
         </div>
-    `);
+    `;
     serverList.prepend(div);
 }
 
-// --- Elimina server ---
+// --- ELIMINA SERVER ---
 function deleteServer(serverId, vmid) {
     if (!confirm('Sei sicuro di voler eliminare questo server?')) return;
+
     fetch(`delete_server.php?vmid=${vmid}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                $(`#server-${serverId}`).remove();
-                refreshSlots();
+                document.getElementById('server-' + serverId)?.remove();
+                refreshSlots(); // ricompare slot se disponibile
             } else {
                 alert("Errore eliminazione server: " + data.message);
             }
-        }).catch(err => console.error(err));
+        })
+        .catch(err => console.error(err));
 }
 
-// --- Start/Stop server ---
+// --- CONTROLLO SERVER (start/stop) ---
 function controlServer(serverId, action) {
-    $.post('ajax_server_control.php', {action, id: serverId, csrf_token: csrfToken}, function(data) {
+    fetch('ajax_server_control.php', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'action=' + encodeURIComponent(action) + '&id=' + serverId + '&csrf_token=' + encodeURIComponent(csrfToken)
+    })
+    .then(res => res.json())
+    .then(data => {
         if (data.success && data.status) {
-            const statusEl = $(`#status-${serverId}`);
-            statusEl.text(data.status==='running'?'Attivo':'Spento')
-                    .removeClass('status-running status-stopped')
-                    .addClass(data.status==='running'?'status-running':'status-stopped');
+            const statusEl = document.getElementById('status-' + serverId);
+            if (statusEl) {
+                statusEl.textContent = (data.status==='running')?'Attivo':'Spento';
+                statusEl.className = 'status-badge ' + (data.status==='running'?'status-running':'status-stopped');
+            }
             updateButtons(serverId, data.status);
         }
-    }, 'json');
+    })
+    .catch(err => console.error(err));
 }
-function startServer(id){ controlServer(id,'start'); }
-function stopServer(id){ controlServer(id,'stop'); }
-function updateButtons(id,status){
-    $(`#start-${id}`).prop('disabled', status==='running');
-    $(`#stop-${id}`).prop('disabled', status==='stopped');
+function startServer(serverId){ controlServer(serverId,'start'); }
+function stopServer(serverId){ controlServer(serverId,'stop'); }
+function updateButtons(serverId,status){
+    const startBtn=document.getElementById('start-'+serverId);
+    const stopBtn=document.getElementById('stop-'+serverId);
+    if(!startBtn || !stopBtn) return;
+    if(status==='running'){ startBtn.disabled=true; stopBtn.disabled=false; }
+    else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
 
-// --- Refresh slots dinamico ---
+// --- AGGIORNA GLI SLOT E LE CARDS ---
 function refreshSlots() {
-    $.getJSON("ajax_check_slots.php", function(data){
-        let container = $("#slots-container");
-        container.empty();
-        if (!data || Object.keys(data).length === 0) {
-            container.append("<p>Nessuno slot disponibile.</p>");
-            return;
-        }
-        Object.keys(data).forEach(planCode => {
-            let available = data[planCode];
-            let col = $(`<div class="col-md-4 mb-3 card-slot" data-plan-code="${planCode}"></div>`);
-            let card = $(`
-                <div class="card shadow-sm text-dark">
-                    <div class="card-body">
-                        <h5 class="card-title">Piano: ${planCode}</h5>
-                        <p>Slots disponibili: ${available}</p>
-                    </div>
-                </div>
-            `);
-            if (available > 0) {
-                let btn = $(`<a href="javascript:void(0);" class="btn btn-success btn-slot">Crea Server</a>`);
-                btn.click(() => createServerSlot(planCode, btn[0]));
-                card.find('.card-body').append(btn);
-            } else {
-                card.find('.card-body').append(`<span class="badge bg-danger">Nessuno slot disponibile</span>`);
+    fetch('ajax_check_slots.php')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('slots-container');
+            container.innerHTML = ''; // pulisce tutte le card
+            for (const planCode in data) {
+                if (data[planCode] > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'col-md-4 mb-3 card-slot';
+                    div.dataset.planCode = planCode;
+                    div.innerHTML = `
+                        <div class="card shadow p-3 rounded card-server">
+                            <div class="card-header-plan">${planCode}</div>
+                            <p class="slot-count" data-plan-code="${planCode}">${data[planCode]} slot disponibili</p>
+                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot" data-plan-code="${planCode}">Crea Server</a>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
             }
-            col.append(card);
-            container.append(col);
-        });
-    });
+        })
+        .catch(err => console.error(err));
 }
+document.addEventListener('DOMContentLoaded', () => {
+    refreshSlots();
+});
 
-$(document).ready(function(){ refreshSlots(); });
+
+
 </script>
-
 <?php include "includes/footer.php"; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
