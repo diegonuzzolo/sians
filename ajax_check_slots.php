@@ -14,6 +14,7 @@ if (!$userId) {
 }
 
 // Interroga il database per gli slot server disponibili
+// La JOIN è stata corretta per usare stripe_price_id come chiave di collegamento
 $stmtSlots = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss
