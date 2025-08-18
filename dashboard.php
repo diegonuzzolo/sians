@@ -8,7 +8,7 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Server attivi
+// Server attivi (questa parte rimane lato server per il caricamento iniziale)
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type, c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
     FROM servers s
@@ -77,13 +77,12 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 </div>
 </div>
 
-
 <script>
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
 // Funzione per aggiornare la lista degli slot disponibili
-function updateServerSlots() {
-    fetch('get_slots.php')
+function fetchServerSlots() {
+    fetch('ajax_server_slots.php')
         .then(response => response.text())
         .then(html => {
             document.getElementById('slot-list').innerHTML = html;
@@ -92,10 +91,10 @@ function updateServerSlots() {
 }
 
 // Chiamata iniziale per caricare gli slot all'avvio
-updateServerSlots();
+fetchServerSlots();
 
 // Aggiorna gli slot ogni 5 secondi
-setInterval(updateServerSlots, 5000);
+setInterval(fetchServerSlots, 5000);
 
 // --- CONTROLLO SERVER (start/stop) ---
 function controlServer(serverId, action) {
