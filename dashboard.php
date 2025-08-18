@@ -30,7 +30,7 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 <!DOCTYPE html>
-< lang="it">
+<html lang="it">
 
 <head>
     <meta charset="UTF-8">
