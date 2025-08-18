@@ -179,42 +179,45 @@ $stmt->execute([$userId]);
 $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<div class="container mx-auto px-4 mt-16">
-    <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🚀 I tuoi slot disponibili</h2>
+<div class="min-h-screen bg-gray-900 flex flex-col items-center justify-start py-16 text-white">
+    <div class="container mx-auto px-4">
+        <h2 class="text-4xl font-extrabold text-center mb-12 animate-fade-in-down">🚀 I tuoi slot disponibili</h2>
 
-    <?php if (count($serverSlots) > 0): ?>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <?php foreach($serverSlots as $slot): ?>
-                <div class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl transform transition-all duration-300 hover:scale-105 hover:border-purple-500 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
+        <?php if (count($slots) > 0): ?>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <?php foreach($slots as $slot): ?>
+                    <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
 
-                    <div class="relative z-10 flex flex-col h-full">
-                        <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
-                            <?= htmlspecialchars($slot['name']) ?>
-                        </h3>
-                        <p class="text-lg text-gray-400 mb-4">Slot Disponibile</p>
+                        <div class="relative z-10 flex flex-col h-full">
+                            <h3 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
+                                <?= htmlspecialchars($slot['name']) ?>
+                            </h3>
+                            <p class="text-lg text-gray-400 mb-4">Piano Premium</p>
 
-                        <div class="mt-auto pt-4 border-t border-gray-700">
-                            <p class="text-4xl font-extrabold my-2 text-white">
-                                €<?= htmlspecialchars($slot['price_eur']) ?>
-                                <span class="text-base font-medium text-gray-500">/mese</span>
-                            </p>
-                            
-                            <a href="new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>"
-                               class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                                Crea Server
-                            </a>
+                            <div class="mt-auto pt-4 border-t border-gray-700">
+                                <p class="text-4xl font-extrabold my-2">
+                                    €<?= htmlspecialchars($slot['price_eur']) ?>
+                                    <span class="text-base font-medium text-gray-500">/mese</span>
+                                </p>
+                                
+                                <a href="new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>"
+                                   class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                                    Crea Server
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php else: ?>
-        <div class="text-center text-gray-500 py-24">
-            <p class="text-xl">Nessuno slot disponibile 😔</p>
-            <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
-        </div>
-    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="text-center text-gray-500 py-24">
+                <p class="text-xl">Nessuno slot disponibile 😔</p>
+                <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <script src="https://cdn.tailwindcss.com"></script>
