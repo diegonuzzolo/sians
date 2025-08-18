@@ -145,24 +145,42 @@ $stmt = $pdo->prepare("SELECT ss.id, ss.status, p.name, p.price_eur, p.code as p
 $stmt->execute([$userId]);
 $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<div class="<?= count($slots) === 1 ? 'flex justify-center w-full max-w-md' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 w-full max-w-6xl' ?>">
+<div class="<?= count($slots) === 1 ? 'flex justify-center w-full max-w-md' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 w-full max-w-6xl' ?>">
     <?php foreach($slots as $slot): ?>
-        <div class="bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 rounded-3xl shadow-2xl p-8 flex flex-col justify-between transform hover:scale-105 hover:shadow-[0_20px_30px_rgba(139,92,246,0.4)] transition-transform duration-400 cursor-pointer">
-            <div class="mb-6">
-                <h2 class="text-3xl font-extrabold text-white drop-shadow-lg"><?= htmlspecialchars($slot['name']) ?></h2>
-                <p class="text-white/90 text-xl mt-3 font-semibold tracking-wide">€<?= htmlspecialchars($slot['price_eur']) ?></p>
+        <div class="group relative bg-white rounded-3xl border border-gray-200 shadow-md overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
+            
+            <!-- Header con effetto sfumato -->
+            <div class="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
+                <div class="absolute inset-0 opacity-30 bg-[url('https://www.toptal.com/designers/subtlepatterns/uploads/double-bubble-outline.png')]"></div>
             </div>
-            <button 
-                class="mt-6 bg-white text-indigo-600 font-bold py-4 rounded-2xl shadow-lg w-full
-                hover:bg-indigo-600 hover:text-white transition-colors duration-300
-                focus:outline-none focus:ring-4 focus:ring-indigo-300"
-                data-slot-id="<?= $slot['id'] ?>"
-                data-plan-code="<?= $slot['plan_code'] ?>">
-                Crea Server
-            </button>
+
+            <!-- Contenuto -->
+            <div class="p-6 flex flex-col justify-between h-[250px]">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors duration-300">
+                        <?= htmlspecialchars($slot['name']) ?>
+                    </h2>
+                    <p class="text-gray-500 text-lg">Piano Premium</p>
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-3xl font-extrabold text-indigo-600 mb-4">
+                        €<?= htmlspecialchars($slot['price_eur']) ?>
+                        <span class="text-base font-medium text-gray-400">/mese</span>
+                    </p>
+                    
+                    <button 
+                        class="w-full py-3 rounded-2xl font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-300 focus:ring-4 focus:ring-indigo-300"
+                        data-slot-id="<?= $slot['id'] ?>"
+                        data-plan-code="<?= $slot['plan_code'] ?>">
+                        🚀 Crea Server
+                    </button>
+                </div>
+            </div>
         </div>
     <?php endforeach; ?>
 </div>
+
 
 
 
