@@ -104,48 +104,62 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
             margin-top: 8px;
         }
 
-          .slots-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center; /* centra gli slot singoli o multipli */
-    gap: 20px;
-    margin: 20px auto;
-    max-width: 1000px; /* container massimo */
-  }
+        .slots-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px auto;
+            max-width: 1000px;
+        }
 
-  .slot-card {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    padding: 20px;
-    min-width: 250px;
-    flex: 1 1 200px; /* flessibile per griglia */
-    text-align: center; /* testo centrato */
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
+        .slot-card {
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            min-width: 250px;
+            flex: 1 1 200px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
 
-  .slot-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-  }
+        .slot-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
 
-  .slot-card h3 {
-    margin-bottom: 10px;
-    font-size: 1.2em;
-    color: #333;
-  }
+        .slot-card h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            color: #333;
+        }
 
-  .slot-card p {
-    margin: 5px 0;
-    color: #666;
-  }
+        .slot-card p {
+            margin: 5px 0;
+            color: #666;
+        }
 
-  /* Media query per mobile */
-  @media (max-width: 600px) {
-    .slot-card {
-      min-width: 100%;
-    }
-  }
+        .status.pending {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .status.active {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status.canceled {
+            color: red;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .slot-card {
+                min-width: 100%;
+            }
+        }
     </style>
     <?php include('includes/header.php'); ?>
     <div class="container my-5">
@@ -179,36 +193,36 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
     <hr>
     <?php
     // Recupero slot pending
-$stmt = $pdo->prepare("
+    $stmt = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss
     JOIN plans p ON p.stripe_price_id = ss.plan_id
     WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
     ORDER BY ss.created_at ASC
 ");
-$stmt->execute([1]); // esempio: user_id = 1
-$slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
+    $stmt->execute([1]); // esempio: user_id = 1
+    $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    ?>
 
 
-<div class="max-w-6xl mx-auto">
-    <?php if(empty($slots)): ?>
-        <div class="text-center text-gray-500 text-xl">Nessuno slot disponibile</div>
-    <?php else: ?>
-        <div class="<?php echo count($slots) === 1 ? 'flex justify-center' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'; ?>">
-            <?php foreach($slots as $slot): ?>
-                <div class="bg-white p-6 rounded-2xl shadow-lg w-64 text-center">
-                    <h2 class="text-xl font-bold mb-2"><?= htmlspecialchars($slot['name']) ?></h2>
-                    <p class="text-gray-600 mb-2">Codice piano: <?= htmlspecialchars($slot['plan_code']) ?></p>
-                    <p class="text-green-500 font-semibold mb-4"><?= isset($slot['price_eur']) ? number_format($slot['price_eur'],2).'€' : '' ?></p>
-                    <span class="inline-block px-4 py-2 rounded-full text-sm <?= $slot['status'] === 'pending' ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800' ?>">
-                        <?= ucfirst($slot['status']) ?>
-                    </span>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-</div>
+    <div class="max-w-6xl mx-auto">
+        <?php if (empty($slots)): ?>
+            <div class="text-center text-gray-500 text-xl">Nessuno slot disponibile</div>
+        <?php else: ?>
+            <div class="<?php echo count($slots) === 1 ? 'flex justify-center' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'; ?>">
+                <?php foreach ($slots as $slot): ?>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg w-64 text-center">
+                        <h2 class="text-xl font-bold mb-2"><?= htmlspecialchars($slot['name']) ?></h2>
+                        <p class="text-gray-600 mb-2">Codice piano: <?= htmlspecialchars($slot['plan_code']) ?></p>
+                        <p class="text-green-500 font-semibold mb-4"><?= isset($slot['price_eur']) ? number_format($slot['price_eur'], 2) . '€' : '' ?></p>
+                        <span class="inline-block px-4 py-2 rounded-full text-sm <?= $slot['status'] === 'pending' ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800' ?>">
+                            <?= ucfirst($slot['status']) ?>
+                        </span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 
 
 
