@@ -6,7 +6,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 
 $response = [];
 
-// Servers
+// Servers attivi
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type, c.ip, c.ram_mb, c.proxmox_containerId
     FROM servers s
@@ -16,7 +16,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $response['servers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Slots
+// Slot acquistati ma non ancora usati
 $stmtSlots = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss

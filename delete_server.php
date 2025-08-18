@@ -84,4 +84,6 @@ try {
     $error = $e->getMessage();
     echo "<div style='color:red;'><strong>Errore:</strong> " . htmlspecialchars($error) . "</div>";
 }
+header("Location: dashboard.php");
+exit;
 ?>

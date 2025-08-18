@@ -96,7 +96,7 @@ exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remo
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp /root/setup_server.sh\"");
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"");
 
-header("Location: dashboard.php?msg=Server creato con successo");
+header("Location: dashboard.php");
 
 exit;
 ?>
