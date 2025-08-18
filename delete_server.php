@@ -62,17 +62,15 @@ try {
         WHERE id = 1
     ");
     $stmt->execute([$usedCpu, $usedRam, $usedStorage]);
-    
+
     // --- Libera lo slot nella tabella server_slots ---
     $stmt = $pdo->prepare("UPDATE server_slots SET server_id=NULL, status='active' WHERE id = ?");
     $stmt->execute([$slotId]);
 
     // --- Elimina record del server e del container dal DB ---
-    $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");
-    $stmt->execute([$serverId]);
-    
     $stmt = $pdo->prepare("DELETE FROM containers WHERE proxmox_containerId = ?");
     $stmt->execute([$vmid]);
+
 
     $pdo->commit();
 
