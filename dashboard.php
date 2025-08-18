@@ -5,6 +5,7 @@ error_reporting(E_ALL);
 
 include("auth_check.php");
 require 'config/config.php';
+require_once 'includes/csrf.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
@@ -122,7 +123,7 @@ include 'includes/header.php';
                                     <span class="text-base font-medium text-gray-500">/mese</span>
                                 </p>
                                 
-                                <a href="new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>"
+                                <a href="#" onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>')"
                                    class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                                     Crea Server
                                 </a>
@@ -139,6 +140,26 @@ include 'includes/header.php';
 
 <script>
     const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
+
+    // Funzione per chiedere il nome del server e reindirizzare
+    function promptAndCreateServer(planCode, slotId) {
+        let serverName = prompt("Inserisci un nome per il tuo server:");
+        
+        if (serverName === null) {
+            // L'utente ha premuto Annulla
+            return;
+        }
+
+        serverName = serverName.trim();
+
+        if (serverName === "") {
+            alert("Il nome del server non può essere vuoto.");
+            return;
+        }
+
+        // Reindirizza alla pagina di creazione con il nome
+        window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
+    }
 
     // --- CONTROLLO SERVER (start/stop) ---
     function controlServer(serverId, action) {

@@ -13,24 +13,27 @@ csrf_check_or_die();
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) die(json_encode(['success'=>false,'message'=>'Accesso negato']));
 
-// Aggiunto per leggere il parametro 'slot_id'
 $slotId = $_GET['slot_id'] ?? null;
-
 $planCode = $_GET['plan_code'] ?? null;
+// Legge il nuovo parametro server_name
 $serverName = trim($_GET['server_name'] ?? 'mcserver');
-if (!$planCode) die(json_encode(['success'=>false,'message'=>'Piano non specificato']));
+
+if (!$planCode || !$slotId) die(json_encode(['success'=>false,'message'=>'Parametri non specificati']));
+
+// Controlla se lo slot è disponibile e appartiene all'utente
+$stmtSlot = $pdo->prepare("SELECT ss.*, p.stripe_price_id FROM server_slots ss JOIN plans p ON ss.plan_id = p.stripe_price_id WHERE ss.id = ? AND ss.user_id = ? AND ss.status = 'pending' AND ss.server_id IS NULL");
+$stmtSlot->execute([$slotId, $userId]);
+$slot = $stmtSlot->fetch(PDO::FETCH_ASSOC);
+
+if (!$slot) {
+    die(json_encode(['success'=>false,'message'=>'Slot non disponibile o non valido.']));
+}
 
 // Recupera piano
 $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
 $stmt->execute([$planCode]);
 $plan = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$plan) die(json_encode(['success'=>false,'message'=>'Piano non valido']));
-
-// Controlla subscription attiva
-$stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND stripe_price_id=? LIMIT 1");
-$stmt->execute([$userId, $plan['stripe_price_id']]);
-$subscription = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$subscription) die(json_encode(['success'=>false,'message'=>'Subscription non trovata']));
 
 // Risorse
 $ramGb = $plan['ram_gb'];
@@ -57,9 +60,22 @@ $stmt = $pdo->prepare("
 $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, $cores, $serverId]);
 $containerId = $pdo->lastInsertId();
 
-// Aggiorna server con container_id
-$stmt = $pdo->prepare("UPDATE servers SET container_id=? WHERE id=?");
-$stmt->execute([$containerId, $serverId]);
+// Aggiorna server e slot con il container_id e il server_id
+$pdo->beginTransaction();
+try {
+    $stmtServer = $pdo->prepare("UPDATE servers SET container_id=? WHERE id=?");
+    $stmtServer->execute([$containerId, $serverId]);
+
+    $stmtSlot = $pdo->prepare("UPDATE server_slots SET server_id=?, status='created' WHERE id=?");
+    $stmtSlot->execute([$serverId, $slotId]);
+
+    $pdo->commit();
+} catch (Exception $e) {
+    $pdo->rollBack();
+    // Potrebbe essere necessario eliminare il server parzialmente creato qui
+    die(json_encode(['success'=>false,'message'=>'Errore nell\'aggiornamento del database: ' . $e->getMessage()]));
+}
+
 
 // Aggiorna risorse
 $stmt = $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id=1");
@@ -68,7 +84,7 @@ $stmt->execute([$cores, $ramGb*1024, $storageGb]);
 // Crea container in Proxmox
 $createResult = createLxcContainer($vmid, $ramGb, $storageGb, $serverName, $vmIp, $cores);
 if (!$createResult['success']) die(json_encode(['success'=>false,'message'=>$createResult['message']]));
-sleep(4);
+
 // Setup server remoto
 $sshKey = "/var/www/.ssh/id_proxmox";
 $nodeIp = "192.168.1.251";
@@ -90,7 +106,5 @@ echo json_encode([
     'message' => 'Server creato correttamente'
 ]);
 
-
-
-
 exit;
+?>
