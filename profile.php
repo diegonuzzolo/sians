@@ -28,7 +28,7 @@ $stmt = $pdo->prepare("
     SELECT
         p.name AS plan_name,
         p.cpu_cores,
-        (p.ram_mb/1024) AS ram_gb,
+        p.ram_gb,
         s.status
     FROM subscriptions s
     JOIN plans p ON p.stripe_price_id = s.plan_id
