@@ -90,11 +90,7 @@ echo json_encode([
     'message' => 'Server creato correttamente'
 ]);
 
-// Fine del processo di creazione server:
-if ($slotId) {
-    $stmt = $pdo->prepare("UPDATE server_slots SET status='created', server_id=? WHERE id=?");
-    $stmt->execute([$serverId, $slotId]);
-}
+
 
 
 exit;

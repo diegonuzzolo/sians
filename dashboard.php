@@ -79,69 +79,27 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 </div>
 </div>
 <hr>
-<!-- Slot disponibili per creare server -->
-<h2 class="mb-4 text-center display-5 fw-bold">🛠 Slot disponibili</h2>
-<div id="slots-list" class="row mb-5"></div>
-
+<div class="container my-5">
+<h2 class="mb-4 text-center display-5 fw-bold">🎁 Slot server disponibili</h2>
+<!-- Lista slot server -->
+<div id="slot-list" class="row">
+<?php foreach ($serverSlots as $slot): ?>
+    <div class="col-md-4 mb-3" id="slot-<?= $slot['id'] ?>">
+        <div class="card card-server p-3 shadow">
+            <div class="server-name">Slot disponibile</div>
+            <div class="server-ip">Piano: <?= htmlspecialchars($slot['name']) ?></div>
+            <span class="status-badge status-available">Disponibile</span>
+            <div class="server-actions mt-2">
+                <a href="new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>" class="btn btn-primary btn-server w-100">Crea Server</a>
+            </div>
+        </div>
+    </div>
+<?php endforeach; ?>
+</div>
+</div>
 
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-    loadAvailableSlots();
-});
-
-function loadAvailableSlots() {
-    fetch('ajax_check_slots.php')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('slots-list');
-            container.innerHTML = '';
-            if (data.success && data.slots.length > 0) {
-                data.slots.forEach(slot => {
-                    const col = document.createElement('div');
-                    col.className = 'col-md-4 mb-3';
-                    col.innerHTML = `
-                        <div class="card card-server p-3 shadow">
-                            <div class="server-name">${slot.plan_name}</div>
-                            <div class="server-ip">Prezzo: €${parseFloat(slot.price_eur).toFixed(2)}</div>
-                            <span class="status-badge status-available">Disponibile</span>
-                            <div class="server-actions mt-3">
-                                <button class="btn btn-primary btn-server w-100" onclick="createServerFromSlot(${slot.id}, '${slot.plan_code}')">Crea Server</button>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(col);
-                });
-            } else {
-                container.innerHTML = '<p class="text-center">Nessuno slot disponibile.</p>';
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            document.getElementById('slots-list').innerHTML = '<p class="text-center text-danger">Errore di connessione.</p>';
-        });
-}
-
-function createServerFromSlot(slotId, planCode) {
-    const serverName = prompt("Inserisci un nome per il tuo server:", "mcserver");
-    if (!serverName) return;
-
-    fetch(`new_server.php?slot_id=${slotId}&plan_code=${encodeURIComponent(planCode)}&server_name=${encodeURIComponent(serverName)}`)
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('Server creato con successo!');
-            location.reload();
-        } else {
-            alert('Errore: ' + data.message);
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        alert('Errore di connessione.');
-    });
-}
-
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
 // --- CONTROLLO SERVER (start/stop) ---
@@ -188,6 +146,33 @@ function deleteServer(serverId, vmid) {
         })
         .catch(err => console.error(err));
 }
+
+function refreshSlots() {
+    fetch('ajax_get_slots.php')
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) return;
+            const container = document.getElementById('slot-list');
+            container.innerHTML = ''; // svuota
+            data.slots.forEach(slot => {
+                container.innerHTML += `
+                <div class="col-md-4 mb-3" id="slot-${slot.id}">
+                    <div class="card card-server p-3 shadow">
+                        <div class="server-name">Slot disponibile</div>
+                        <div class="server-ip">Piano: ${slot.name}</div>
+                        <span class="status-badge status-available">Disponibile</span>
+                        <div class="server-actions mt-2">
+                            <a href="new_server.php?plan_code=${slot.plan_code}&slot_id=${slot.id}" class="btn btn-primary btn-server w-100">Crea Server</a>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        });
+}
+
+// Aggiorna ogni 10 secondi
+setInterval(refreshSlots, 10000);
+
 </script>
 
 <?php include "includes/footer.php"; ?>
