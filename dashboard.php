@@ -26,23 +26,6 @@ $stripeCustomerId = $stmt->fetchColumn();
 
 $subscriptions = []; // default vuoto
 
-if ($stripeCustomerId) {
-    // Recupera i slot attivi dall'utente dalla tabella server_slots
-    $stmt = $pdo->prepare("
-        SELECT ss.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
-        FROM server_slots ss
-        JOIN plans p ON p.id = ss.plan_id
-        WHERE ss.user_id = ? AND ss.status = 'active'
-    ");
-    $stmt->execute([$userId]);
-    $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// Mappa piano -> subscription/slot
-$subsByPlan = [];
-foreach ($subscriptions as $sub) {
-    $subsByPlan[$sub['plan_code']] = $sub;
-}
 
 ?>
 <!DOCTYPE html>
@@ -220,44 +203,6 @@ function updateButtons(serverId,status){
     if(status==='running'){ startBtn.disabled=true; stopBtn.disabled=false; }
     else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
-
-// --- AGGIORNA GLI SLOT E LE CARDS ---
-function refreshSlots() {
-    fetch('ajax_check_slots.php')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('slots-container');
-            container.innerHTML = ''; // pulisce tutte le card
-
-            // Per ogni piano disponibile
-            for (const planCode in data) {
-                const slotsCount = data[planCode];
-
-                const div = document.createElement('div');
-                div.className = 'col-md-4 mb-3 card-slot';
-                div.dataset.planCode = planCode;
-                div.innerHTML = `
-                    <div class="card shadow p-3 rounded card-server">
-                        <div class="card-header-plan">${planCode}</div>
-                        <p class="slot-count" data-plan-code="${planCode}">${slotsCount} slot disponibili</p>
-                        <a href="javascript:void(0);" 
-                           onclick="createServerSlot('${planCode}', this)" 
-                           class="btn btn-success btn-slot" 
-                           data-plan-code="${planCode}" 
-                           ${slotsCount === 0 ? 'disabled' : ''}>
-                           Crea Server
-                        </a>
-                    </div>
-                `;
-                container.appendChild(div);
-            }
-        })
-        .catch(err => console.error(err));
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    refreshSlots();
-});
 
 
 
