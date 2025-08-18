@@ -1,6 +1,6 @@
 <?php 
-require '../includes/force_https.php';
-include '../config/config.php';
+include __DIR__.'/../includes/force_https.php';
+include __DIR__.'/../config/config.php';
 
 
 if (session_status() === PHP_SESSION_NONE) {
