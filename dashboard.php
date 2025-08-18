@@ -8,7 +8,7 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Recupera tutti i server attivi dell'utente
+// Recupera i server attivi dell'utente
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type,
            c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
@@ -19,41 +19,15 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Recupera tutti gli slot attivi dell'utente dalla tabella server_slots
+// Recupera gli slot disponibili dell'utente
 $stmt = $pdo->prepare("
     SELECT ss.*, p.code AS plan_code, p.name AS plan_name
     FROM server_slots ss
     JOIN plans p ON p.id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.status = 'active'
+    WHERE ss.user_id = ? AND ss.status = 'pending'
 ");
 $stmt->execute([$userId]);
 $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Conta quanti server ci sono per ogni piano
-$serversPerPlan = [];
-foreach ($servers as $s) {
-    $serversPerPlan[$s['plan_id']] = ($serversPerPlan[$s['plan_id']] ?? 0) + 1;
-}
-
-// Calcola slot disponibili per ciascun piano
-$slotsAvailable = [];
-foreach ($slots as $slot) {
-    $planId = $slot['plan_id'];
-    $planCode = $slot['plan_code'];
-    $planName = $slot['plan_name'];
-
-    $maxSlots = $slot['slots'] ?? 1;
-    $usedSlots = $serversPerPlan[$planId] ?? 0;
-
-    $available = max(0, $maxSlots - $usedSlots);
-    if ($available > 0) {
-        $slotsAvailable[$planCode] = [
-            'plan_name' => $planName,
-            'available' => $available
-        ];
-    }
-}
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -83,16 +57,12 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 
 <!-- Slots disponibili -->
 <div id="slots-container" class="row mb-4">
-<?php foreach ($slotsAvailable as $planCode => $slot): ?>
-<div class="col-md-4 mb-3 card-slot">
+<?php foreach ($slots as $slot): ?>
+<div class="col-md-4 mb-3 card-slot" data-plan-code="<?= htmlspecialchars($slot['plan_code']) ?>">
     <div class="card shadow p-3 rounded card-server">
-        <div class="card-header-plan"><?= htmlspecialchars($slot['plan_name']) ?></div>
-        <p class="slot-count"><?= $slot['available'] ?> slot disponibili</p>
-        <a href="javascript:void(0);" 
-           onclick="createServerSlot('<?= $planCode ?>', this)" 
-           class="btn btn-success btn-slot">
-           Crea Server
-        </a>
+        <div class="card-header-plan"><?= htmlspecialchars($slot['plan_code']) ?></div>
+        <p class="slot-count">1 slot disponibile</p>
+        <a href="javascript:void(0);" onclick="createServerSlot('<?= htmlspecialchars($slot['plan_code']) ?>', this)" class="btn btn-success btn-slot">Crea Server</a>
     </div>
 </div>
 <?php endforeach; ?>
@@ -126,12 +96,11 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 
 <script>
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-const creatingServers = {}; // Stato creazione per piano
+const creatingServers = {}; 
 
 function createServerSlot(planCode, btnElement) {
     if (creatingServers[planCode]) return;
     creatingServers[planCode] = true;
-
     btnElement.disabled = true;
     const originalText = btnElement.textContent;
     btnElement.textContent = 'Creazione in corso...';
@@ -150,6 +119,7 @@ function createServerSlot(planCode, btnElement) {
             if (data.success) {
                 alert("Server creato con successo! VMID: " + data.vmid + " IP: " + data.ip);
                 addServerCard(data.server_id, serverName, data.vmid, data.ip);
+                btnElement.closest('.card-slot').remove(); // rimuove lo slot usato
             } else {
                 alert("Errore: " + data.message);
             }
@@ -157,7 +127,6 @@ function createServerSlot(planCode, btnElement) {
         .catch(err => console.error(err))
         .finally(() => {
             creatingServers[planCode] = false;
-            refreshSlots();
         });
 }
 
@@ -194,7 +163,6 @@ function deleteServer(serverId, vmid) {
         .then(data => {
             if (data.success) {
                 document.getElementById('server-' + serverId)?.remove();
-                refreshSlots();
             } else {
                 alert("Errore eliminazione server: " + data.message);
             }
@@ -231,39 +199,6 @@ function updateButtons(serverId,status){
     if(status==='running'){ startBtn.disabled=true; stopBtn.disabled=false; }
     else{ startBtn.disabled=false; stopBtn.disabled=true; }
 }
-
-function refreshSlots() {
-    fetch('ajax_check_slots.php')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('slots-container');
-            container.innerHTML = '';
-            for (const planCode in data) {
-                const slot = data[planCode];
-                if(slot.available <= 0) continue;
-
-                const div = document.createElement('div');
-                div.className = 'col-md-4 mb-3 card-slot';
-                div.innerHTML = `
-                    <div class="card shadow p-3 rounded card-server">
-                        <div class="card-header-plan">${slot.plan_name}</div>
-                        <p class="slot-count">${slot.available} slot disponibili</p>
-                        <a href="javascript:void(0);" 
-                           onclick="createServerSlot('${planCode}', this)" 
-                           class="btn btn-success btn-slot">
-                           Crea Server
-                        </a>
-                    </div>
-                `;
-                container.appendChild(div);
-            }
-        })
-        .catch(err => console.error(err));
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    refreshSlots();
-});
 </script>
 
 <?php include "includes/footer.php"; ?>
