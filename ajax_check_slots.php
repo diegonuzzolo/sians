@@ -4,9 +4,14 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
+if (!$userId) {
+    echo json_encode([]);
+    exit;
+}
+
 // Recupera tutte le subscription attive dell'utente
 $stmt = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code
+    SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
     FROM subscriptions sub
     JOIN plans p ON p.id = sub.plan_id
     WHERE sub.user_id = ? AND sub.status='active'
@@ -30,7 +35,8 @@ foreach ($subscriptions as $sub) {
     $planId = $sub['plan_id'];
     $planCode = $sub['plan_code'];
 
-    $maxSlots = 1; // almeno 1 slot per ogni subscription attiva
+    // Imposta max slots per piano (qui 1 per subscription, puoi personalizzare)
+    $maxSlots = 1;
     $usedSlots = $serversPerPlan[$planId] ?? 0;
 
     $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
