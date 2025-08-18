@@ -145,35 +145,32 @@ $stmt = $pdo->prepare("SELECT ss.id, ss.status, p.name, p.price_eur, p.code as p
 $stmt->execute([$userId]);
 $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<div class="min-h-screen bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center py-16">
-    <h1 class="text-4xl font-extrabold text-white mb-12">I tuoi Slot Disponibili</h1>
+<div class="min-h-screen bg-gray-100 flex flex-col items-center justify-start py-16">
+    <h1 class="text-3xl font-bold text-gray-800 mb-12">Slot Disponibili</h1>
 
     <?php if(count($slots) > 0): ?>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 w-full max-w-6xl">
+        <div class="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-6 w-full max-w-md">
             <?php foreach($slots as $slot): ?>
-                <div class="relative bg-gray-800 rounded-3xl shadow-2xl overflow-hidden transform hover:scale-105 transition-transform duration-300">
-                    <div class="p-8 flex flex-col justify-between h-full">
-                        <div>
-                            <h2 class="text-2xl font-bold text-white mb-4"><?= htmlspecialchars($slot['name']) ?></h2>
-                            <p class="text-white/80 text-lg font-semibold">€<?= htmlspecialchars($slot['price_eur']) ?></p>
-                        </div>
-                        <button class="mt-6 w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg transition-colors create-server-btn"
-                            data-slot-id="<?= $slot['id'] ?>"
-                            data-plan-code="<?= $slot['plan_code'] ?>">
-                            Crea Server
-                        </button>
+                <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:shadow-2xl transition-shadow duration-300">
+                    <div class="mb-4">
+                        <h2 class="text-2xl font-semibold text-gray-800"><?= htmlspecialchars($slot['name']) ?></h2>
+                        <p class="text-gray-600 text-lg mt-2 font-medium">€<?= htmlspecialchars($slot['price_eur']) ?></p>
                     </div>
-                    <!-- Effetto overlay elegante -->
-                    <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-indigo-500/20 via-transparent to-indigo-700/30 pointer-events-none"></div>
+                    <button class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition-colors create-server-btn w-full"
+                        data-slot-id="<?= $slot['id'] ?>"
+                        data-plan-code="<?= $slot['plan_code'] ?>">
+                        Crea Server
+                    </button>
                 </div>
             <?php endforeach; ?>
         </div>
     <?php else: ?>
-        <div class="mt-16 text-gray-300 text-xl">
+        <div class="mt-16 text-gray-500 text-lg">
             Nessuno slot disponibile
         </div>
     <?php endif; ?>
 </div>
+
 
 
     <script>
