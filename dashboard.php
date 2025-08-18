@@ -80,7 +80,7 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 </div>
 <hr>
 <!-- Slot disponibili per creare server -->
-<h2 class="mb-4 text-center display-5 fw-bold">🛠 Slot server disponibili</h2>
+<h2 class="mb-4 text-center display-5 fw-bold">🛠 Slot disponibili</h2>
 <div id="slots-list" class="row mb-5"></div>
 
 
