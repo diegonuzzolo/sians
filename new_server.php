@@ -36,7 +36,7 @@ $plan = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$plan) die(json_encode(['success'=>false,'message'=>'Piano non valido']));
 
 // Risorse
-$ramGb = $plan['ram_gb'];
+$ramGb = $plan['ram_gb'];   
 $cores = $plan['cpu_cores'];
 $storageGb = $plan['storage_gb'];
 
@@ -46,10 +46,10 @@ $vmIp = getNextFreePrivateIp($pdo);
 
 // Inserisci server (temporaneo, status stopped)
 $stmt = $pdo->prepare("
-    INSERT INTO servers (name, user_id, plan_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
-    VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
+    INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
+    VALUES (?, ?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
 ");
-$stmt->execute([$serverName, $userId, $plan['id'], $vmid, $cores, $ramGb*1024]);
+$stmt->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $cores, $ramGb*1024]);
 $serverId = $pdo->lastInsertId();
 
 // Inserisci container
