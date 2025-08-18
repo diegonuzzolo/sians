@@ -228,24 +228,33 @@ function refreshSlots() {
         .then(data => {
             const container = document.getElementById('slots-container');
             container.innerHTML = ''; // pulisce tutte le card
+
+            // Per ogni piano disponibile
             for (const planCode in data) {
-                if (data[planCode] > 0) {
-                    const div = document.createElement('div');
-                    div.className = 'col-md-4 mb-3 card-slot';
-                    div.dataset.planCode = planCode;
-                    div.innerHTML = `
-                        <div class="card shadow p-3 rounded card-server">
-                            <div class="card-header-plan">${planCode}</div>
-                            <p class="slot-count" data-plan-code="${planCode}">${data[planCode]} slot disponibili</p>
-                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot" data-plan-code="${planCode}">Crea Server</a>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                }
+                const slotsCount = data[planCode];
+
+                const div = document.createElement('div');
+                div.className = 'col-md-4 mb-3 card-slot';
+                div.dataset.planCode = planCode;
+                div.innerHTML = `
+                    <div class="card shadow p-3 rounded card-server">
+                        <div class="card-header-plan">${planCode}</div>
+                        <p class="slot-count" data-plan-code="${planCode}">${slotsCount} slot disponibili</p>
+                        <a href="javascript:void(0);" 
+                           onclick="createServerSlot('${planCode}', this)" 
+                           class="btn btn-success btn-slot" 
+                           data-plan-code="${planCode}" 
+                           ${slotsCount === 0 ? 'disabled' : ''}>
+                           Crea Server
+                        </a>
+                    </div>
+                `;
+                container.appendChild(div);
             }
         })
         .catch(err => console.error(err));
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     refreshSlots();
 });
