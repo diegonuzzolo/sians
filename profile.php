@@ -20,15 +20,19 @@ $stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id = ?");
 $stmt->execute([$userId]);
 $billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-// --- Recupero server attivi (campi reali della tabella servers) ---
-// NB: uso name AS server_name e (ram_mb/1024) AS ram_gb per mostrare dati leggibili
+// --- Recupero piani di abbonamento attivi dalla tabella subscriptions ---
 $stmt = $pdo->prepare("
-    SELECT id, name AS server_name, cpu_cores, (ram_mb/1024) AS ram_gb, status
-    FROM servers
-    WHERE user_id = ? AND status IN ('active','running')
+    SELECT
+        p.name AS plan_name,
+        p.cpu_cores,
+        (p.ram_mb/1024) AS ram_gb,
+        s.status
+    FROM subscriptions s
+    JOIN plans p ON p.stripe_price_id = s.plan_id
+    WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
 ");
 $stmt->execute([$userId]);
-$activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // --- Gestione POST ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -54,8 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
                 $upd = $pdo->prepare("
-                    UPDATE users 
-                    SET password_hash = ?, password_changed_at = NOW(), force_password_reset = 0 
+                    UPDATE users
+                    SET password_hash = ?, password_changed_at = NOW(), force_password_reset = 0
                     WHERE id = ?
                 ");
                 $upd->execute([$newHash, $userId]);
@@ -95,16 +99,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($bp) {
                     $upd = $pdo->prepare("
-                        UPDATE billing_profiles 
-                        SET first_name = ?, last_name = ?, company = ?, vat_number = ?, 
-                            address_line1 = ?, address_line2 = ?, city = ?, postal_code = ?, 
+                        UPDATE billing_profiles
+                        SET first_name = ?, last_name = ?, company = ?, vat_number = ?,
+                            address_line1 = ?, address_line2 = ?, city = ?, postal_code = ?,
                             country_code = ?, updated_at = NOW()
                         WHERE user_id = ?
                     ");
                     $upd->execute($bpData);
                 } else {
                     $ins = $pdo->prepare("
-                        INSERT INTO billing_profiles 
+                        INSERT INTO billing_profiles
                         (first_name, last_name, company, vat_number, address_line1, address_line2, city, postal_code, country_code, user_id)
                         VALUES (?,?,?,?,?,?,?,?,?,?)
                     ");
@@ -129,13 +133,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$userId]);
     $billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
+    // Ricarico i piani attivi
     $stmt = $pdo->prepare("
-        SELECT id, name AS server_name, cpu_cores, (ram_mb/1024) AS ram_gb, status
-        FROM servers
-        WHERE user_id = ? AND status IN ('active','running')
+        SELECT
+            p.name AS plan_name,
+            p.cpu_cores,
+            (p.ram_mb/1024) AS ram_gb,
+            s.status
+        FROM subscriptions s
+        JOIN plans p ON p.stripe_price_id = s.plan_id
+        WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
     ");
     $stmt->execute([$userId]);
-    $activePlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
@@ -158,25 +168,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Piani Attivi
             </div>
             <div class="overflow-x-auto">
-                <?php if (!empty($activePlans)): ?>
+                <?php if (!empty($activeSubscriptions)): ?>
                     <table class="w-full text-left table-auto">
                         <thead>
                             <tr class="text-gray-400 uppercase text-sm leading-normal">
-                                <th class="py-3 px-6">Server</th>
+                                <th class="py-3 px-6">Piano</th>
                                 <th class="py-3 px-6">RAM</th>
                                 <th class="py-3 px-6">CPU</th>
                                 <th class="py-3 px-6">Stato</th>
                             </tr>
                         </thead>
                         <tbody class="text-gray-200 text-sm font-light">
-                            <?php foreach ($activePlans as $plan): ?>
+                            <?php foreach ($activeSubscriptions as $plan): ?>
                                 <tr class="border-b border-gray-700 hover:bg-gray-700 transition-colors duration-200">
-                                    <td class="py-3 px-6 whitespace-nowrap"><?= htmlspecialchars($plan['server_name']) ?></td>
+                                    <td class="py-3 px-6 whitespace-nowrap"><?= htmlspecialchars($plan['plan_name']) ?></td>
                                     <td class="py-3 px-6"><?= htmlspecialchars(number_format((float)$plan['ram_gb'], 0)) ?> GB</td>
                                     <td class="py-3 px-6"><?= htmlspecialchars($plan['cpu_cores']) ?> Core</td>
                                     <td class="py-3 px-6">
-                                        <span class="py-1 px-3 rounded-full text-xs font-semibold 
-                                            <?= $plan['status'] === 'running' ? 'bg-green-500 text-green-900' : 'bg-yellow-500 text-yellow-900' ?>">
+                                        <span class="py-1 px-3 rounded-full text-xs font-semibold
+                                            <?= $plan['status'] === 'active' || $plan['status'] === 'trialing' ? 'bg-green-500 text-green-900' : 'bg-yellow-500 text-yellow-900' ?>">
                                             <?= htmlspecialchars(ucfirst($plan['status'])) ?>
                                         </span>
                                     </td>
