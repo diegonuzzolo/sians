@@ -136,49 +136,43 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
     <hr>
-    <?php
-    // Recupero slot pending
-    $stmt = $pdo->prepare("
-    SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
-    FROM server_slots ss
-    JOIN plans p ON p.stripe_price_id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
-    ORDER BY ss.created_at ASC
-");
-    $stmt->execute([1]); // esempio: user_id = 1
-    $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    ?>
+<?php
+// Prelevo gli slot disponibili dal DB
+$stmt = $pdo->prepare("SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code 
+                       FROM server_slots ss 
+                       JOIN plans p ON p.stripe_price_id = ss.plan_id 
+                       WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'");
+$stmt->execute([$userId]);
+$slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
 
+<div class="min-h-screen bg-gray-100 flex flex-col items-center py-10">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Slot Disponibili</h1>
 
-    <div class="max-w-7xl mx-auto">
-    <?php if(empty($slots)): ?>
-        <div class="text-center text-gray-500 text-xl mt-20">Nessuno slot disponibile</div>
-    <?php else: ?>
-        <div class="<?php echo count($slots) === 1 ? 'flex justify-center' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8'; ?>">
+    <?php if(count($slots) > 0): ?>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-5xl">
             <?php foreach($slots as $slot): ?>
-                <div class="bg-white shadow-2xl rounded-3xl p-6 hover:scale-105 transition-transform duration-300 w-72">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($slot['name']) ?></h2>
-                        <?php if($slot['status'] === 'pending'): ?>
-                            <span class="text-yellow-600 font-semibold px-3 py-1 rounded-full bg-yellow-100 text-sm">Pending</span>
-                        <?php else: ?>
-                            <span class="text-green-600 font-semibold px-3 py-1 rounded-full bg-green-100 text-sm">Created</span>
-                        <?php endif; ?>
+                <div class="bg-gradient-to-br from-purple-500 to-indigo-500 text-white rounded-3xl shadow-lg p-6 flex flex-col justify-between hover:scale-105 transition-transform">
+                    <div>
+                        <h2 class="text-xl font-semibold mb-2">Slot #<?= htmlspecialchars($slot['id']) ?></h2>
+                        <p class="text-sm opacity-90">Piano: <?= htmlspecialchars($slot['name']) ?></p>
+                        <p class="text-sm opacity-90 mt-1">Status: <?= htmlspecialchars($slot['status']) ?></p>
+                        <p class="text-sm opacity-90 mt-1">Prezzo: €<?= htmlspecialchars($slot['price_eur']) ?></p>
                     </div>
-                    <p class="text-gray-500 mb-3">Codice piano: <span class="font-medium"><?= htmlspecialchars($slot['plan_code']) ?></span></p>
-                    <?php if($slot['price_eur']): ?>
-                        <p class="text-gray-700 font-bold text-lg mb-5"><?= number_format($slot['price_eur'],2) ?>€</p>
-                    <?php endif; ?>
-                    <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-2xl transition-colors">
+                    <button class="mt-4 bg-white text-indigo-600 font-bold py-2 px-4 rounded-full shadow hover:bg-gray-100 transition-colors create-server-btn"
+                        data-slot-id="<?= $slot['id'] ?>"
+                        data-plan-code="<?= $slot['plan_code'] ?>">
                         Crea Server
                     </button>
                 </div>
             <?php endforeach; ?>
         </div>
+    <?php else: ?>
+        <div class="mt-10 text-gray-500 text-lg">
+            Nessuno slot disponibile
+        </div>
     <?php endif; ?>
 </div>
-
-
 
 
     <script>
@@ -227,6 +221,34 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
                 stopBtn.disabled = true;
             }
         }
+
+        document.querySelectorAll('.create-server-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const slotId = btn.getAttribute('data-slot-id');
+        const planCode = btn.getAttribute('data-plan-code');
+        btn.disabled = true;
+        btn.textContent = 'Creazione in corso...';
+
+        fetch(`new_server.php?slot_id=${slotId}&plan_code=${planCode}`)
+            .then(res => res.json())
+            .then(data => {
+                if(data.success){
+                    btn.textContent = 'Server Creato!';
+                    btn.classList.remove('bg-white', 'text-indigo-600');
+                    btn.classList.add('bg-green-500', 'text-white');
+                } else {
+                    btn.textContent = 'Errore, riprova';
+                    btn.disabled = false;
+                    alert(data.message);
+                }
+            })
+            .catch(err => {
+                btn.textContent = 'Errore, riprova';
+                btn.disabled = false;
+                console.error(err);
+            });
+    });
+});
 
         // --- ELIMINA SERVER ---
         function deleteServer(serverId, vmid) {
