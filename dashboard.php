@@ -31,7 +31,6 @@ $stmtSlots->execute([$userId]);
 $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 
 // Includi l'header all'inizio del file per generare l'HTML corretto
-include('includes/header.php');
 ?>
 
 <div class="container my-5">

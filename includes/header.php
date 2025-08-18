@@ -20,7 +20,7 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $username_display = $_SESSION['username'] ?? 'Utente';
-$user_logged_in   = isset($_SESSION['user_id']);
+$user_logged_in = isset($_SESSION['user_id']);
 ?>
 
 <!-- CDN Bootstrap + Icons -->

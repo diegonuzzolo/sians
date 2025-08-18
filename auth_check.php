@@ -4,9 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-echo "Stato sessione: " . session_status() . "<br>";
-echo "ID utente in sessione: " . ($_SESSION['user_id'] ?? 'Non impostato') . "<br>";
-echo "Nome utente in sessione: " . ($_SESSION['username'] ?? 'Non impostato') . "<br>";
+
 include(__DIR__ . "/config/config.php");
 
 
