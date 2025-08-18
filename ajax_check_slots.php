@@ -4,15 +4,15 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Recupera tutte le subscription attive dell'utente
+// Recupera tutti gli slot attivi dell'utente dalla tabella server_slots
 $stmt = $pdo->prepare("
-    SELECT sub.*, p.code AS plan_code
-    FROM subscriptions sub
-    JOIN plans p ON p.id = sub.plan_id
-    WHERE sub.user_id = ? AND sub.status='active'
+    SELECT ss.*, p.code AS plan_code
+    FROM server_slots ss
+    JOIN plans p ON p.id = ss.plan_id
+    WHERE ss.user_id = ? AND ss.status='active'
 ");
 $stmt->execute([$userId]);
-$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Recupera i server attivi per ogni piano
 $stmt = $pdo->prepare("
@@ -26,11 +26,11 @@ $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
 // Calcola slot disponibili per ogni piano
 $slotsAvailable = [];
-foreach ($subscriptions as $sub) {
-    $planId = $sub['plan_id'];
-    $planCode = $sub['plan_code'];
+foreach ($slots as $slot) {
+    $planId = $slot['plan_id'];
+    $planCode = $slot['plan_code'];
 
-    $maxSlots = 1; // almeno 1 slot per ogni subscription attiva
+    $maxSlots = $slot['slots'] ?? 1; // considera la colonna slots della tabella server_slots
     $usedSlots = $serversPerPlan[$planId] ?? 0;
 
     $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
