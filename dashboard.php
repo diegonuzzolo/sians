@@ -205,24 +205,33 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
     ?>
 
 
-    <div class="max-w-6xl mx-auto">
-        <?php if (empty($slots)): ?>
-            <div class="text-center text-gray-500 text-xl">Nessuno slot disponibile</div>
-        <?php else: ?>
-            <div class="<?php echo count($slots) === 1 ? 'flex justify-center' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'; ?>">
-                <?php foreach ($slots as $slot): ?>
-                    <div class="bg-white p-6 rounded-2xl shadow-lg w-64 text-center">
-                        <h2 class="text-xl font-bold mb-2"><?= htmlspecialchars($slot['name']) ?></h2>
-                        <p class="text-gray-600 mb-2">Codice piano: <?= htmlspecialchars($slot['plan_code']) ?></p>
-                        <p class="text-green-500 font-semibold mb-4"><?= isset($slot['price_eur']) ? number_format($slot['price_eur'], 2) . '€' : '' ?></p>
-                        <span class="inline-block px-4 py-2 rounded-full text-sm <?= $slot['status'] === 'pending' ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800' ?>">
-                            <?= ucfirst($slot['status']) ?>
-                        </span>
+    <div class="max-w-7xl mx-auto">
+    <?php if(empty($slots)): ?>
+        <div class="text-center text-gray-500 text-xl mt-20">Nessuno slot disponibile</div>
+    <?php else: ?>
+        <div class="<?php echo count($slots) === 1 ? 'flex justify-center' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8'; ?>">
+            <?php foreach($slots as $slot): ?>
+                <div class="bg-white shadow-2xl rounded-3xl p-6 hover:scale-105 transition-transform duration-300 w-72">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($slot['name']) ?></h2>
+                        <?php if($slot['status'] === 'pending'): ?>
+                            <span class="text-yellow-600 font-semibold px-3 py-1 rounded-full bg-yellow-100 text-sm">Pending</span>
+                        <?php else: ?>
+                            <span class="text-green-600 font-semibold px-3 py-1 rounded-full bg-green-100 text-sm">Created</span>
+                        <?php endif; ?>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
+                    <p class="text-gray-500 mb-3">Codice piano: <span class="font-medium"><?= htmlspecialchars($slot['plan_code']) ?></span></p>
+                    <?php if($slot['price_eur']): ?>
+                        <p class="text-gray-700 font-bold text-lg mb-5"><?= number_format($slot['price_eur'],2) ?>€</p>
+                    <?php endif; ?>
+                    <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-2xl transition-colors">
+                        Crea Server
+                    </button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>
 
 
 
