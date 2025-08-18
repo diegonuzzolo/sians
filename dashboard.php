@@ -123,7 +123,7 @@ include 'includes/header.php';
                                 </p>
                                 
                                 <a href="javascript:void(0)" 
-   class="create-server-btn"
+   class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
    data-slot-id="<?= $slot['id'] ?>"
    data-plan-code="<?= $slot['plan_code'] ?>"
    onclick="promptAndCreateServer(this)">
@@ -247,28 +247,25 @@ include 'includes/header.php';
             });
         });
     });
-function promptAndCreateServer(button) {
-    const planCode = button.dataset.planCode;
-    const slotId = button.dataset.slotId;
-
-    if (!slotId || !planCode) {
-        alert("Errore interno: slot o piano non definito.");
-        return;
-    }
-
+    function promptAndCreateServer(planCode, slotId) {
     let serverName = prompt("Inserisci un nome per il tuo server:");
-    if (!serverName) return;
-
+    
+    if (serverName === null) return;
     serverName = serverName.trim();
     if (serverName === "") {
         alert("Il nome del server non può essere vuoto.");
         return;
     }
 
-    button.disabled = true;
-    button.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
-    button.textContent = "Creazione in corso…";
+    const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
+    if (btn) {
+        // Blocca il pulsante
+        btn.disabled = true;
+        btn.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
+        btn.textContent = "Creazione in corso…";
+    }
 
+    // Reindirizza o invia la richiesta AJAX
     window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
 }
 
