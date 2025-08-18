@@ -122,10 +122,14 @@ include 'includes/header.php';
                                     <span class="text-base font-medium text-gray-500">/mese</span>
                                 </p>
                                 
-                                <a href="#" onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>')"
-                                   class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                                    Crea Server
-                                </a>
+                                <a href="javascript:void(0)" 
+   class="create-server-btn"
+   data-slot-id="<?= $slot['id'] ?>"
+   data-plan-code="<?= $slot['plan_code'] ?>"
+   onclick="promptAndCreateServer(this)">
+   Crea Server
+</a>
+
                             </div>
                         </div>
                     </div>
@@ -243,25 +247,28 @@ include 'includes/header.php';
             });
         });
     });
-    function promptAndCreateServer(planCode, slotId) {
+function promptAndCreateServer(button) {
+    const planCode = button.dataset.planCode;
+    const slotId = button.dataset.slotId;
+
+    if (!slotId || !planCode) {
+        alert("Errore interno: slot o piano non definito.");
+        return;
+    }
+
     let serverName = prompt("Inserisci un nome per il tuo server:");
-    
-    if (serverName === null) return;
+    if (!serverName) return;
+
     serverName = serverName.trim();
     if (serverName === "") {
         alert("Il nome del server non può essere vuoto.");
         return;
     }
 
-    const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
-    if (btn) {
-        // Blocca il pulsante
-        btn.disabled = true;
-        btn.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
-        btn.textContent = "Creazione in corso…";
-    }
+    button.disabled = true;
+    button.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
+    button.textContent = "Creazione in corso…";
 
-    // Reindirizza o invia la richiesta AJAX
     window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
 }
 
