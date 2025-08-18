@@ -62,21 +62,17 @@ try {
         WHERE id = 1
     ");
     $stmt->execute([$usedCpu, $usedRam, $usedStorage]);
-
-    // --- Elimina record del server e del container dal DB ---
-    $stmt = $pdo->prepare("DELETE FROM containers WHERE proxmox_containerId = ?");
-    $stmt->execute([$vmid]);
-
-
-
-
-    $pdo->commit();
-
+    
     // --- Libera lo slot nella tabella server_slots ---
     $stmt = $pdo->prepare("UPDATE server_slots SET server_id=NULL, status='active' WHERE id = ?");
     $stmt->execute([$slotId]);
-    $pdo->commit();
 
+    // --- Elimina record del server dal DB
+    // Questo triggererà l'eliminazione a cascata del container
+    $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");
+    $stmt->execute([$serverId]);
+    
+    $pdo->commit();
 
     header("Location: dashboard.php?msg=Server eliminato correttamente");
     exit;
