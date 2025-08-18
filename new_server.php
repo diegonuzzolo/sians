@@ -7,7 +7,6 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
-require_once 'init.php';
 
 csrf_check_or_die();
 
