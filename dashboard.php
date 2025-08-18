@@ -104,62 +104,7 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
             margin-top: 8px;
         }
 
-        .slots-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px auto;
-            max-width: 1000px;
-        }
 
-        .slot-card {
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            min-width: 250px;
-            flex: 1 1 200px;
-            text-align: center;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .slot-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .slot-card h3 {
-            margin-bottom: 10px;
-            font-size: 1.2em;
-            color: #333;
-        }
-
-        .slot-card p {
-            margin: 5px 0;
-            color: #666;
-        }
-
-        .status.pending {
-            color: orange;
-            font-weight: bold;
-        }
-
-        .status.active {
-            color: green;
-            font-weight: bold;
-        }
-
-        .status.canceled {
-            color: red;
-            font-weight: bold;
-        }
-
-        @media (max-width: 600px) {
-            .slot-card {
-                min-width: 100%;
-            }
-        }
     </style>
     <?php include('includes/header.php'); ?>
     <div class="container my-5">
