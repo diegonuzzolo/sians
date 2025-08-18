@@ -6,6 +6,7 @@ error_reporting(E_ALL);
 
 include("auth_check.php");
 require 'config/config.php';
+require_once 'includes/header.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
