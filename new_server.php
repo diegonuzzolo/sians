@@ -13,6 +13,23 @@ csrf_check_or_die();
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) die(json_encode(['success'=>false,'message'=>'Accesso negato']));
 
+// Controlla se lo slot è disponibile e appartiene all'utente
+$stmtSlot = $pdo->prepare("
+    SELECT ss.*, p.stripe_price_id 
+    FROM server_slots ss 
+    JOIN plans p ON ss.plan_id = p.stripe_price_id 
+    WHERE ss.id = ? 
+      AND ss.user_id = ? 
+      AND ss.status = 'pending' 
+      AND ss.server_id IS NULL
+");
+$stmtSlot->execute([$slotId, $userId]);
+$slot = $stmtSlot->fetch(PDO::FETCH_ASSOC);
+
+if (!$slot) {
+    die(json_encode(['success'=>false,'message'=>'Slot non disponibile o non valido.']));
+}
+
 $slotId = $_GET['slot_id'] ?? null;
 $planCode = $_GET['plan_code'] ?? null;
 // Legge il nuovo parametro server_name

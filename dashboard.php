@@ -261,7 +261,29 @@ include 'includes/header.php';
             });
         });
     });
+function promptAndCreateServer(planCode, slotId) {
+    let serverName = prompt("Inserisci un nome per il tuo server:");
     
+    if (serverName === null) return;
+    serverName = serverName.trim();
+    if (serverName === "") {
+        alert("Il nome del server non può essere vuoto.");
+        return;
+    }
+
+    const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
+    if (btn) {
+        // Disabilita subito il pulsante per prevenire clic multipli
+        btn.disabled = true;
+        btn.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
+        btn.textContent = "Creazione in corso…";
+    }
+
+    // Reindirizza alla pagina di creazione con i parametri
+    window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
+}
+
+
 </script>
 </body>
 </html>
