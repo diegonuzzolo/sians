@@ -1,11 +1,14 @@
-<?php 
-include __DIR__.'/../includes/force_https.php';
-include __DIR__.'/../config/config.php';
-
-
+<?php
+// auth_check.php gestisce già la sessione e il controllo utente,
+// ma per un file header stand-alone è buona prassi avere un fallback.
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// Includi i file necessari
+include __DIR__.'/../includes/force_https.php';
+include __DIR__.'/../config/config.php';
+
 
 if (isset($_SESSION['user_id'])) {
     $stmt = $pdo->prepare("SELECT last_password_change FROM users WHERE id = ?");
@@ -21,6 +24,7 @@ if (isset($_SESSION['user_id'])) {
     }
 }
 
+// Prepara le variabili per la visualizzazione
 $username_display = $_SESSION['username'] ?? 'Utente';
 $user_logged_in = isset($_SESSION['user_id']);
 ?>
@@ -28,116 +32,114 @@ $user_logged_in = isset($_SESSION['user_id']);
 <!DOCTYPE html>
 <html lang="it">
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sians Hosting</title>
 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
 
-<style>
-  body {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    color: #f1f5f9;
-    min-height: 100vh;
-    padding-top: 70px;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
+    <style>
+        /* Stili di base per il body, coerenti col tema scuro */
+        body {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-top: 5rem; /* Per la navbar fissa */
+        }
+        
+        main {
+            flex: 1;
+        }
+        
+        /* Stili per la navbar, usiamo un'ombra più sottile di default */
+        .navbar {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Dropdown con stile scuro */
+        .dropdown-menu-dark {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+        
+        /* Animazione per i link hover */
+        .nav-link:hover {
+            color: #facc15;
+            transition: color 0.3s ease;
+        }
 
-  main { flex: 1; }
-
-  /* Navbar */
-  .navbar {
-    background: linear-gradient(90deg, #1f2937, #111827) !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.6);
-  }
-  .navbar-brand {
-    font-weight: 900;
-    letter-spacing: 0.5px;
-  }
-  .navbar-brand i {
-    color: #facc15;
-  }
-  .navbar-nav .nav-link {
-    color: #f1f5f9 !important;
-    transition: color 0.3s ease;
-  }
-  .navbar-nav .nav-link:hover {
-    color: #facc15 !important;
-  }
-  .dropdown-menu {
-    background: #1e293b;
-    border: none;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-  }
-  .dropdown-item {
-    color: #f1f5f9;
-  }
-  .dropdown-item:hover {
-    background: #334155;
-    color: #facc15;
-  }
-</style>
+        /* Stili per il pulsante del toggler */
+        .navbar-toggler-icon {
+            filter: invert(1);
+        }
+    </style>
 </head>
 <body>
-  
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
-  <div class="container">
-    <a class="navbar-brand text-warning d-flex align-items-center gap-2" href="index.php">
-      <i class="fa-brands fa-minecraft fa-lg"></i> Minecraft Bedrock Hosting
-    </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    
-    <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-      <ul class="navbar-nav align-items-center gap-3">
-        <li class="nav-item">
-          <a class="nav-link d-flex align-items-center gap-2" href="dashboard.php">
-            <i class="fa-solid fa-gauge-high"></i> Dashboard
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link d-flex align-items-center gap-2" href="add_server.php">
-            <i class="fa-solid fa-plus"></i> Acquista Server
-          </a>
-        </li>
 
-        <?php if ($user_logged_in): ?>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="fa-solid fa-user-circle"></i> <?= htmlspecialchars($username_display) ?>
+<nav class="fixed top-0 left-0 right-0 z-50 bg-slate-900 shadow-lg py-4">
+    <div class="container mx-auto px-4 flex justify-between items-center">
+        <a class="text-white text-xl font-extrabold flex items-center gap-2" href="index.php">
+            <i class="fa-brands fa-minecraft text-amber-400 text-2xl"></i> Minecraft Bedrock Hosting
+        </a>
+
+        <div class="md:hidden">
+            <button id="mobile-menu-button" class="text-white focus:outline-none">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
+                </svg>
+            </button>
+        </div>
+
+        <div id="navbar-menu" class="hidden md:flex flex-grow justify-end items-center space-x-6">
+            <a href="dashboard.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
             </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li>
-                <a class="dropdown-item d-flex align-items-center gap-2" href="profile.php">
-                  <i class="fa-solid fa-user-gear"></i> Profilo
+            <a href="add_server.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
+                <i class="fa-solid fa-plus-circle"></i> Acquista Server
+            </a>
+
+            <?php if ($user_logged_in): ?>
+                <div class="relative group">
+                    <button class="text-gray-300 hover:text-white focus:outline-none flex items-center gap-2">
+                        <i class="fa-solid fa-user-circle"></i> <?= htmlspecialchars($username_display) ?>
+                        <svg class="h-4 w-4 transform transition-transform duration-200 group-hover:rotate-180" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                    <div class="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg py-2 opacity-0 group-hover:opacity-100 transform transition-all duration-300 scale-95 group-hover:scale-100 origin-top-right invisible group-hover:visible">
+                        <a href="profile.php" class="block px-4 py-2 text-gray-300 hover:bg-slate-700 flex items-center gap-2">
+                            <i class="fa-solid fa-user-gear"></i> Profilo
+                        </a>
+                        <div class="border-t border-gray-700 my-1"></div>
+                        <a href="logout.php" class="block px-4 py-2 text-red-400 hover:bg-slate-700 flex items-center gap-2">
+                            <i class="fa-solid fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            <?php else: ?>
+                <a href="login.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
+                    <i class="fa-solid fa-right-to-bracket"></i> Accedi
                 </a>
-              </li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <a class="dropdown-item text-danger d-flex align-items-center gap-2" href="logout.php">
-                  <i class="fa-solid fa-sign-out-alt"></i> Logout
+                <a href="register.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
+                    <i class="fa-solid fa-user-plus"></i> Registrati
                 </a>
-              </li>
-            </ul>
-          </li>
-        <?php else: ?>
-          <li class="nav-item">
-            <a class="nav-link d-flex align-items-center gap-2" href="login.php">
-              <i class="fa-solid fa-right-to-bracket"></i> Accedi
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link d-flex align-items-center gap-2" href="register.php">
-              <i class="fa-solid fa-user-plus"></i> Registrati
-            </a>
-          </li>
-        <?php endif; ?>
-      </ul>
+            <?php endif; ?>
+        </div>
     </div>
-  </div>
 </nav>
+
+<script>
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const navbarMenu = document.getElementById('navbar-menu');
+
+    mobileMenuButton.addEventListener('click', () => {
+        navbarMenu.classList.toggle('hidden');
+    });
+</script>
+<main>
