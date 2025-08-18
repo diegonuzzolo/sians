@@ -1,20 +1,27 @@
 <?php
+// ajax_check_slots.php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 include 'auth_check.php';
 require 'config/config.php';
 
+header('Content-Type: application/json');
+
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Recupera tutti gli slot attivi dell'utente dalla tabella server_slots
+// Recupera tutti gli slot attivi dell'utente
 $stmt = $pdo->prepare("
-    SELECT ss.*, p.code AS plan_code
+    SELECT ss.*, p.code AS plan_code, p.name AS plan_name
     FROM server_slots ss
     JOIN plans p ON p.id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.status='active'
+    WHERE ss.user_id = ? AND ss.status = 'active'
 ");
 $stmt->execute([$userId]);
 $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Recupera i server attivi per ogni piano
+// Recupera i server attivi dell'utente
 $stmt = $pdo->prepare("
     SELECT plan_id, COUNT(*) AS server_count
     FROM servers
@@ -24,17 +31,24 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $serversPerPlan = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-// Calcola slot disponibili per ogni piano
+// Costruisce array slot disponibili per piano
 $slotsAvailable = [];
 foreach ($slots as $slot) {
     $planId = $slot['plan_id'];
     $planCode = $slot['plan_code'];
+    $planName = $slot['plan_name'];
 
-    $maxSlots = $slot['slots'] ?? 1; // considera la colonna slots della tabella server_slots
+    $maxSlots = $slot['slots'] ?? 1; // Numero totale di slot del piano
     $usedSlots = $serversPerPlan[$planId] ?? 0;
 
-    $slotsAvailable[$planCode] = max(0, $maxSlots - $usedSlots);
+    $available = max(0, $maxSlots - $usedSlots);
+
+    if ($available > 0) {
+        $slotsAvailable[$planCode] = [
+            'plan_name' => $planName,
+            'available' => $available
+        ];
+    }
 }
 
-header('Content-Type: application/json');
 echo json_encode($slotsAvailable);
