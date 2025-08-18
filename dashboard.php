@@ -242,21 +242,35 @@ include 'includes/header.php';
             });
         });
     });
-// Funzione per chiedere il nome del server e reindirizzare
+ const modal = document.getElementById('customModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+
+    function showModal(title, message) {
+        modalTitle.textContent = title;
+        modalMessage.textContent = message;
+        modal.classList.remove('hidden');
+    }
+
+    function hideModal() {
+        modal.classList.add('hidden');
+    }
+
+    // Funzione per chiedere il nome del server e reindirizzare
     function promptAndCreateServer(planCode, slotId) {
         let serverName = prompt("Inserisci un nome per il tuo server:");
         
         if (serverName === null) return;
         serverName = serverName.trim();
         if (serverName === "") {
-            alert("Il nome del server non può essere vuoto.");
+            showModal("Nome non valido", "Il nome del server non può essere vuoto.");
             return;
         }
 
         const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
         if (btn) {
             // Blocca il pulsante e cambia il testo
-            btn.classList.add('pointer-events-none', 'bg-gray-600', 'text-gray-400');
+            btn.disabled = true;
             btn.textContent = "Creazione in corso…";
         }
 
