@@ -25,10 +25,9 @@ $stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $stripeCustomerId = $stmt->fetchColumn();
 
-if (!$stripeCustomerId) {
-    $slots = []; // Nessuno slot disponibile
+if (!$userId) {
+    $slots = [];
 } else {
-    // Slot server disponibili per l'utente
     $stmt = $pdo->prepare("
         SELECT ss.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
         FROM server_slots ss
@@ -37,7 +36,12 @@ if (!$stripeCustomerId) {
     ");
     $stmt->execute([$userId]);
     $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo "<pre>DEBUG SLOTS:\n";
+    print_r($slots);
+    echo "</pre>";
 }
+
 
 
 $stmt->execute([$userId]);
