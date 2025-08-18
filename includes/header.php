@@ -1,14 +1,11 @@
-<?php
-// auth_check.php gestisce già la sessione e il controllo utente,
-// ma per un file header stand-alone è buona prassi avere un fallback.
+<?php 
+// include __DIR__.'/../includes/force_https.php'; // Includi solo se necessario
+include __DIR__.'/../config/config.php';
+
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
-// Includi i file necessari
-include __DIR__.'/../includes/force_https.php';
-include __DIR__.'/../config/config.php';
-
 
 if (isset($_SESSION['user_id'])) {
     $stmt = $pdo->prepare("SELECT last_password_change FROM users WHERE id = ?");
@@ -24,7 +21,6 @@ if (isset($_SESSION['user_id'])) {
     }
 }
 
-// Prepara le variabili per la visualizzazione
 $username_display = $_SESSION['username'] ?? 'Utente';
 $user_logged_in = isset($_SESSION['user_id']);
 ?>
@@ -80,7 +76,7 @@ $user_logged_in = isset($_SESSION['user_id']);
         }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-gray-300 min-h-screen flex flex-col">
 
 <nav class="fixed top-0 left-0 right-0 z-50 bg-slate-900 shadow-lg py-4">
     <div class="container mx-auto px-4 flex justify-between items-center">
@@ -142,4 +138,3 @@ $user_logged_in = isset($_SESSION['user_id']);
         navbarMenu.classList.toggle('hidden');
     });
 </script>
-<main>

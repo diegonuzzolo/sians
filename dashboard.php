@@ -1,5 +1,4 @@
 <?php
-// ... La tua logica PHP e le query al database
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -19,7 +18,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Slot server disponibili (non ancora associati a un server)
+// Slot server disponibili
 $stmtSlots = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss
@@ -29,7 +28,7 @@ $stmtSlots = $pdo->prepare("
 $stmtSlots->execute([$userId]);
 $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 
-// Includi l'header all'inizio del file per generare l'HTML corretto
+// Includi l'header
 include 'includes/header.php';
 ?>
 
