@@ -82,7 +82,7 @@ const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
 // Funzione per aggiornare la lista degli slot disponibili
 function fetchServerSlots() {
-    fetch('ajax_server_slots.php')
+    fetch('ajax_check_slots.php')
         .then(response => response.text())
         .then(html => {
             document.getElementById('slot-list').innerHTML = html;
