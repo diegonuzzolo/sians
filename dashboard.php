@@ -19,34 +19,31 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Subscription e slot disponibili
 // Recupera lo Stripe Customer ID dell'utente loggato
 $stmt = $pdo->prepare("SELECT stripe_customer_id FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $stripeCustomerId = $stmt->fetchColumn();
 
-if (!$stripeCustomerId) {
-    $subscriptions = []; // Nessuna subscription
-} else {
-    // Subscription e slot disponibili
+$subscriptions = []; // default vuoto
+
+if ($stripeCustomerId) {
+    // Recupera i slot attivi dall'utente dalla tabella server_slots
     $stmt = $pdo->prepare("
-        SELECT sub.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
-        FROM subscriptions sub
-        JOIN plans p ON p.id = sub.stripe_price_id
-        WHERE sub.stripe_customer_id = ? AND sub.status = 'active'
+        SELECT ss.*, p.code AS plan_code, p.name AS plan_name, p.ram_gb, p.cpu_cores
+        FROM server_slots ss
+        JOIN plans p ON p.id = ss.plan_id
+        WHERE ss.user_id = ? AND ss.status = 'active'
     ");
-    $stmt->execute([$stripeCustomerId]);
+    $stmt->execute([$userId]);
+    $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-
-$stmt->execute([$userId]);
-$subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Mappa piano -> subscription
+// Mappa piano -> subscription/slot
 $subsByPlan = [];
 foreach ($subscriptions as $sub) {
     $subsByPlan[$sub['plan_code']] = $sub;
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
