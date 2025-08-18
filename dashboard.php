@@ -31,6 +31,7 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="it">
+    <?php include('includes/header.php'); ?>
 
 <head>
     <meta charset="UTF-8">
@@ -106,7 +107,6 @@ $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 
 
     </style>
-    <?php include('includes/header.php'); ?>
     <div class="container my-5">
    <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
 
