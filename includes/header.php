@@ -23,6 +23,15 @@ $username_display = $_SESSION['username'] ?? 'Utente';
 $user_logged_in = isset($_SESSION['user_id']);
 ?>
 
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sians Hosting</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
 <!-- CDN Bootstrap + Icons -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
@@ -74,7 +83,9 @@ $user_logged_in = isset($_SESSION['user_id']);
     color: #facc15;
   }
 </style>
-
+</head>
+<body>
+  
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
   <div class="container">
     <a class="navbar-brand text-warning d-flex align-items-center gap-2" href="index.php">
