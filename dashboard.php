@@ -145,48 +145,49 @@ $stmt = $pdo->prepare("SELECT ss.id, ss.status, p.name, p.price_eur, p.code as p
 $stmt->execute([$userId]);
 $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
-    <?php if (count($slots) === 0): ?>
-        <div class="col-span-full text-center text-gray-500 py-12">
-            <p class="text-lg">Nessuno slot disponibile 😔</p>
-            <p class="text-sm mt-2">Acquista un nuovo piano per creare un server!</p>
-        </div>
-    <?php else: ?>
-        <?php foreach($slots as $slot): ?>
-            <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-xl h-24 flex items-center justify-center p-4">
-                    <h2 class="text-2xl font-bold text-white tracking-wide"><?= htmlspecialchars($slot['name']) ?></h2>
-                </div>
 
-                <div class="p-6">
-                    <div class="text-center">
-                        <p class="text-gray-600 text-sm">Piano di Abbonamento</p>
-                        <p class="mt-1 text-4xl font-extrabold text-gray-900">
-                            €<?= htmlspecialchars($slot['price_eur']) ?>
-                            <span class="text-base font-normal text-gray-500">/mese</span>
-                        </p>
+<div class="min-h-screen bg-gray-900 flex flex-col items-center justify-start py-16 text-white">
+    <div class="container mx-auto px-4">
+        <h2 class="text-4xl font-extrabold text-center mb-12 animate-fade-in-down">🚀 I tuoi slot disponibili</h2>
+
+        <?php if (count($slots) > 0): ?>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <?php foreach($slots as $slot): ?>
+                    <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
+
+                        <div class="relative z-10 flex flex-col h-full">
+                            <h3 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
+                                <?= htmlspecialchars($slot['name']) ?>
+                            </h3>
+                            <p class="text-lg text-gray-400 mb-4">Piano Premium</p>
+
+                            <div class="mt-auto pt-4 border-t border-gray-700">
+                                <p class="text-4xl font-extrabold my-2">
+                                    €<?= htmlspecialchars($slot['price_eur']) ?>
+                                    <span class="text-base font-medium text-gray-500">/mese</span>
+                                </p>
+                                
+                                <a href="new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>"
+                                   class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                                    Crea Server
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="mt-6 border-t pt-6">
-                        <p class="text-center text-gray-700">Il tuo slot server è pronto per la configurazione.</p>
-                        <button 
-                            class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-300 ease-in-out transform hover:scale-105"
-                            data-slot-id="<?= $slot['id'] ?>"
-                            data-plan-code="<?= $slot['plan_code'] ?>"
-                            onclick="window.location.href='new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>'">
-                            🚀 Crea Server Ora
-                        </button>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
+        <?php else: ?>
+            <div class="text-center text-gray-500 py-24">
+                <p class="text-xl">Nessuno slot disponibile 😔</p>
+                <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
-
-
-
-
+<script src="https://cdn.tailwindcss.com"></script>
     <script>
         const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
@@ -277,48 +278,47 @@ $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 .catch(err => console.error(err));
         }
 
-        function renderSlots(slots) {
+       function renderSlots(slots) {
     const container = document.getElementById('slot-list');
-    container.innerHTML = ''; // Clear container
+    container.innerHTML = ''; // Svuota il contenitore esistente
 
     if (slots.length === 0) {
         container.innerHTML = `
-            <div class="text-center text-gray-500 py-12">
-                <p class="text-lg">Nessuno slot disponibile 😔</p>
-                <p class="text-sm mt-2">Acquista un nuovo piano per creare un server!</p>
+            <div class="col-span-full text-center text-gray-500 py-24">
+                <p class="text-xl">Nessuno slot disponibile 😔</p>
+                <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
             </div>
         `;
         return;
     }
 
     const cardsHtml = slots.map(slot => `
-        <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-xl h-24 flex items-center justify-center p-4">
-                <h2 class="text-2xl font-bold text-white tracking-wide">${slot.name}</h2>
-            </div>
-            <div class="p-6">
-                <div class="text-center">
-                    <p class="text-gray-600 text-sm">Piano di Abbonamento</p>
-                    <p class="mt-1 text-4xl font-extrabold text-gray-900">
+        <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
+            
+            <div class="relative z-10 flex flex-col h-full">
+                <h3 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
+                    ${slot.name}
+                </h3>
+                <p class="text-lg text-gray-400 mb-4">Piano Premium</p>
+
+                <div class="mt-auto pt-4 border-t border-gray-700">
+                    <p class="text-4xl font-extrabold my-2">
                         €${slot.price_eur}
-                        <span class="text-base font-normal text-gray-500">/mese</span>
+                        <span class="text-base font-medium text-gray-500">/mese</span>
                     </p>
-                </div>
-                
-                <div class="mt-6 border-t pt-6">
-                    <p class="text-center text-gray-700">Il tuo slot server è pronto per la configurazione.</p>
-                    <a href="new_server.php?plan_code=${slot.plan_code}&slot_id=${slot.id}" 
-                        class="mt-4 w-full block text-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-full transition-colors duration-300 ease-in-out transform hover:scale-105">
-                        🚀 Crea Server Ora
+                    
+                    <a href="new_server.php?plan_code=${slot.plan_code}&slot_id=${slot.id}"
+                       class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                        Crea Server
                     </a>
                 </div>
             </div>
         </div>
     `).join('');
 
-    container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">${cardsHtml}</div>`;
+    container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">${cardsHtml}</div>`;
 }
-
         function refreshSlots() {
             fetch('ajax_get_slots.php')
                 .then(res => res.json())
