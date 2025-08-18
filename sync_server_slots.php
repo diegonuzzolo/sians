@@ -52,7 +52,7 @@ foreach ($activeSubscriptions as $sub) {
         $stmtInsert->execute([$userId, $planId, $subscriptionId]);
         echo "✔ Slot creato per user_id={$userId}, plan_id={$planId}, subscription_id={$subscriptionId}\n";
     } else {
-        echo "ℹ Slot già esistente per user_id={$userId}, plan_id={$planId}, subscription_id={$subscriptionId}\n";
+        echo "i Slot già esistente per user_id={$userId}, plan_id={$planId}, subscription_id={$subscriptionId}\n";
     }
 }
 
