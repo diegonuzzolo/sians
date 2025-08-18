@@ -19,13 +19,12 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Slot server disponibili (QUERY CORRETTA)
-// La query per gli slot deve cercare lo stato 'active'
+// Slot server disponibili
 $stmtSlots = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss
     JOIN plans p ON p.stripe_price_id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'active'
+    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
 ");
 $stmtSlots->execute([$userId]);
 $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
@@ -177,8 +176,6 @@ include 'includes/header.php';
                         statusEl.className = `px-4 py-1 rounded-full text-sm font-bold text-white shadow-md ${data.status === 'running' ? 'bg-green-500' : 'bg-red-500'}`;
                     }
                     updateButtons(serverId, data.status);
-                } else {
-                    alert("Errore: " + data.message);
                 }
             })
             .catch(err => console.error(err));
@@ -218,7 +215,7 @@ include 'includes/header.php';
         stopBtn.classList.toggle('text-white', isRunning);
     }
 
-    // --- ELIMINA SERVER (con reload) ---
+    // --- ELIMINA SERVER ---
     function deleteServer(serverId, vmid) {
         if (!confirm('Sei sicuro di voler eliminare questo server? Questa azione è irreversibile.')) return;
         fetch(`delete_server.php?vmid=${vmid}`)
@@ -236,15 +233,19 @@ include 'includes/header.php';
                 console.error(err);
             });
     }
-
-    // Questo blocco di codice non è necessario se la pagina si ricarica dopo l'eliminazione
-    // e può essere rimosso per semplicità. Ho preferito lasciarlo per non stravolgere il tuo codice.
-    document.addEventListener('DOMContentLoaded', function() {
+       document.addEventListener('DOMContentLoaded', function() {
         const slotsContainer = document.querySelector('#slots-container');
+
+
+
+        // Funzione per gestire la creazione del server
+        // Questa parte gestisce il click e aggiorna l'UI immediatamente
         document.querySelectorAll('.create-server-btn').forEach(button => {
             button.addEventListener('click', function(event) {
                 const slotId = this.dataset.slotId;
                 const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
+                
+                // Aggiorna l'UI per mostrare lo stato di attesa
                 if (slotCard) {
                     slotCard.classList.add('pending');
                     slotCard.innerHTML = `
@@ -254,9 +255,13 @@ include 'includes/header.php';
                         </div>
                     `;
                 }
+
+                // Qui dovresti avviare la chiamata AJAX per la creazione del server (new_server.php)
+                // e gestire la risposta
             });
         });
     });
+    
 </script>
 </body>
 </html>
