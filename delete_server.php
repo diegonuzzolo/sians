@@ -38,12 +38,18 @@ try {
 
     // --- Stop container su Proxmox (se non già spento) ---
     $stopUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop";
-    callProxmox($stopUrl, 'POST');
+    $stopResult = callProxmox($stopUrl, 'POST');
+    if (!$stopResult['success']) {
+        throw new Exception("Errore durante lo stop del container: " . $stopResult['message']);
+    }
     sleep(4);
 
     // --- Distruggi container su Proxmox ---
     $destroyUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
-    callProxmox($destroyUrl, 'DELETE');
+    $destroyResult = callProxmox($destroyUrl, 'DELETE');
+    if (!$destroyResult['success']) {
+        throw new Exception("Errore durante la distruzione del container: " . $destroyResult['message']);
+    }
     
     // --- Aggiorna la tabella delle risorse, decrementando quelle usate ---
     $stmt = $pdo->prepare("

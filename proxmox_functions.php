@@ -86,7 +86,7 @@ function callProxmox(string $url, string $method = 'GET', array $postData = []):
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
+    
     // Metodo HTTP
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
 
@@ -104,7 +104,7 @@ function callProxmox(string $url, string $method = 'GET', array $postData = []):
     curl_close($ch);
 
     if ($err) {
-        return ['success' => false, 'message' => "Curl error: $err"];
+        return ['success' => false, 'message' => "Errore cURL: $err"];
     }
 
     $data = json_decode($response, true);
@@ -114,7 +114,7 @@ function callProxmox(string $url, string $method = 'GET', array $postData = []):
     } elseif (isset($data['errors'])) {
         return ['success' => false, 'message' => json_encode($data['errors'])];
     } else {
-        return ['success' => false, 'message' => "HTTP $httpCode: $response"];
+        return ['success' => false, 'message' => "HTTP $httpCode: " . ($response ? htmlspecialchars($response) : 'No response body')];
     }
 }
 
