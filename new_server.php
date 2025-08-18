@@ -7,6 +7,7 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
+require_once 'init.php';
 
 csrf_check_or_die();
 
@@ -23,9 +24,9 @@ $stmt->execute([$planCode]);
 $plan = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$plan) die(json_encode(['success'=>false,'message'=>'Piano non valido']));
 
-// Controlla subscription attiva
-$stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND plan_id=? LIMIT 1");
-$stmt->execute([$userId, $plan['id']]);
+// Controlla subscription attiva usando 'stripe_price_id'
+$stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND stripe_price_id=? LIMIT 1");
+$stmt->execute([$userId, $plan['stripe_price_id']]); // Usa la colonna corretta
 $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$subscription) die(json_encode(['success'=>false,'message'=>'Subscription non trovata']));
 
@@ -40,16 +41,16 @@ $vmIp = getNextFreePrivateIp($pdo);
 
 // Inserisci server (temporaneo, status stopped)
 $stmt = $pdo->prepare("
-    INSERT INTO servers (name, user_id, plan_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
-    VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
+  INSERT INTO servers (name, user_id, plan_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
+  VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
 ");
 $stmt->execute([$serverName, $userId, $plan['id'], $vmid, $cores, $ramGb*1024]);
 $serverId = $pdo->lastInsertId();
 
 // Inserisci container
 $stmt = $pdo->prepare("
-    INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'Stopped', ?, ?)
+  INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
+  VALUES (?, ?, ?, ?, ?, ?, 'Stopped', ?, ?)
 ");
 $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, $cores, $serverId]);
 $containerId = $pdo->lastInsertId();
@@ -79,12 +80,12 @@ exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -
 
 // Risposta JSON per frontend
 echo json_encode([
-    'success' => true,
-    'server_id' => $serverId,
-    'container_id' => $containerId,
-    'vmid' => $vmid,
-    'ip' => $vmIp,
-    'message' => 'Server creato correttamente'
+  'success' => true,
+  'server_id' => $serverId,
+  'container_id' => $containerId,
+  'vmid' => $vmid,
+  'ip' => $vmIp,
+  'message' => 'Server creato correttamente'
 ]);
 
 // Dopo aver creato il server
