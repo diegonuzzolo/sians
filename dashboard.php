@@ -8,7 +8,7 @@ require 'config/config.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Server attivi (questa parte rimane lato server per il caricamento iniziale)
+// Server attivi
 $stmt = $pdo->prepare("
     SELECT s.id, s.name, s.status, s.type, c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
     FROM servers s
@@ -17,6 +17,16 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Slot server disponibili (non ancora associati a un server)
+$stmtSlots = $pdo->prepare("
+    SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
+    FROM server_slots ss
+    JOIN plans p ON p.stripe_price_id = ss.plan_id
+    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
+");
+$stmtSlots->execute([$userId]);
+$serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 <!DOCTYPE html>
@@ -69,32 +79,10 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 </div>
 </div>
 <hr>
-<div class="container my-5">
-<h2 class="mb-4 text-center display-5 fw-bold">🎁 Slot server disponibili</h2>
-<!-- Contenitore per gli slot server, verrà aggiornato via JS -->
-<div id="slot-list" class="row">
-    <!-- Qui verranno caricati gli slot disponibili tramite JavaScript -->
-</div>
-</div>
+
 
 <script>
 const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-
-// Funzione per aggiornare la lista degli slot disponibili
-function fetchServerSlots() {
-    fetch('ajax_check_slots.php')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('slot-list').innerHTML = html;
-        })
-        .catch(error => console.error('Errore nel recupero degli slot:', error));
-}
-
-// Chiamata iniziale per caricare gli slot all'avvio
-fetchServerSlots();
-
-// Aggiorna gli slot ogni 5 secondi
-setInterval(fetchServerSlots, 5000);
 
 // --- CONTROLLO SERVER (start/stop) ---
 function controlServer(serverId, action) {
