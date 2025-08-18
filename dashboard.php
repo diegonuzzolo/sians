@@ -62,7 +62,8 @@ include 'includes/header.php';
                             <div>
                                 <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
                                 <p class="text-sm text-gray-400">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP:
-                                    <?= $server['ip'] ?? 'N/A' ?></p>
+                                    <?= $server['ip'] ?? 'N/A' ?>
+                                </p>
                             </div>
                         </div>
 
@@ -134,8 +135,7 @@ include 'includes/header.php';
 
                                 <a href="javascript:void(0)"
                                     class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                                    data-slot-id="<?= $slot['id'] ?>" data-plan-code="<?= $slot['plan_code'] ?>"
-                                    onclick="promptAndCreateServer(this)">
+                                    onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>')">
                                     Crea Server
                                 </a>
 
