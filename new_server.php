@@ -7,11 +7,15 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
+require_once 'init.php';
 
 csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) die(json_encode(['success'=>false,'message'=>'Accesso negato']));
+
+// Aggiunto per leggere il parametro 'slot_id'
+$slotId = $_GET['slot_id'] ?? null;
 
 $planCode = $_GET['plan_code'] ?? null;
 $serverName = trim($_GET['server_name'] ?? 'mcserver');
@@ -23,9 +27,9 @@ $stmt->execute([$planCode]);
 $plan = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$plan) die(json_encode(['success'=>false,'message'=>'Piano non valido']));
 
-// Controlla subscription attiva usando 'stripe_price_id'
+// Controlla subscription attiva
 $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE user_id=? AND stripe_price_id=? LIMIT 1");
-$stmt->execute([$userId, $plan['stripe_price_id']]); // Usa la colonna corretta
+$stmt->execute([$userId, $plan['stripe_price_id']]);
 $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$subscription) die(json_encode(['success'=>false,'message'=>'Subscription non trovata']));
 
@@ -40,16 +44,16 @@ $vmIp = getNextFreePrivateIp($pdo);
 
 // Inserisci server (temporaneo, status stopped)
 $stmt = $pdo->prepare("
-  INSERT INTO servers (name, user_id, plan_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
-  VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
+    INSERT INTO servers (name, user_id, plan_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress)
+    VALUES (?, ?, ?, ?, 'stopped', 'bedrock', ?, ?, 0)
 ");
 $stmt->execute([$serverName, $userId, $plan['id'], $vmid, $cores, $ramGb*1024]);
 $serverId = $pdo->lastInsertId();
 
 // Inserisci container
 $stmt = $pdo->prepare("
-  INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
-  VALUES (?, ?, ?, ?, ?, ?, 'Stopped', ?, ?)
+    INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'Stopped', ?, ?)
 ");
 $stmt->execute([$vmid, $ramGb*1024, $storageGb, $userId, $serverName, $vmIp, $cores, $serverId]);
 $containerId = $pdo->lastInsertId();
@@ -79,16 +83,18 @@ exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -
 
 // Risposta JSON per frontend
 echo json_encode([
-  'success' => true,
-  'server_id' => $serverId,
-  'container_id' => $containerId,
-  'vmid' => $vmid,
-  'ip' => $vmIp,
-  'message' => 'Server creato correttamente'
+    'success' => true,
+    'server_id' => $serverId,
+    'container_id' => $containerId,
+    'vmid' => $vmid,
+    'ip' => $vmIp,
+    'message' => 'Server creato correttamente'
 ]);
 
-// Dopo aver creato il server
-$stmt = $pdo->prepare("UPDATE server_slots SET status='created', server_id=? WHERE id=?");
-$stmt->execute([$serverId, $slotId]);
+// Aggiunto per aggiornare lo slot server
+if ($slotId) {
+    $stmt = $pdo->prepare("UPDATE server_slots SET status='created', server_id=? WHERE id=?");
+    $stmt->execute([$serverId, $slotId]);
+}
 
 exit;
