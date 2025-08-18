@@ -7,8 +7,7 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
-require_once 'init.php';
-
+require 'stripe-php/init.php';
 csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
