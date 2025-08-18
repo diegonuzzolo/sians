@@ -1,5 +1,6 @@
 <?php 
-require 'config/config.php';
+require '../includes/force_https.php';
+include '../config/config.php';
 
 
 if (session_status() === PHP_SESSION_NONE) {
