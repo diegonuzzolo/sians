@@ -79,24 +79,8 @@ body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, 
 </div>
 </div>
 <hr>
-<div class="container my-5">
-<h2 class="mb-4 text-center display-5 fw-bold">🎁 Slot server disponibili</h2>
-<!-- Lista slot server -->
-<div id="slot-list" class="row">
-<?php foreach ($serverSlots as $slot): ?>
-    <div class="col-md-4 mb-3" id="slot-<?= $slot['id'] ?>">
-        <div class="card card-server p-3 shadow">
-            <div class="server-name">Slot disponibile</div>
-            <div class="server-ip">Piano: <?= htmlspecialchars($slot['name']) ?></div>
-            <span class="status-badge status-available">Disponibile</span>
-            <div class="server-actions mt-2">
-                <a href="new_server.php?plan_code=<?= $slot['plan_code'] ?>&slot_id=<?= $slot['id'] ?>" class="btn btn-primary btn-server w-100">Crea Server</a>
-            </div>
-        </div>
-    </div>
-<?php endforeach; ?>
-</div>
-</div>
+<div id="slot-list" class="row"></div>
+
 
 
 <script>
@@ -146,31 +130,43 @@ function deleteServer(serverId, vmid) {
         })
         .catch(err => console.error(err));
 }
+function renderSlots(slots) {
+    const container = document.getElementById('slot-list');
+    container.innerHTML = ''; // svuota
+    if (slots.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">Nessuno slot disponibile</p>';
+        return;
+    }
+    slots.forEach(slot => {
+        container.innerHTML += `
+        <div class="col-md-4 mb-3" id="slot-${slot.id}">
+            <div class="card card-server p-3 shadow">
+                <div class="server-name">Slot disponibile</div>
+                <div class="server-ip">Piano: ${slot.name}</div>
+                <span class="status-badge status-available">Disponibile</span>
+                <div class="server-actions mt-2">
+                    <a href="new_server.php?plan_code=${slot.plan_code}&slot_id=${slot.id}" 
+                       class="btn btn-primary btn-server w-100">Crea Server</a>
+                </div>
+            </div>
+        </div>`;
+    });
+}
 
 function refreshSlots() {
     fetch('ajax_get_slots.php')
         .then(res => res.json())
         .then(data => {
-            if (!data.success) return;
-            const container = document.getElementById('slot-list');
-            container.innerHTML = ''; // svuota
-            data.slots.forEach(slot => {
-                container.innerHTML += `
-                <div class="col-md-4 mb-3" id="slot-${slot.id}">
-                    <div class="card card-server p-3 shadow">
-                        <div class="server-name">Slot disponibile</div>
-                        <div class="server-ip">Piano: ${slot.name}</div>
-                        <span class="status-badge status-available">Disponibile</span>
-                        <div class="server-actions mt-2">
-                            <a href="new_server.php?plan_code=${slot.plan_code}&slot_id=${slot.id}" class="btn btn-primary btn-server w-100">Crea Server</a>
-                        </div>
-                    </div>
-                </div>`;
-            });
-        });
+            if (data.success) {
+                renderSlots(data.slots);
+            }
+        })
+        .catch(err => console.error("Errore caricamento slots:", err));
 }
 
-// Aggiorna ogni 10 secondi
+// Prima chiamata subito al load
+refreshSlots();
+// Poi aggiorna ogni 10 secondi
 setInterval(refreshSlots, 10000);
 
 </script>

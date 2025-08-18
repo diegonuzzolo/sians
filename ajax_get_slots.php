@@ -2,7 +2,13 @@
 require 'auth_check.php';
 require 'config/config.php';
 
+header('Content-Type: application/json');
+
 $userId = $_SESSION['user_id'] ?? 0;
+if (!$userId) {
+    echo json_encode(['success'=>false, 'slots'=>[]]);
+    exit;
+}
 
 $stmt = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
