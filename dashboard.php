@@ -19,12 +19,13 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Slot server disponibili
+// Slot server disponibili (QUERY CORRETTA)
+// La query per gli slot deve cercare lo stato 'active'
 $stmtSlots = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss
     JOIN plans p ON p.stripe_price_id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
+    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'active'
 ");
 $stmtSlots->execute([$userId]);
 $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
@@ -102,6 +103,7 @@ include 'includes/header.php';
         <div id="slot-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php if (empty($serverSlots)): ?>
                 <div class="col-span-full text-center text-gray-500 py-24">
+                    <p class="text-xl">Nessuno slot disponibile 😔</p>
                     <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
                 </div>
             <?php else: ?>
@@ -176,6 +178,8 @@ include 'includes/header.php';
                         statusEl.className = `px-4 py-1 rounded-full text-sm font-bold text-white shadow-md ${data.status === 'running' ? 'bg-green-500' : 'bg-red-500'}`;
                     }
                     updateButtons(serverId, data.status);
+                } else {
+                    alert("Errore: " + data.message);
                 }
             })
             .catch(err => console.error(err));
@@ -215,34 +219,33 @@ include 'includes/header.php';
         stopBtn.classList.toggle('text-white', isRunning);
     }
 
-    // --- ELIMINA SERVER ---
+    // --- ELIMINA SERVER (con reload) ---
     function deleteServer(serverId, vmid) {
         if (!confirm('Sei sicuro di voler eliminare questo server? Questa azione è irreversibile.')) return;
         fetch(`delete_server.php?vmid=${vmid}`)
-            .then(res => res.json())
+            .then(res => res.text())
             .then(data => {
-                if (data.success) {
-                    document.getElementById('server-' + serverId)?.remove();
-                     window.location.reload();
+                if (data.includes("Server eliminato correttamente")) {
+                    // Ricarica la pagina per aggiornare lo stato
+                    window.location.reload();
                 } else {
-                    alert("Errore nell'eliminazione del server: " + data.message);
+                    alert("Errore nell'eliminazione del server: " + data);
                 }
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                alert("Errore di rete durante l'eliminazione.");
+                console.error(err);
+            });
     }
-       document.addEventListener('DOMContentLoaded', function() {
+
+    // Questo blocco di codice non è necessario se la pagina si ricarica dopo l'eliminazione
+    // e può essere rimosso per semplicità. Ho preferito lasciarlo per non stravolgere il tuo codice.
+    document.addEventListener('DOMContentLoaded', function() {
         const slotsContainer = document.querySelector('#slots-container');
-
-
-
-        // Funzione per gestire la creazione del server
-        // Questa parte gestisce il click e aggiorna l'UI immediatamente
         document.querySelectorAll('.create-server-btn').forEach(button => {
             button.addEventListener('click', function(event) {
                 const slotId = this.dataset.slotId;
                 const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
-                
-                // Aggiorna l'UI per mostrare lo stato di attesa
                 if (slotCard) {
                     slotCard.classList.add('pending');
                     slotCard.innerHTML = `
@@ -252,13 +255,9 @@ include 'includes/header.php';
                         </div>
                     `;
                 }
-
-                // Qui dovresti avviare la chiamata AJAX per la creazione del server (new_server.php)
-                // e gestire la risposta
             });
         });
     });
-    
 </script>
 </body>
 </html>
