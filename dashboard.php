@@ -149,7 +149,7 @@ $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <h1 class="text-3xl font-bold text-gray-800 mb-12">Slot Disponibili</h1>
 
     <?php if(count($slots) > 0): ?>
-        <div class="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-6 w-full max-w-md">
+        <div class="<?= count($slots) === 1 ? 'flex justify-center w-full max-w-md' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-5xl' ?>">
             <?php foreach($slots as $slot): ?>
                 <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:shadow-2xl transition-shadow duration-300">
                     <div class="mb-4">
