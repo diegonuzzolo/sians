@@ -140,25 +140,7 @@ include 'includes/header.php';
 <script>
     const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
 
-    // Funzione per chiedere il nome del server e reindirizzare
-    function promptAndCreateServer(planCode, slotId) {
-        let serverName = prompt("Inserisci un nome per il tuo server:");
-        
-        if (serverName === null) {
-            // L'utente ha premuto Annulla
-            return;
-        }
 
-        serverName = serverName.trim();
-
-        if (serverName === "") {
-            alert("Il nome del server non può essere vuoto.");
-            return;
-        }
-
-        // Reindirizza alla pagina di creazione con il nome
-        window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
-    }
 
     // --- CONTROLLO SERVER (start/stop) ---
     function controlServer(serverId, action) {
@@ -261,7 +243,7 @@ include 'includes/header.php';
             });
         });
     });
-function promptAndCreateServer(planCode, slotId) {
+    function promptAndCreateServer(planCode, slotId) {
     let serverName = prompt("Inserisci un nome per il tuo server:");
     
     if (serverName === null) return;
@@ -273,16 +255,15 @@ function promptAndCreateServer(planCode, slotId) {
 
     const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
     if (btn) {
-        // Disabilita subito il pulsante per prevenire clic multipli
+        // Blocca il pulsante
         btn.disabled = true;
         btn.classList.add('cursor-not-allowed', 'bg-gray-600', 'text-gray-400');
         btn.textContent = "Creazione in corso…";
     }
 
-    // Reindirizza alla pagina di creazione con i parametri
+    // Reindirizza o invia la richiesta AJAX
     window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
 }
-
 
 </script>
 </body>
