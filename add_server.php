@@ -36,35 +36,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Piano non valido.");
 
     // Verifica se l'utente ha già subscription
-    $stmt = $pdo->prepare("SELECT * FROM subscriptions WHERE stripe_customer_id=? AND stripe_subscription_id=? LIMIT 1");
-    $stmt->execute([$userId, $plan['id']]);
-    $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
+    // La logica di verifica è ora gestita tramite Stripe nel webhook
+    // e la creazione dello slot avviene in sync_server_slots.php
+    
+    // Stripe checkout
+    \Stripe\Stripe::setApiKey("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");
 
-    if ($subscription) {
-        $error = "Hai già slot disponibili per questo piano.";
-    } else {
-        // Stripe checkout
-        \Stripe\Stripe::setApiKey("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");
-
-        try {
-            $session = \Stripe\Checkout\Session::create([
-                'payment_method_types' => ['card'],
-                'customer_email' => $email,
-                'line_items' => [
-                    [
-                        'price' => $plan['stripe_price_id'],
-                        'quantity' => 1
-                    ]
-                ],
-                'mode' => 'subscription',
-                'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
-                'cancel_url' => "https://sians.it/add_server.php?cancel=1"
-            ]);
-            header("Location: " . $session->url);
-            exit;
-        } catch (Exception $e) {
-            $error = "Errore Stripe: " . $e->getMessage();
-        }
+    try {
+        $session = \Stripe\Checkout\Session::create([
+            'payment_method_types' => ['card'],
+            'customer_email' => $email,
+            'line_items' => [
+                [
+                    'price' => $plan['stripe_price_id'],
+                    'quantity' => 1
+                ]
+            ],
+            'mode' => 'subscription',
+            'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
+            'cancel_url' => "https://sians.it/add_server.php?cancel=1"
+        ]);
+        header("Location: " . $session->url);
+        exit;
+    } catch (Exception $e) {
+        $error = "Errore Stripe: " . $e->getMessage();
     }
 }
 
@@ -96,135 +91,90 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
 include "includes/header.php";
 ?>
 
-
-
-<div class="container my-5" style="max-width:480px;">
-    <h2 class="mb-4 text-center text-bedrock display-5 fw-bold">🎮 Crea un nuovo server</h2>
+<div class="container mx-auto px-4 py-12">
+    <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🚀 Acquista un nuovo server</h2>
 
     <?php if ($error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+        <div class="bg-red-500 text-white p-4 rounded-lg mb-6 text-center shadow-md">
+            <?= htmlspecialchars($error) ?>
+        </div>
     <?php endif; ?>
 
-    <?php if (!empty($checkoutSessionId)): ?>
-        <!-- Mostra solo pulsante pagamento -->
-        <script src="https://js.stripe.com/v3/"></script>
-        <button id="checkoutBtn" class="btn btn-success w-100 fw-bold">Paga e Crea Server</button>
-        <script>
-            var stripe = Stripe('pk_live_51RwTLKGyhVlVUQfHcwneV569jhxFiNNqCWwEup9sg9IzgtkCBpXmBj0F4pSOrgvFi3sgDng1t6oJcmBcqg93I7EM00z2SQl3Gq');
-            document.getElementById('checkoutBtn').addEventListener('click', function () {
-                stripe.redirectToCheckout({ sessionId: <?php echo json_encode($checkoutSessionId); ?> });
-            });
-        </script>
-    <?php else: ?>
-        <!-- Mostra form selezione risorse -->
-        <form method="POST" id="createServerForm" class="bg-dark p-4 rounded-4 shadow-lg">
-            <?php echo csrf_field(); ?>
-            <div class="mb-4">
-                <label for="server_name" class="form-label text-black fw-semibold fs-5">Nome Server</label>
-                <input type="text" name="server_name" id="server_name"
-                    class="form-control form-control-lg bg-secondary text-black border-0 shadow-sm" required
-                    placeholder="Es. Il Mio Server" value="<?= htmlspecialchars($_POST['server_name'] ?? '') ?>">
-            </div>
-
-            <div class="card border-0 bg-bedrock shadow p-3 rounded-4">
-                <div class="card-header bg-primary rounded-3 py-2 text-black text-center fs-5 fw-bold">
-                    Configura le Risorse
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label text-black fw-semibold">Seleziona Piano</label>
-                        <select name="plan_code" class="form-select form-select-lg">
-                            <option value="plan_2gb">2 GB</option>
-                            <option value="plan_4gb" selected>4 GB</option>
-                            <option value="plan_6gb">6 GB</option>
-                            <option value="plan_8gb">8 GB</option>
-                            <option value="plan_16gb">16 GB</option>
-                            <option value="plan_24gb">24 GB</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-black fw-semibold">
-                            CPU Cores: <span id="cpuDisplay" class="fs-5 badge bg-info"></span>
-                        </label>
-                        <input type="hidden" name="cpu_cores" id="cpu_cores" value="2">
-
-                        <div class="progress rounded-pill" style="height: 12px;">
-                            <div id="cpuProgress" class="progress-bar bg-info" role="progressbar"
-                                style="width: 0%; transition: width 0.5s;"></div>
+    <div class="flex flex-col md:flex-row justify-center items-center md:items-start gap-8">
+        
+        <div class="w-full max-w-lg lg:max-w-xl">
+            <form method="POST" id="createServerForm">
+                <?= csrf_field(); ?>
+                
+                <h3 class="text-2xl font-semibold mb-4 text-center text-white">Seleziona il tuo piano</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label for="plan_2gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                        <input type="radio" name="plan_code" id="plan_2gb" value="plan_2gb" class="hidden peer">
+                        <div class="flex flex-col items-center">
+                            <span class="text-3xl font-bold text-blue-400">2 GB RAM</span>
+                            <span class="text-gray-400 text-sm">2 CPU Cores</span>
+                            <span class="mt-4 text-4xl font-extrabold text-white">€5.53<span class="text-base font-medium text-gray-500">/mese</span></span>
                         </div>
-                    </div>
+                    </label>
 
-                    <div class="mb-3">
-                        <label class="form-label text-black fw-semibold">
-                            RAM Allocata: <span id="ramDisplay" class="fs-5 badge bg-primary"></span>
-                        </label>
-                    </div>
+                    <label for="plan_4gb" class="relative bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                         <div class="absolute top-0 right-0 -mt-2 -mr-2 bg-yellow-500 text-gray-900 text-xs font-bold px-3 py-1 rounded-full rotate-12 transform">PIÙ POPOLARE</div>
+                        <input type="radio" name="plan_code" id="plan_4gb" value="plan_4gb" class="hidden peer" checked>
+                        <div class="flex flex-col items-center">
+                            <span class="text-3xl font-bold text-yellow-400">4 GB RAM</span>
+                            <span class="text-gray-400 text-sm">2 CPU Cores</span>
+                            <span class="mt-4 text-4xl font-extrabold text-white">€8.50<span class="text-base font-medium text-gray-500">/mese</span></span>
+                        </div>
+                    </label>
 
-                    <div class="mb-0 text-black fw-semibold fs-5 text-center">
-                        <span id="priceLabel" class="fw-bold text-success">€ 0.00</span>
-                    </div>
+                    <label for="plan_6gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                        <input type="radio" name="plan_code" id="plan_6gb" value="plan_6gb" class="hidden peer">
+                        <div class="flex flex-col items-center">
+                            <span class="text-3xl font-bold text-blue-400">6 GB RAM</span>
+                            <span class="text-gray-400 text-sm">3 CPU Cores</span>
+                            <span class="mt-4 text-4xl font-extrabold text-white">€12.75<span class="text-base font-medium text-gray-500">/mese</span></span>
+                        </div>
+                    </label>
+                    <label for="plan_8gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                        <input type="radio" name="plan_code" id="plan_8gb" value="plan_8gb" class="hidden peer">
+                        <div class="flex flex-col items-center">
+                            <span class="text-3xl font-bold text-blue-400">8 GB RAM</span>
+                            <span class="text-gray-400 text-sm">4 CPU Cores</span>
+                            <span class="mt-4 text-4xl font-extrabold text-white">€18.28<span class="text-base font-medium text-gray-500">/mese</span></span>
+                        </div>
+                    </label>
+                    <label for="plan_16gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                        <input type="radio" name="plan_code" id="plan_16gb" value="plan_16gb" class="hidden peer">
+                        <div class="flex flex-col items-center">
+                            <span class="text-3xl font-bold text-blue-400">16 GB RAM</span>
+                            <span class="text-gray-400 text-sm">6 CPU Cores</span>
+                            <span class="mt-4 text-4xl font-extrabold text-white">€29.75<span class="text-base font-medium text-gray-500">/mese</span></span>
+                        </div>
+                    </label>
+                    <label for="plan_24gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                        <input type="radio" name="plan_code" id="plan_24gb" value="plan_24gb" class="hidden peer">
+                        <div class="flex flex-col items-center">
+                            <span class="text-3xl font-bold text-blue-400">24 GB RAM</span>
+                            <span class="text-gray-400 text-sm">8 CPU Cores</span>
+                            <span class="mt-4 text-4xl font-extrabold text-white">€48.00<span class="text-base font-medium text-gray-500">/mese</span></span>
+                        </div>
+                    </label>
                 </div>
-            </div>
-
-            <button type="submit" class="btn btn-success mt-4 w-100 fw-bold shadow-sm">Prosegui al Pagamento</button>
-        </form>
-    <?php endif; ?>
+                
+                <div class="mt-8 text-center">
+                    <button type="submit" class="w-full md:w-auto py-3 px-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                        Prosegui al Pagamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const plans = [
-            { code: 'plan_2gb', ram: 2, cores: 2, price: 5.53 },
-            { code: 'plan_4gb', ram: 4, cores: 2, price: 8.50 },
-            { code: 'plan_6gb', ram: 6, cores: 3, price: 12.75 },
-            { code: 'plan_8gb', ram: 8, cores: 4, price: 18.28 },
-            { code: 'plan_16gb', ram: 16, cores: 6, price: 29.75 },
-            { code: 'plan_24gb', ram: 24, cores: 8, price: 48.00 }
-        ];
-
-        const planSelect = document.querySelector('select[name="plan_code"]');
-        const ramDisplay = document.getElementById('ramDisplay');
-        const cpuLabel = document.getElementById('cpu_cores'); // hidden
-        const cpuDisplay = document.getElementById('cpuDisplay'); // badge
-        const cpuProgress = document.getElementById('cpuProgress');
-        const priceLabel = document.getElementById('priceLabel');
-
-        function updatePlanDisplay() {
-            const planCode = planSelect.value;
-            const option = plans.find(p => p.code === planCode);
-            if (!option) return;
-
-            // Aggiorna badge RAM
-            ramDisplay.textContent = option.ram + ' GB';
-            ramDisplay.classList.add('animate__animated', 'animate__fadeIn');
-            setTimeout(() => ramDisplay.classList.remove('animate__animated', 'animate__fadeIn'), 500);
-
-            // Aggiorna badge CPU
-            cpuDisplay.textContent = option.cores + ' Cores';
-            cpuDisplay.classList.add('animate__animated', 'animate__pulse');
-            setTimeout(() => cpuDisplay.classList.remove('animate__animated', 'animate__pulse'), 500);
-
-            cpuLabel.value = option.cores;
-            cpuProgress.style.width = (option.cores / 8 * 100) + '%';
-
-            // Aggiorna prezzo
-            priceLabel.textContent = "€ " + option.price.toFixed(2);
-        }
-
-        planSelect.addEventListener('change', updatePlanDisplay);
-
-        updatePlanDisplay(); // inizializza valori
-    });
-</script>
-
-<!-- Aggiungi Animate.css per le animazioni -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
-
-
 
 
 <?php include 'includes/footer.php'; ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Non è più necessario il codice JavaScript per gli slider, poiché ora i piani sono predefiniti e selezionati con i radio button
+</script>
 </body>
-
 </html>
