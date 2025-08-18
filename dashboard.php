@@ -102,7 +102,6 @@ include 'includes/header.php';
         <div id="slot-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php if (empty($serverSlots)): ?>
                 <div class="col-span-full text-center text-gray-500 py-24">
-                    <p class="text-xl">Nessuno slot disponibile 😔</p>
                     <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
                 </div>
             <?php else: ?>
