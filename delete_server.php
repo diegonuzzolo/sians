@@ -17,7 +17,7 @@ if ($vmid <= 0) {
 try {
     $pdo->beginTransaction();
 
-    // --- Recupera l'ID del server e l'ID dello slot direttamente dalla tabella servers ---
+    // --- Recupera l'ID del server e l'ID dello slot ---
     $stmt = $pdo->prepare("
         SELECT id AS server_id, slot_id, cpu_cores, ram_mb, storage_gb
         FROM servers
