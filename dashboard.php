@@ -6,7 +6,6 @@ error_reporting(E_ALL);
 
 include("auth_check.php");
 require 'config/config.php';
-require_once 'includes/header.php';
 
 $userId = $_SESSION['user_id'] ?? 0;
 
@@ -22,26 +21,27 @@ $servers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Slot server disponibili (non ancora associati a un server)
 $stmtSlots = $pdo->prepare("
-    SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
-    FROM server_slots ss
-    JOIN plans p ON p.stripe_price_id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
+SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
+FROM server_slots ss
+JOIN plans p ON p.stripe_price_id = ss.plan_id
+WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
 ");
 $stmtSlots->execute([$userId]);
 $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
 
 // Includi l'header all'inizio del file per generare l'HTML corretto
+include 'includes/header.php';
 ?>
 
 <div class="container my-5">
-<h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
-
-<div id="server-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-    <?php if (count($servers) === 0): ?>
-        <div class="col-span-full text-center text-gray-500 py-12">
-            <p class="text-lg">Nessun server attivo. Hai uno slot disponibile?</p>
-            <p class="text-sm mt-2">Crea il tuo primo server per iniziare a giocare!</p>
-        </div>
+    <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
+    
+    <div id="server-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <?php if (count($servers) === 0): ?>
+            <div class="col-span-full text-center text-gray-500 py-12">
+                <p class="text-lg">Nessun server attivo. Hai uno slot disponibile?</p>
+                <p class="text-sm mt-2">Crea il tuo primo server per iniziare a giocare!</p>
+            </div>
     <?php else: ?>
         <?php foreach ($servers as $server):
             $status = htmlspecialchars($server['status']);
