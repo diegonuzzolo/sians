@@ -223,6 +223,7 @@ include 'includes/header.php';
             .then(data => {
                 if (data.success) {
                     document.getElementById('server-' + serverId)?.remove();
+                     window.location.reload();
                 } else {
                     alert("Errore nell'eliminazione del server: " + data.message);
                 }

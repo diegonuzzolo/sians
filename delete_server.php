@@ -4,8 +4,10 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 include("auth_check.php");
+require_once 'includes/csrf.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
+csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
 $vmid = intval($_GET['vmid'] ?? 0);
@@ -84,6 +86,5 @@ try {
     $error = $e->getMessage();
     echo "<div style='color:red;'><strong>Errore:</strong> " . htmlspecialchars($error) . "</div>";
 }
-header("Location: dashboard.php");
-exit;
+
 ?>
