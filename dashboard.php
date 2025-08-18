@@ -24,7 +24,7 @@ $stmtSlots = $pdo->prepare("
     SELECT ss.id, ss.status, p.name, p.price_eur, p.code as plan_code
     FROM server_slots ss
     JOIN plans p ON p.stripe_price_id = ss.plan_id
-    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'active'
+    WHERE ss.user_id = ? AND ss.server_id IS NULL AND ss.status = 'pending'
 ");
 $stmtSlots->execute([$userId]);
 $serverSlots = $stmtSlots->fetchAll(PDO::FETCH_ASSOC);
@@ -102,7 +102,6 @@ include 'includes/header.php';
         <div id="slot-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php if (empty($serverSlots)): ?>
                 <div class="col-span-full text-center text-gray-500 py-24">
-                    <p class="text-xl">Nessuno slot disponibile 😔</p>
                     <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
                 </div>
             <?php else: ?>
@@ -177,8 +176,6 @@ include 'includes/header.php';
                         statusEl.className = `px-4 py-1 rounded-full text-sm font-bold text-white shadow-md ${data.status === 'running' ? 'bg-green-500' : 'bg-red-500'}`;
                     }
                     updateButtons(serverId, data.status);
-                } else {
-                    alert("Errore: " + data.message);
                 }
             })
             .catch(err => console.error(err));
@@ -218,79 +215,47 @@ include 'includes/header.php';
         stopBtn.classList.toggle('text-white', isRunning);
     }
 
-    // --- ELIMINA SERVER (REATTIVO) ---
+    // --- ELIMINA SERVER ---
     function deleteServer(serverId, vmid) {
         if (!confirm('Sei sicuro di voler eliminare questo server? Questa azione è irreversibile.')) return;
-        
         fetch(`delete_server.php?vmid=${vmid}`)
-            .then(res => res.text()) // Usiamo .text() per leggere la risposta, dato che non è sempre JSON
+            .then(res => res.json())
             .then(data => {
-                // Cerchiamo un messaggio di successo nella risposta
-                if (data.includes("Server eliminato correttamente")) {
-                    const serverCard = document.getElementById('server-' + serverId);
-                    if (serverCard) {
-                        serverCard.remove();
-                        // Aggiorna gli slot dopo l'eliminazione
-                        updateAvailableSlots();
-                    }
+                if (data.success) {
+                    document.getElementById('server-' + serverId)?.remove();
                 } else {
-                    // Se la risposta contiene un errore, lo mostriamo
-                    alert("Errore nell'eliminazione del server. Dettagli nella console.");
-                    console.error("Errore da delete_server.php: ", data);
+                    alert("Errore nell'eliminazione del server: " + data.message);
                 }
             })
-            .catch(err => {
-                alert("Errore di rete durante l'eliminazione.");
-                console.error(err);
-            });
+            .catch(err => console.error(err));
     }
+       document.addEventListener('DOMContentLoaded', function() {
+        const slotsContainer = document.querySelector('#slots-container');
 
-    // --- FUNZIONE PER AGGIORNARE GLI SLOT DISPONIBILI ---
-    function updateAvailableSlots() {
-        const slotList = document.getElementById('slot-list');
-        fetch('ajax_get_slots.php')
-            .then(res => res.json())
-            .then(slots => {
-                slotList.innerHTML = '';
-                if (slots.length === 0) {
-                    slotList.innerHTML = `
-                        <div class="col-span-full text-center text-gray-500 py-24">
-                            <p class="text-xl">Nessuno slot disponibile 😔</p>
-                            <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
+
+
+        // Funzione per gestire la creazione del server
+        // Questa parte gestisce il click e aggiorna l'UI immediatamente
+        document.querySelectorAll('.create-server-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                const slotId = this.dataset.slotId;
+                const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
+                
+                // Aggiorna l'UI per mostrare lo stato di attesa
+                if (slotCard) {
+                    slotCard.classList.add('pending');
+                    slotCard.innerHTML = `
+                        <div class="text-center p-4">
+                            <i class="bi bi-gear-wide-connected text-6xl animate-spin text-blue-500"></i>
+                            <p class="mt-4 text-white font-semibold">Creazione server in corso...</p>
                         </div>
                     `;
-                } else {
-                    slots.forEach(slot => {
-                        slotList.innerHTML += `
-                            <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
-                                <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
-                                <div class="relative z-10 flex flex-col h-full">
-                                    <h3 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
-                                        ${slot.name}
-                                    </h3>
-                                    <p class="text-lg text-gray-400 mb-4">Piano Premium</p>
-                                    <div class="mt-auto pt-4 border-t border-gray-700">
-                                        <p class="text-4xl font-extrabold my-2">
-                                            €${slot.price_eur}
-                                            <span class="text-base font-medium text-gray-500">/mese</span>
-                                        </p>
-                                        <a href="#" onclick="promptAndCreateServer('${slot.plan_code}', '${slot.id}')"
-                                           class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                                            Crea Server
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
                 }
-            })
-            .catch(err => console.error("Errore nel recupero degli slot:", err));
-    }
 
-    // Chiama le funzioni di aggiornamento all'avvio
-    document.addEventListener('DOMContentLoaded', function() {
-        // La logica di creazione del server è già nel tuo codice HTML
+                // Qui dovresti avviare la chiamata AJAX per la creazione del server (new_server.php)
+                // e gestire la risposta
+            });
+        });
     });
 </script>
 </body>
