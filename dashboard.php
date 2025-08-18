@@ -84,6 +84,7 @@ foreach ($subscriptions as $sub):
 <!-- Slots disponibili -->
 <div id="slots-container" class="row mb-4"></div>
 
+
 <?php endforeach; ?>
 </div>
 
@@ -226,30 +227,42 @@ function updateButtons(serverId,status){
 
 // --- AGGIORNA GLI SLOT E LE CARDS ---
 function refreshSlots() {
-    fetch('ajax_check_slots.php')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('slots-container');
-            container.innerHTML = ''; // pulisce tutte le card
-            for (const planCode in data) {
-                if (data[planCode] > 0) {
-                    const div = document.createElement('div');
-                    div.className = 'col-md-4 mb-3 card-slot';
-                    div.dataset.planCode = planCode;
-                    div.innerHTML = `
-                        <div class="card shadow p-3 rounded card-server">
-                            <div class="card-header-plan">${planCode}</div>
-                            <p class="slot-count" data-plan-code="${planCode}">${data[planCode]} slot disponibili</p>
-                            <a href="javascript:void(0);" onclick="createServerSlot('${planCode}', this)" class="btn btn-success btn-slot" data-plan-code="${planCode}">Crea Server</a>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                }
+    $.get("ajax_check_slots.php", function(data) {
+        let container = $("#slots-container");
+        container.empty();
+
+        if (!data || Object.keys(data).length === 0) {
+            container.append("<p>Nessuno slot disponibile.</p>");
+            return;
+        }
+
+        Object.keys(data).forEach(planId => {
+            let available = data[planId];
+            let col = $("<div>").addClass("col-md-4 mb-3");
+            let card = $("<div>").addClass("card shadow-sm");
+            let body = $("<div>").addClass("card-body");
+
+            body.append("<h5 class='card-title'>Piano: " + planId + "</h5>");
+            body.append("<p>Slots disponibili: " + available + "</p>");
+
+            if (available > 0) {
+                let btn = $("<a>")
+                    .attr("href", "add_server.php?plan=" + planId)
+                    .addClass("btn btn-success btn-sm")
+                    .text("Crea Server");
+                body.append(btn);
+            } else {
+                body.append("<span class='badge bg-danger'>Nessuno slot disponibile</span>");
             }
-        })
-        .catch(err => console.error(err));
+
+            card.append(body);
+            col.append(card);
+            container.append(col);
+        });
+    }, "json");
 }
-document.addEventListener('DOMContentLoaded', () => {
+
+$(document).ready(function() {
     refreshSlots();
 });
 
