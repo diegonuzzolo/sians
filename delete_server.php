@@ -32,15 +32,14 @@ try {
     }
 
     $serverId = $server['server_id'];
-    $slotId = $server['slot_id']; // <-- RECUPERO L'ID DELLO SLOT
+    $slotId = $server['slot_id'];
     $usedCpu = intval($server['cpu_cores']);
     $usedRam = intval($server['ram_mb']);
     $usedStorage = intval($server['storage_gb']);
 
-    // --- Stop container su Proxmox ---
+    // --- Stop container su Proxmox (se non già spento) ---
     $stopUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop";
     $stopResult = callProxmox($stopUrl, 'POST');
-    // Aggiunto controllo errore per debug
     if (!$stopResult['success']) {
         throw new Exception("Errore durante lo stop del container: " . $stopResult['message']);
     }
@@ -49,11 +48,10 @@ try {
     // --- Distruggi container ---
     $destroyUrl = "https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid";
     $destroyResult = callProxmox($destroyUrl, 'DELETE');
-    // Aggiunto controllo errore per debug
     if (!$destroyResult['success']) {
         throw new Exception("Errore durante la distruzione del container: " . $destroyResult['message']);
     }
-
+    
     // --- Aggiorna tabella resources ---
     $stmt = $pdo->prepare("
         UPDATE resources
