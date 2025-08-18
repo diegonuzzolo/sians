@@ -64,7 +64,7 @@ try {
     $stmt->execute([$usedCpu, $usedRam, $usedStorage]);
     
     // --- Libera lo slot nella tabella server_slots ---
-    $stmt = $pdo->prepare("UPDATE server_slots SET server_id=NULL, status='active' WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE server_slots SET server_id=NULL, status='pending' WHERE id = ?");
     $stmt->execute([$slotId]);
 
     // --- Elimina record del server dal DB
