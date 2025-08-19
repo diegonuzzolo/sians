@@ -6,9 +6,7 @@ error_reporting(E_ALL);
 require 'auth_check.php';
 require 'config/config.php';
 require_once 'includes/csrf.php';
-// Usa l'autoload di Composer, che è lo standard moderno per le librerie PHP
-require 'stripe-php/init.php';
-
+require 'vendor/autoload.php'; 
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) {
@@ -18,7 +16,6 @@ if (!$userId) {
 
 // --- LOGICA DI CONTROLLO (eseguita prima di mostrare la pagina) ---
 
-// 1. Recupera i piani già posseduti dall'utente
 $stmtOwned = $pdo->prepare("
     SELECT p.code
     FROM server_slots ss
@@ -28,14 +25,12 @@ $stmtOwned = $pdo->prepare("
 $stmtOwned->execute([$userId]);
 $ownedPlanCodes = $stmtOwned->fetchAll(PDO::FETCH_COLUMN);
 
-// 2. Controlla le risorse totali disponibili sul server
 $stmtRes = $pdo->query("SELECT * FROM resources WHERE id = 1");
 $resources = $stmtRes->fetch(PDO::FETCH_ASSOC);
 $availableRamGb = ($resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']) / 1024;
 $availableCores = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
 $availableStorageGb = $resources['total_storage_gb'] - $resources['used_storage_gb'];
 
-// 3. Determina quali piani non sono disponibili per mancanza di risorse
 $stmtPlans = $pdo->query("SELECT code, ram_gb, cpu_cores, storage_gb FROM plans WHERE active = 1");
 $allPlans = $stmtPlans->fetchAll(PDO::FETCH_ASSOC);
 $unavailablePlanCodes = [];
@@ -54,7 +49,6 @@ foreach ($allPlans as $plan) {
 $error = '';
 $successMessage = '';
 
-// Gestione del reindirizzamento da Stripe (solo per mostrare un messaggio all'utente)
 if (isset($_GET['success'])) {
     $successMessage = "Pagamento completato! Il tuo nuovo server sarà disponibile nella dashboard a breve, non appena riceveremo la conferma.";
 }
@@ -62,13 +56,11 @@ if (isset($_GET['cancel'])) {
     $error = "Pagamento annullato. Puoi riprovare in qualsiasi momento.";
 }
 
-// Gestione dell'invio del form per l'acquisto (quando l'utente clicca "Prosegui")
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_or_die();
     
     $planCode = $_POST['plan_code'] ?? null;
 
-    // Esegui tutti i controlli di validazione lato server
     if (!$planCode) {
         $error = "Devi selezionare un piano.";
     } elseif (in_array($planCode, $ownedPlanCodes)) {
@@ -76,7 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (in_array($planCode, $unavailablePlanCodes)) {
         $error = "Le risorse del server non sono sufficienti per questo piano. Riprova più tardi.";
     } else {
-        // Se tutti i controlli passano, procedi con la creazione della sessione Stripe
         $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
         $stmt->execute([$planCode]);
         $plan = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -84,42 +75,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$plan) {
             $error = "Piano selezionato non valido.";
         } else {
-            // Recupera i dati utente necessari per Stripe
             $stmtUser = $pdo->prepare("SELECT email, stripe_customer_id FROM users WHERE id=?");
             $stmtUser->execute([$userId]);
             $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
 
-            \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY); // Usa la costante dal tuo config.php
+            \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
+
+            $checkout_params = [
+                'payment_method_types' => ['card'],
+                'line_items' => [[
+                    'price' => $plan['stripe_price_id'],
+                    'quantity' => 1,
+                ]],
+                'mode' => 'subscription',
+                'client_reference_id' => $userId, 
+                'success_url' => "https://sians.it/add_server.php?success=1",
+                'cancel_url' => "https://sians.it/add_server.php?cancel=1",
+            ];
+
+            if (!empty($user['stripe_customer_id'])) {
+                $checkout_params['customer'] = $user['stripe_customer_id'];
+            } else {
+                $checkout_params['customer_email'] = $user['email'];
+            }
 
             try {
-                $checkout_params = [
-                    'payment_method_types' => ['card'],
-                    'line_items' => [[
-                        'price' => $plan['stripe_price_id'],
-                        'quantity' => 1,
-                    ]],
-                    'mode' => 'subscription',
-                    // **MODIFICA CRUCIALE: Passa l'ID utente a Stripe per identificarlo nel webhook**
-                    'client_reference_id' => $userId, 
-                    'success_url' => "https://sians.it/add_server.php?success=1",
-                    'cancel_url' => "https://sians.it/add_server.php?cancel=1",
-                ];
-
-                // Se l'utente ha già un customer ID su Stripe, usalo per non creare duplicati
-                if (!empty($user['stripe_customer_id'])) {
-                    $checkout_params['customer'] = $user['stripe_customer_id'];
-                } else {
-                    $checkout_params['customer_email'] = $user['email'];
-                }
-
+                // Primo tentativo di creare la sessione
                 $session = \Stripe\Checkout\Session::create($checkout_params);
-                
-                // Reindirizza l'utente alla pagina di pagamento di Stripe
                 header("Location: " . $session->url);
                 exit;
 
+            } catch (\Stripe\Exception\InvalidRequestException $e) {
+                // Controlla se l'errore è specificamente "No such customer"
+                if (strpos($e->getMessage(), 'No such customer') !== false) {
+                    
+                    // L'ID cliente nel DB è invalido. Rimuovilo.
+                    $stmtClear = $pdo->prepare("UPDATE users SET stripe_customer_id = NULL WHERE id = ?");
+                    $stmtClear->execute([$userId]);
+
+                    // Rimuovi il parametro 'customer' e riprova usando l'email
+                    unset($checkout_params['customer']);
+                    $checkout_params['customer_email'] = $user['email'];
+
+                    try {
+                        // Secondo tentativo
+                        $session = \Stripe\Checkout\Session::create($checkout_params);
+                        header("Location: " . $session->url);
+                        exit;
+                    } catch (Exception $e) {
+                        // Se fallisce anche la seconda volta, mostra un errore generico
+                        $error = "Errore durante la creazione della sessione di pagamento: " . $e->getMessage();
+                    }
+
+                } else {
+                    // Era un altro tipo di errore di Stripe
+                    $error = "Errore Stripe: " . $e->getMessage();
+                }
             } catch (Exception $e) {
-                $error = "Errore durante la creazione della sessione di pagamento: " . $e->getMessage();
+                // Cattura qualsiasi altra eccezione generica
+                $error = "Errore generico: " . $e->getMessage();
             }
         }
     }
@@ -128,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 include "includes/header.php";
 ?>
 
+<!-- Il tuo codice HTML e JavaScript per la selezione dei piani rimane identico -->
 <div class="container mx-auto px-4 py-12">
     <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🚀 Acquista un nuovo server</h2>
 
@@ -221,14 +236,12 @@ include "includes/header.php";
 <?php include 'includes/footer.php'; ?>
 
 <script>
-    // Passa gli array da PHP a JavaScript per gestire dinamicamente l'interfaccia
     const ownedPlanCodes = <?= json_encode($ownedPlanCodes); ?>;
     const unavailablePlanCodes = <?= json_encode($unavailablePlanCodes); ?>;
 
     document.addEventListener('DOMContentLoaded', function() {
         const planRadios = document.querySelectorAll('input[name="plan_code"]');
         
-        // Disabilita i piani GIÀ ACQUISTATI dall'utente
         ownedPlanCodes.forEach(code => {
             const radio = document.getElementById(code);
             if (radio) {
@@ -244,10 +257,8 @@ include "includes/header.php";
             }
         });
 
-        // Disabilita i piani per MANCANZA DI RISORSE sul server
         unavailablePlanCodes.forEach(code => {
             const radio = document.getElementById(code);
-            // Controlla che non sia già stato disabilitato (perché già posseduto)
             if (radio && !radio.disabled) {
                 const label = radio.parentElement;
                 radio.disabled = true;
@@ -261,14 +272,12 @@ include "includes/header.php";
             }
         });
 
-        // Se il piano selezionato di default è disabilitato, seleziona il primo disponibile
         const checkedRadio = document.querySelector('input[name="plan_code"]:checked');
         if (checkedRadio && checkedRadio.disabled) {
             const firstAvailableRadio = document.querySelector('input[name="plan_code"]:not(:disabled)');
             if (firstAvailableRadio) {
                 firstAvailableRadio.checked = true;
             } else {
-                // Se nessun piano è disponibile, disabilita il pulsante di acquisto
                 const submitButton = document.querySelector('button[type="submit"]');
                 if(submitButton) {
                     submitButton.disabled = true;
@@ -278,7 +287,6 @@ include "includes/header.php";
             }
         }
 
-        // Funzione per aggiornare lo stile del piano selezionato
         function updateSelection() {
             planRadios.forEach(radio => {
                 const label = radio.parentElement;
@@ -296,7 +304,6 @@ include "includes/header.php";
             radio.addEventListener('change', updateSelection);
         });
 
-        // Applica lo stile iniziale al caricamento della pagina
         updateSelection();
     });
 </script>
