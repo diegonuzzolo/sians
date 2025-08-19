@@ -166,8 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        // ... (codice PHP precedente) ...
-        ?>
+        
+        
 
         <div class="bg-gray-800 rounded-xl shadow-lg mb-8 p-6">
             <div class="flex justify-between items-center bg-blue-600 text-white text-lg font-semibold rounded-t-xl px-6 py-4 -mx-6 -mt-6 mb-6">
