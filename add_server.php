@@ -7,7 +7,8 @@ require 'auth_check.php';
 require 'config/config.php';
 require_once 'includes/csrf.php';
 // Usa l'autoload di Composer, che è lo standard moderno per le librerie PHP
-require 'vendor/autoload.php'; 
+require 'stripe-php/init.php';
+
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) {
