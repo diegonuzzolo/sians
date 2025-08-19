@@ -108,7 +108,7 @@ include "includes/header.php";
                 
                 <h3 class="text-2xl font-semibold mb-4 text-center text-white">Seleziona il tuo piano</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <label for="plan_2gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                    <label for="plan_2gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300">
                         <input type="radio" name="plan_code" id="plan_2gb" value="plan_2gb" class="hidden peer">
                         <div class="flex flex-col items-center">
                             <span class="text-3xl font-bold text-blue-400">2 GB RAM</span>
@@ -127,7 +127,7 @@ include "includes/header.php";
                         </div>
                     </label>
 
-                    <label for="plan_6gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                    <label for="plan_6gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300">
                         <input type="radio" name="plan_code" id="plan_6gb" value="plan_6gb" class="hidden peer">
                         <div class="flex flex-col items-center">
                             <span class="text-3xl font-bold text-blue-400">6 GB RAM</span>
@@ -135,7 +135,7 @@ include "includes/header.php";
                             <span class="mt-4 text-4xl font-extrabold text-white">€12.75<span class="text-base font-medium text-gray-500">/mese</span></span>
                         </div>
                     </label>
-                    <label for="plan_8gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                    <label for="plan_8gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300">
                         <input type="radio" name="plan_code" id="plan_8gb" value="plan_8gb" class="hidden peer">
                         <div class="flex flex-col items-center">
                             <span class="text-3xl font-bold text-blue-400">8 GB RAM</span>
@@ -143,7 +143,7 @@ include "includes/header.php";
                             <span class="mt-4 text-4xl font-extrabold text-white">€18.28<span class="text-base font-medium text-gray-500">/mese</span></span>
                         </div>
                     </label>
-                    <label for="plan_16gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                    <label for="plan_16gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300">
                         <input type="radio" name="plan_code" id="plan_16gb" value="plan_16gb" class="hidden peer">
                         <div class="flex flex-col items-center">
                             <span class="text-3xl font-bold text-blue-400">16 GB RAM</span>
@@ -151,7 +151,7 @@ include "includes/header.php";
                             <span class="mt-4 text-4xl font-extrabold text-white">€29.75<span class="text-base font-medium text-gray-500">/mese</span></span>
                         </div>
                     </label>
-                    <label for="plan_24gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 transform hover:scale-105">
+                    <label for="plan_24gb" class="bg-gray-800 rounded-xl p-6 shadow-xl border border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300">
                         <input type="radio" name="plan_code" id="plan_24gb" value="plan_24gb" class="hidden peer">
                         <div class="flex flex-col items-center">
                             <span class="text-3xl font-bold text-blue-400">24 GB RAM</span>
@@ -174,7 +174,34 @@ include "includes/header.php";
 
 <?php include 'includes/footer.php'; ?>
 <script>
-// Non è più necessario il codice JavaScript per gli slider, poiché ora i piani sono predefiniti e selezionati con i radio button
+document.addEventListener('DOMContentLoaded', function() {
+    // Seleziona tutti i radio button dei piani
+    const planRadios = document.querySelectorAll('input[name="plan_code"]');
+
+    function updateSelection() {
+        planRadios.forEach(radio => {
+            const label = radio.parentElement; // La <label> che contiene il radio button
+            
+            if (radio.checked) {
+                // Applica le classi per lo stato "selezionato"
+                label.classList.add('scale-105', 'border-blue-500');
+                label.classList.remove('border-transparent');
+            } else {
+                // Rimuovi le classi per lo stato "non selezionato"
+                label.classList.remove('scale-105', 'border-blue-500');
+                label.classList.add('border-transparent');
+            }
+        });
+    }
+
+    // Aggiungi un listener a ogni radio button per aggiornare lo stile al cambio
+    planRadios.forEach(radio => {
+        radio.addEventListener('change', updateSelection);
+    });
+
+    // Esegui la funzione una volta al caricamento della pagina per impostare lo stato iniziale
+    updateSelection();
+});
 </script>
 </body>
 </html>
