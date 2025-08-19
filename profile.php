@@ -166,17 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        
-        
-
         <div class="bg-gray-800 rounded-xl shadow-lg mb-8 p-6">
-            <div class="flex justify-between items-center bg-blue-600 text-white text-lg font-semibold rounded-t-xl px-6 py-4 -mx-6 -mt-6 mb-6">
-                <span>Piani Attivi</span>
-                <?php if (!empty($activeSubscriptions)): ?>
-                    <a href="manage-billing.php" class="bg-white text-blue-600 text-sm font-bold py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors duration-200">
-                        Gestisci Abbonamenti
-                    </a>
-                <?php endif; ?>
+            <div class="bg-blue-600 text-white text-lg font-semibold rounded-t-xl px-6 py-4 -mx-6 -mt-6 mb-6">
+                Piani Attivi
             </div>
             <div class="overflow-x-auto">
                 <?php if (!empty($activeSubscriptions)): ?>
@@ -197,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <td class="py-3 px-6"><?= htmlspecialchars($plan['cpu_cores']) ?> Core</td>
                                     <td class="py-3 px-6">
                                         <span class="py-1 px-3 rounded-full text-xs font-semibold
-                                    <?= $plan['status'] === 'active' || $plan['status'] === 'trialing' ? 'bg-green-500 text-green-900' : 'bg-yellow-500 text-yellow-900' ?>">
+                                            <?= $plan['status'] === 'active' || $plan['status'] === 'trialing' ? 'bg-green-500 text-green-900' : 'bg-yellow-500 text-yellow-900' ?>">
                                             <?= htmlspecialchars(ucfirst($plan['status'])) ?>
                                         </span>
                                     </td>
@@ -323,5 +315,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php include 'includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>
