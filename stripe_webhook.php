@@ -4,7 +4,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Usa l'autoload di Composer, che è lo standard moderno per le librerie PHP
-require 'vendor/autoload.php';
+require 'stripe-php/init.php';
 require_once "config/config.php";
 
 \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
