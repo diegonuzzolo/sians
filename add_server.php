@@ -198,33 +198,71 @@ include "includes/header.php";
 
 <?php include 'includes/footer.php'; ?>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Seleziona tutti i radio button dei piani
-    const planRadios = document.querySelectorAll('input[name="plan_code"]');
+     // Passa l'array dei piani posseduti da PHP a JavaScript
+    const ownedPlanCodes = <?= json_encode($ownedPlanCodes); ?>;
 
-    function updateSelection() {
-        planRadios.forEach(radio => {
-            const label = radio.parentElement; // La <label> che contiene il radio button
-            
-            if (radio.checked) {
-                // Applica le classi per lo stato "selezionato"
-                label.classList.add('scale-105', 'border-blue-500');
-                label.classList.remove('border-transparent');
-            } else {
-                // Rimuovi le classi per lo stato "non selezionato"
-                label.classList.remove('scale-105', 'border-blue-500');
-                label.classList.add('border-transparent');
+    document.addEventListener('DOMContentLoaded', function() {
+        const planRadios = document.querySelectorAll('input[name="plan_code"]');
+        
+        // Disabilita i piani già acquistati
+        ownedPlanCodes.forEach(code => {
+            const radio = document.getElementById(code);
+            if (radio) {
+                const label = radio.parentElement;
+                radio.disabled = true;
+                label.classList.add('opacity-50', 'cursor-not-allowed');
+                label.classList.remove('hover:border-blue-500'); // Rimuovi l'effetto hover
+
+                // Aggiungi un badge "Già Attivo"
+                const ownedBadge = document.createElement('div');
+                ownedBadge.className = 'absolute top-0 left-0 -mt-2 -ml-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full -rotate-12 transform z-10';
+                ownedBadge.textContent = 'GIÀ ATTIVO';
+                
+                // Assicurati che il label sia 'relative' per posizionare il badge
+                if (!label.classList.contains('relative')) {
+                    label.classList.add('relative');
+                }
+                label.appendChild(ownedBadge);
             }
         });
-    }
 
-    // Aggiungi un listener a ogni radio button per aggiornare lo stile al cambio
-    planRadios.forEach(radio => {
-        radio.addEventListener('change', updateSelection);
-    });
+        // Controlla se il piano selezionato di default è disabilitato
+        const checkedRadio = document.querySelector('input[name="plan_code"]:checked');
+        if (checkedRadio && checkedRadio.disabled) {
+            // Se lo è, trova il primo piano disponibile e selezionalo
+            const firstAvailableRadio = document.querySelector('input[name="plan_code"]:not(:disabled)');
+            if (firstAvailableRadio) {
+                firstAvailableRadio.checked = true;
+            } else {
+                // Se non ci sono piani disponibili, disabilita il pulsante di acquisto
+                const submitButton = document.querySelector('button[type="submit"]');
+                if(submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = "Nessun nuovo piano disponibile";
+                    submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
 
-    // Esegui la funzione una volta al caricamento della pagina per impostare lo stato iniziale
-    updateSelection();
+        // Funzione per aggiornare lo stile del piano selezionato (invariata)
+        function updateSelection() {
+            planRadios.forEach(radio => {
+                const label = radio.parentElement;
+                if (radio.checked) {
+                    label.classList.add('scale-105', 'border-blue-500');
+                    label.classList.remove('border-transparent');
+                } else {
+                    label.classList.remove('scale-105', 'border-blue-500');
+                    label.classList.add('border-transparent');
+                }
+            });
+        }
+
+        planRadios.forEach(radio => {
+            radio.addEventListener('change', updateSelection);
+        });
+
+        updateSelection(); // Applica lo stile iniziale
 });
 </script>
 </body>
