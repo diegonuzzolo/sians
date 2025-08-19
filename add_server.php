@@ -23,6 +23,29 @@ $stmtOwned = $pdo->prepare("
 $stmtOwned->execute([$userId]);
 $ownedPlanCodes = $stmtOwned->fetchAll(PDO::FETCH_COLUMN);
 
+// NUOVO BLOCCO: Controlla le risorse totali disponibili sul server
+$stmtRes = $pdo->query("SELECT * FROM resources WHERE id = 1");
+$resources = $stmtRes->fetch(PDO::FETCH_ASSOC);
+
+$availableRamGb = ($resources['total_ram_gb'] * 1024 - $resources['used_ram_mb']) / 1024;
+$availableCores = $resources['total_cpu_cores'] - $resources['used_cpu_cores'];
+$availableStorageGb = $resources['total_storage_gb'] - $resources['used_storage_gb'];
+
+// Recupera tutti i piani per confrontarli con le risorse disponibili
+$stmtPlans = $pdo->query("SELECT code, ram_gb, cpu_cores, storage_gb FROM plans WHERE active = 1");
+$allPlans = $stmtPlans->fetchAll(PDO::FETCH_ASSOC);
+
+$unavailablePlanCodes = [];
+foreach ($allPlans as $plan) {
+    if (
+        $plan['ram_gb'] > $availableRamGb ||
+        $plan['cpu_cores'] > $availableCores ||
+        $plan['storage_gb'] > $availableStorageGb
+    ) {
+        $unavailablePlanCodes[] = $plan['code'];
+    }
+}
+
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId)
     die("Accesso negato.");
@@ -198,47 +221,57 @@ include "includes/header.php";
 
 <?php include 'includes/footer.php'; ?>
 <script>
-     // Passa l'array dei piani posseduti da PHP a JavaScript
+    // Passa entrambi gli array da PHP a JavaScript
     const ownedPlanCodes = <?= json_encode($ownedPlanCodes); ?>;
+    const unavailablePlanCodes = <?= json_encode($unavailablePlanCodes); ?>;
 
     document.addEventListener('DOMContentLoaded', function() {
         const planRadios = document.querySelectorAll('input[name="plan_code"]');
         
-        // Disabilita i piani già acquistati
+        // Disabilita i piani GIÀ ACQUISTATI
         ownedPlanCodes.forEach(code => {
             const radio = document.getElementById(code);
             if (radio) {
                 const label = radio.parentElement;
                 radio.disabled = true;
-                label.classList.add('opacity-50', 'cursor-not-allowed');
-                label.classList.remove('hover:border-blue-500'); // Rimuovi l'effetto hover
+                label.classList.add('opacity-50', 'cursor-not-allowed', 'relative');
+                label.classList.remove('hover:border-blue-500');
 
-                // Aggiungi un badge "Già Attivo"
                 const ownedBadge = document.createElement('div');
                 ownedBadge.className = 'absolute top-0 left-0 -mt-2 -ml-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full -rotate-12 transform z-10';
                 ownedBadge.textContent = 'GIÀ ATTIVO';
-                
-                // Assicurati che il label sia 'relative' per posizionare il badge
-                if (!label.classList.contains('relative')) {
-                    label.classList.add('relative');
-                }
                 label.appendChild(ownedBadge);
+            }
+        });
+
+        // NUOVO BLOCCO: Disabilita i piani per MANCANZA DI RISORSE
+        unavailablePlanCodes.forEach(code => {
+            const radio = document.getElementById(code);
+            // Controlla che non sia già stato disabilitato (perché già posseduto)
+            if (radio && !radio.disabled) {
+                const label = radio.parentElement;
+                radio.disabled = true;
+                label.classList.add('opacity-50', 'cursor-not-allowed', 'relative');
+                label.classList.remove('hover:border-blue-500');
+
+                const unavailableBadge = document.createElement('div');
+                unavailableBadge.className = 'absolute top-0 left-0 -mt-2 -ml-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full -rotate-12 transform z-10';
+                unavailableBadge.textContent = 'RISORSE ESAURITE';
+                label.appendChild(unavailableBadge);
             }
         });
 
         // Controlla se il piano selezionato di default è disabilitato
         const checkedRadio = document.querySelector('input[name="plan_code"]:checked');
         if (checkedRadio && checkedRadio.disabled) {
-            // Se lo è, trova il primo piano disponibile e selezionalo
             const firstAvailableRadio = document.querySelector('input[name="plan_code"]:not(:disabled)');
             if (firstAvailableRadio) {
                 firstAvailableRadio.checked = true;
             } else {
-                // Se non ci sono piani disponibili, disabilita il pulsante di acquisto
                 const submitButton = document.querySelector('button[type="submit"]');
                 if(submitButton) {
                     submitButton.disabled = true;
-                    submitButton.textContent = "Nessun nuovo piano disponibile";
+                    submitButton.textContent = "Nessun piano disponibile";
                     submitButton.classList.add('opacity-50', 'cursor-not-allowed');
                 }
             }
@@ -262,8 +295,8 @@ include "includes/header.php";
             radio.addEventListener('change', updateSelection);
         });
 
-        updateSelection(); // Applica lo stile iniziale
-});
+        updateSelection();
+    });
 </script>
 </body>
 </html>
