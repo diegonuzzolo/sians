@@ -31,7 +31,7 @@ $stmt = $pdo->prepare("
         p.ram_gb,
         s.status
     FROM subscriptions s
-    JOIN plans p ON p.stripe_price_id = s.plan_id
+    JOIN plans p ON p.stripe_price_id = s.stripe_price_id -- CORREZIONE QUI
     WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
 ");
 $stmt->execute([$userId]);
@@ -141,10 +141,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         SELECT
             p.name AS plan_name,
             p.cpu_cores,
-            (p.ram_mb/1024) AS ram_gb,
+            p.ram_gb,
             s.status
         FROM subscriptions s
-        JOIN plans p ON p.stripe_price_id = s.plan_id
+        JOIN plans p ON p.stripe_price_id = s.stripe_price_id -- CORREZIONE QUI
         WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
     ");
     $stmt->execute([$userId]);
