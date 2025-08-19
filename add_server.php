@@ -9,6 +9,19 @@ require_once 'includes/csrf.php';
 require 'stripe-php/init.php';
 
 csrf_check_or_die();
+$userId = $_SESSION['user_id'] ?? 0;
+if (!$userId)
+    die("Accesso negato.");
+
+// NUOVO BLOCCO: Recupera i piani già posseduti dall'utente
+$stmtOwned = $pdo->prepare("
+    SELECT p.code
+    FROM server_slots ss
+    JOIN plans p ON ss.plan_id = p.stripe_price_id
+    WHERE ss.user_id = ?
+");
+$stmtOwned->execute([$userId]);
+$ownedPlanCodes = $stmtOwned->fetchAll(PDO::FETCH_COLUMN);
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId)
@@ -27,6 +40,17 @@ $checkoutSessionId = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $planCode = $_POST['plan_code'] ?? 'plan_4gb';
+
+     if (in_array($planCode, $ownedPlanCodes)) {
+        $error = "Hai già un abbonamento attivo per questo piano. Non puoi acquistarlo di nuovo.";
+    } else {
+        // Se il piano non è posseduto, procedi con la logica di Stripe
+        
+        // Recupera piano
+        $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
+        // ... (il resto della tua logica Stripe rimane qui dentro)
+        // ...
+    }
 
     // Recupera piano
     $stmt = $pdo->prepare("SELECT * FROM plans WHERE code=? AND active=1 LIMIT 1");
