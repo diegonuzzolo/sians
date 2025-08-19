@@ -3,108 +3,74 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once "stripe-php/init.php";
+// Usa l'autoload di Composer, che è lo standard moderno per le librerie PHP
+require 'vendor/autoload.php';
 require_once "config/config.php";
 
 \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
 
-$endpoint_secret = 'whsec_N6FUKDFe7lZcDLjnpNhUskUkBsSsrQAQ';
+// La tua chiave segreta dell'endpoint webhook, la trovi nella dashboard di Stripe
+$endpoint_secret = 'whsec_N6FUKDFe7lZcDLjnpNhUskUkBsSsrQAQ'; 
 $sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
 $payload = @file_get_contents('php://input');
 
-if (!$payload) { http_response_code(400); exit('Payload vuoto'); }
+if (!$payload) {
+    http_response_code(400);
+    exit('Payload vuoto');
+}
 
 try {
     $event = \Stripe\Webhook::constructEvent($payload, $sig_header, $endpoint_secret);
 } catch (\UnexpectedValueException $e) {
-    http_response_code(400); exit("⚠️ Invalid payload");
+    // Payload JSON non valido
+    http_response_code(400);
+    exit("⚠️ Invalid payload");
 } catch (\Stripe\Exception\SignatureVerificationException $e) {
-    http_response_code(400); exit("⚠️ Invalid signature");
+    // Firma non valida
+    http_response_code(400);
+    exit("⚠️ Invalid signature");
 }
 
 function logStripe($msg) {
-    file_put_contents("stripe_debug.log", date("[Y-m-d H:i:s] ").$msg."\n", FILE_APPEND);
+    file_put_contents("stripe_debug.log", date("[Y-m-d H:i:s] ") . $msg . "\n", FILE_APPEND);
 }
 
 /**
- * Prova a risalire allo user_id con più strategie.
- * Se trova l'utente, opzionalmente aggiorna users.stripe_customer_id.
+ * Tenta di risalire all'ID utente del tuo database usando varie strategie.
+ * La più affidabile è client_reference_id.
  */
-function resolveUserId(PDO $pdo, ?string $stripeCustomerId, $maybeSession = null, $maybeSubscription = null): ?int {
-    // 1) lookup diretto da users.stripe_customer_id
+function resolveUserId(PDO $pdo, ?string $stripeCustomerId, $maybeSession = null): ?int {
+    // 1) Metodo più affidabile: client_reference_id passato durante la creazione della Checkout Session
+    if ($maybeSession && !empty($maybeSession->client_reference_id)) {
+        $uid = (int)$maybeSession->client_reference_id;
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+        $stmt->execute([$uid]);
+        if ($stmt->fetchColumn()) {
+            // Se l'utente esiste, assicuriamoci che il suo stripe_customer_id sia aggiornato nel nostro DB
+            if ($stripeCustomerId) {
+                $pdo->prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ? AND (stripe_customer_id IS NULL OR stripe_customer_id = '')")
+                    ->execute([$stripeCustomerId, $uid]);
+            }
+            return $uid;
+        }
+    }
+
+    // 2) Fallback: Cerca l'utente tramite lo stripe_customer_id già salvato nel nostro DB
     if ($stripeCustomerId) {
         $stmt = $pdo->prepare("SELECT id FROM users WHERE stripe_customer_id = ?");
         $stmt->execute([$stripeCustomerId]);
         $uid = $stmt->fetchColumn();
         if ($uid) return (int)$uid;
     }
-
-    // 2) client_reference_id dalla Checkout Session
-    if ($maybeSession && !empty($maybeSession->client_reference_id)) {
-        $uid = (int)$maybeSession->client_reference_id;
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
-        $stmt->execute([$uid]);
-        if ($stmt->fetchColumn()) {
-            // se manca stripe_customer_id, aggiorniamolo
-            if ($stripeCustomerId) {
-                $pdo->prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ? AND (stripe_customer_id IS NULL OR stripe_customer_id = '')")
-                    ->execute([$stripeCustomerId, $uid]);
-            }
-            return $uid;
-        }
-    }
-
-    // 3) metadata.user_id su session
-    if ($maybeSession && !empty($maybeSession->metadata) && !empty($maybeSession->metadata['user_id'])) {
-        $uid = (int)$maybeSession->metadata['user_id'];
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
-        $stmt->execute([$uid]);
-        if ($stmt->fetchColumn()) {
-            if ($stripeCustomerId) {
-                $pdo->prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ? AND (stripe_customer_id IS NULL OR stripe_customer_id = '')")
-                    ->execute([$stripeCustomerId, $uid]);
-            }
-            return $uid;
-        }
-    }
-
-    // 4) metadata.user_id su subscription
-    if ($maybeSubscription && !empty($maybeSubscription->metadata) && !empty($maybeSubscription->metadata['user_id'])) {
-        $uid = (int)$maybeSubscription->metadata['user_id'];
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
-        $stmt->execute([$uid]);
-        if ($stmt->fetchColumn()) {
-            if ($stripeCustomerId) {
-                $pdo->prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ? AND (stripe_customer_id IS NULL OR stripe_customer_id = '')")
-                    ->execute([$stripeCustomerId, $uid]);
-            }
-            return $uid;
-        }
-    }
-
-    // 5) match per email del Customer Stripe
-    if ($stripeCustomerId) {
-        try {
-            $customer = \Stripe\Customer::retrieve($stripeCustomerId);
-            $email = $customer->email ?? null;
-            if ($email) {
-                $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-                $stmt->execute([$email]);
-                $uid = $stmt->fetchColumn();
-                if ($uid) {
-                    $pdo->prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ? AND (stripe_customer_id IS NULL OR stripe_customer_id = '')")
-                        ->execute([$stripeCustomerId, $uid]);
-                    return (int)$uid;
-                }
-            }
-        } catch (\Exception $e) {
-            logStripe("❗ Impossibile recuperare Customer $stripeCustomerId: ".$e->getMessage());
-        }
-    }
-
+    
+    logStripe("ERRORE: Impossibile risolvere user_id per customer {$stripeCustomerId}.");
     return null;
 }
 
+/**
+ * Inserisce o aggiorna una riga nella tabella 'subscriptions'.
+ * Usa ON DUPLICATE KEY UPDATE per evitare errori di chiavi duplicate.
+ */
 function upsertSubscription(PDO $pdo, int $userId, string $customerId, string $subscriptionId, ?string $priceId, ?string $status, ?string $currentPeriodEnd) {
     $stmt = $pdo->prepare("
         INSERT INTO subscriptions
@@ -121,23 +87,23 @@ function upsertSubscription(PDO $pdo, int $userId, string $customerId, string $s
     $stmt->execute([$userId, $customerId, $subscriptionId, $priceId, $status, $currentPeriodEnd]);
 }
 
-/* ------------------- EVENTI ------------------- */
+/* ------------------- GESTIONE DEGLI EVENTI STRIPE ------------------- */
 
 switch ($event->type) {
 
     case 'checkout.session.completed': {
         $session = $event->data->object;
-        logStripe("checkout.session.completed: ".json_encode($session));
-
         $customerId     = $session->customer ?? null;
         $subscriptionId = $session->subscription ?? null;
         if (!$customerId || !$subscriptionId) break;
 
-        // Prendo la subscription da Stripe per avere price/status/period_end
+        $userId = resolveUserId($pdo, $customerId, $session);
+        if (!$userId) break;
+
         try {
             $sub = \Stripe\Subscription::retrieve($subscriptionId);
         } catch (\Exception $e) {
-            logStripe("❗ Retrieve subscription fallita: ".$e->getMessage());
+            logStripe("ERRORE: Impossibile recuperare la sottoscrizione {$subscriptionId} da Stripe: " . $e->getMessage());
             break;
         }
 
@@ -145,61 +111,45 @@ switch ($event->type) {
         $status  = $sub->status ?? null;
         $cpe     = isset($sub->current_period_end) ? date('Y-m-d H:i:s', $sub->current_period_end) : null;
 
-        $userId = resolveUserId($pdo, $customerId, $session, $sub);
-        if (!$userId) { logStripe("❌ user_id non risolto per customer=$customerId"); break; }
-
         upsertSubscription($pdo, $userId, $customerId, $subscriptionId, $priceId, $status, $cpe);
-        // Crea uno slot pending se non esiste già per questa subscription
-$stmt = $pdo->prepare("SELECT id FROM server_slots WHERE stripe_subscription_id = ?");
-$stmt->execute([$subscriptionId]);
-$exists = $stmt->fetchColumn();
 
-if (!$exists) {
-    $stmt = $pdo->prepare("
-        INSERT INTO server_slots (user_id, plan_id, stripe_subscription_id, status, server_id, created_at)
-        VALUES (?, ?, ?, 'pending', NULL, NOW())
-    ");
-    $stmt->execute([$userId, $priceId, $subscriptionId]);
-    logStripe("✅ Creato nuovo slot pending per user=$userId, sub=$subscriptionId, plan=$priceId");
-}
-
-        break;
-    }
-
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated': {
-        $sub = $event->data->object;
-        logStripe("{$event->type}: ".json_encode($sub));
-
-        $subscriptionId = $sub->id ?? null;
-        $customerId     = $sub->customer ?? null;
-        if (!$subscriptionId || !$customerId) break;
-
-        $priceId = $sub->items->data[0]->price->id ?? null;
-        $status  = $sub->status ?? null;
-        $cpe     = isset($sub->current_period_end) ? date('Y-m-d H:i:s', $sub->current_period_end) : null;
-
-        // session non disponibile in questi eventi → passo null
-        $userId = resolveUserId($pdo, $customerId, null, $sub);
-        if (!$userId) { logStripe("❌ user_id non risolto per customer=$customerId"); break; }
-
-        upsertSubscription($pdo, $userId, $customerId, $subscriptionId, $priceId, $status, $cpe);
-        break;
-    }
-
-    case 'customer.subscription.deleted': {
-        $sub = $event->data->object;
-        $subscriptionId = $sub->id ?? null;
-        if ($subscriptionId) {
-            logStripe("customer.subscription.deleted: $subscriptionId");
-            $stmt = $pdo->prepare("UPDATE subscriptions SET status='canceled', updated_at = NOW() WHERE stripe_subscription_id=?");
+        if ($status === 'active' || $status === 'trialing') {
+            $stmt = $pdo->prepare("SELECT id FROM server_slots WHERE stripe_subscription_id = ?");
             $stmt->execute([$subscriptionId]);
+            if (!$stmt->fetchColumn()) {
+                $stmt = $pdo->prepare(
+                    "INSERT INTO server_slots (user_id, plan_id, stripe_subscription_id, status) VALUES (?, ?, ?, 'pending')"
+                );
+                $stmt->execute([$userId, $priceId, $subscriptionId]);
+            }
         }
         break;
     }
 
-    default:
-        logStripe("Evento non gestito: ".$event->type);
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted': {
+        $sub = $event->data->object;
+        $subscriptionId = $sub->id;
+        $customerId = $sub->customer;
+        
+        $userId = resolveUserId($pdo, $customerId);
+        if (!$userId) break;
+        
+        $priceId = $sub->items->data[0]->price->id ?? null;
+        $cpe = isset($sub->current_period_end) ? date('Y-m-d H:i:s', $sub->current_period_end) : null;
+
+        // Se l'evento è 'deleted', lo stato è sempre 'canceled'
+        $status = ($event->type === 'customer.subscription.deleted') ? 'canceled' : $sub->status;
+
+        upsertSubscription($pdo, $userId, $customerId, $subscriptionId, $priceId, $status, $cpe);
+
+        if ($status === 'canceled') {
+            $stmt = $pdo->prepare("DELETE FROM server_slots WHERE stripe_subscription_id = ?");
+            $stmt->execute([$subscriptionId]);
+        }
+        break;
+    }
 }
 
+// Invia una risposta 200 a Stripe per confermare la ricezione dell'evento
 http_response_code(200);
