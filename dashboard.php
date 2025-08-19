@@ -58,7 +58,7 @@ include 'includes/header.php';
                             </div>
                             <div>
                                 <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
-                                <p class="text-sm text-gray-400">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></p>
+                                <p class="text-sm text-gray-400">IP: <?= $server['ip'] ?? 'N/A' ?></p>
                             </div>
                         </div>
 
