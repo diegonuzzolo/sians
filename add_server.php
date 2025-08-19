@@ -35,27 +35,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$plan)
         die("Piano non valido.");
 
-    // Verifica se l'utente ha già subscription
-    // La logica di verifica è ora gestita tramite Stripe nel webhook
-    // e la creazione dello slot avviene in sync_server_slots.php
-    
     // Stripe checkout
     \Stripe\Stripe::setApiKey("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");
 
     try {
         $session = \Stripe\Checkout\Session::create([
-    'payment_method_types' => ['card'],
-    'customer_email' => $email,
-    'client_reference_id' => $userId,  // <--- collego l'utente
-    'line_items' => [[
-        'price' => $plan['stripe_price_id'],
-        'quantity' => 1,
-    ]],
-    'mode' => 'subscription',
-    'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
-    'cancel_url' => "https://sians.it/add_server.php?cancel=1"
-]);
-
+            'payment_method_types' => ['card'],
+            'customer_email' => $email,
+            'client_reference_id' => $userId, // 👈 collega la session allo user
+            'line_items' => [
+                [
+                    'price' => $plan['stripe_price_id'],
+                    'quantity' => 1
+                ]
+            ],
+            'mode' => 'subscription',
+            'success_url' => "https://sians.it/add_server.php?success=1&plan_code=" . urlencode($planCode) . "&session_id={CHECKOUT_SESSION_ID}",
+            'cancel_url' => "https://sians.it/add_server.php?cancel=1"
+        ]);
         header("Location: " . $session->url);
         exit;
     } catch (Exception $e) {
@@ -86,7 +83,6 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
     header("Location: dashboard.php?subscription=success");
     exit;
 }
-
 
 include "includes/header.php";
 ?>
@@ -170,7 +166,6 @@ include "includes/header.php";
         </div>
     </div>
 </div>
-
 
 <?php include 'includes/footer.php'; ?>
 <script>
