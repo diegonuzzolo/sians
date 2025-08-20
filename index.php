@@ -13,7 +13,12 @@ $vmStorageSpeed = 7500;
 
 <main class="bg-gray-900 text-slate-200 antialiased">
     <div class="relative w-full max-w-7xl mx-auto my-8 rounded-3xl overflow-hidden shadow-2xl shadow-yellow-500/30 animate-fade-in-down">
-        <img src="assets/banner.png" alt="Minecraft Bedrock Hosting" class="w-full h-[55vh] object-cover filter brightness-[.7]" />
+        
+        <picture>
+            <source srcset="assets/banner.webp" type="image/webp">
+            <source srcset="assets/banner.jpg" type="image/jpeg">
+            <img src="assets/banner.jpg" alt="Minecraft Bedrock Hosting" class="w-full h-[55vh] object-cover filter brightness-[.7]">
+        </picture>
         
         <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
             <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-yellow-400 text-shadow-xl animate-fade-in-down-slow">
