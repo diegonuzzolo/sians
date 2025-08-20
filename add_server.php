@@ -95,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $session = \Stripe\Checkout\Session::create([
                 'payment_method_types' => ['card'],
                 'customer_email' => $email,
+                'client_reference_id' => $userId,
                 'line_items' => [
                     [
                         'price' => $plan['stripe_price_id'],

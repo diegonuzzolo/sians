@@ -106,19 +106,23 @@ function resolveUserId(PDO $pdo, ?string $stripeCustomerId, $maybeSession = null
 }
 
 function upsertSubscription(PDO $pdo, int $userId, string $customerId, string $subscriptionId, ?string $priceId, ?string $status, ?string $currentPeriodEnd) {
+    // Il $priceId che ricevi è il valore da usare per plan_id
+    $planId = $priceId;
+
     $stmt = $pdo->prepare("
         INSERT INTO subscriptions
-            (user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end, created_at, updated_at)
+            (user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end, plan_id, created_at, updated_at)
         VALUES
-            (?, ?, ?, ?, ?, ?, NOW(), NOW())
+            (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
             user_id = VALUES(user_id),
             stripe_price_id = VALUES(stripe_price_id),
             status = VALUES(status),
             current_period_end = VALUES(current_period_end),
+            plan_id = VALUES(plan_id),
             updated_at = NOW()
     ");
-    $stmt->execute([$userId, $customerId, $subscriptionId, $priceId, $status, $currentPeriodEnd]);
+    $stmt->execute([$userId, $customerId, $subscriptionId, $priceId, $status, $currentPeriodEnd, $planId]);
 }
 
 /* ------------------- EVENTI ------------------- */
