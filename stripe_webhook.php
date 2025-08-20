@@ -141,7 +141,26 @@ switch ($event->type) {
             upsertSubscription($pdo, $userId, $customerId, $subscriptionId, $priceId, $status, $cpe);
 
             // 2. Crea lo slot relativo alla nuova sottoscrizione
-            require('sync_server_slots.php');
+            try {
+                $stmt = $pdo->prepare("SELECT id FROM server_slots WHERE stripe_subscription_id = ?");
+                $stmt->execute([$subscriptionId]);
+                if (!$stmt->fetchColumn()) {
+                    $stmtInsert = $pdo->prepare("
+                INSERT INTO server_slots (user_id, plan_id, stripe_subscription_id, status)
+                VALUES (?, ?, ?, 'pending')
+            ");
+                    $stmtInsert->execute([$userId, $priceId, $subscriptionId]);
+                    logStripe("✅ Creato nuovo server_slot pending per user_id=$userId, sub_id=$subscriptionId");
+                } else {
+                    logStripe("ℹ️ server_slot già esistente per sub_id=$subscriptionId, nessuna azione richiesta.");
+                }
+            } catch (PDOException $e) {
+                // Se c'è un errore specifico del DB durante la creazione dello slot, lo registriamo
+                logStripe("❌ ERRORE DATABASE durante la creazione dello slot: " . $e->getMessage());
+                // Rispondiamo con un errore per far sì che Stripe riprovi il webhook
+                http_response_code(500);
+                exit("Errore DB creazione slot");
+            }
             break;
         }
 
