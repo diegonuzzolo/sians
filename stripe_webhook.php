@@ -123,6 +123,8 @@ function upsertSubscription(PDO $pdo, int $userId, string $customerId, string $s
             updated_at = NOW()
     ");
     $stmt->execute([$userId, $customerId, $subscriptionId, $priceId, $status, $currentPeriodEnd, $planId]);
+    include "sync_server_slots.php";
+
 }
 
 /* ------------------- EVENTI ------------------- */
