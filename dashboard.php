@@ -52,16 +52,14 @@ include 'includes/header.php';
                     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl transform transition-all duration-300 hover:scale-105 hover:border-blue-500">
                         <div class="flex items-center space-x-4 mb-4">
                             <div class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
-                                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path>
-                                </svg>
+                                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path></svg>
                             </div>
                             <div>
                                 <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
-                                <p class="text-sm text-gray-400">IP: <?= $server['ip'] ?? 'N/A' ?></p>
+                                <p class="text-sm text-gray-400">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></p>
                             </div>
                         </div>
-
+                        
                         <div class="flex items-center justify-between mb-4">
                             <span id="status-<?= $server['id'] ?>" class="px-4 py-1 rounded-full text-sm font-bold text-white <?= $statusClass ?> shadow-md">
                                 <?= ucfirst($status) ?>
@@ -72,22 +70,22 @@ include 'includes/header.php';
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
-                            <button id="start-<?= $server['id'] ?>"
-                                class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                                    <?= ($status === 'running') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>"
-                                onclick="startServer(<?= $server['id'] ?>)"
-                                <?= ($status === 'running') ? 'disabled' : '' ?>>
+                            <button id="start-<?= $server['id'] ?>" 
+                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                                    <?= ($status === 'running') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>" 
+                                    onclick="startServer(<?= $server['id'] ?>)" 
+                                    <?= ($status === 'running') ? 'disabled' : '' ?>>
                                 Avvia
                             </button>
-                            <button id="stop-<?= $server['id'] ?>"
-                                class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                                    <?= ($status === 'stopped') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>"
-                                onclick="stopServer(<?= $server['id'] ?>)"
-                                <?= ($status === 'stopped') ? 'disabled' : '' ?>>
+                            <button id="stop-<?= $server['id'] ?>" 
+                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                                    <?= ($status === 'stopped') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>" 
+                                    onclick="stopServer(<?= $server['id'] ?>)" 
+                                    <?= ($status === 'stopped') ? 'disabled' : '' ?>>
                                 Ferma
                             </button>
                             <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
-                                class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
+                                    class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
                                 Elimina
                             </button>
                         </div>
@@ -107,9 +105,9 @@ include 'includes/header.php';
                     <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
                 </div>
             <?php else: ?>
-                <?php foreach ($serverSlots as $slot): ?>
+                <?php foreach($serverSlots as $slot): ?>
                     <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
-
+                        
                         <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
 
                         <div class="relative z-10 flex flex-col h-full">
@@ -123,9 +121,9 @@ include 'includes/header.php';
                                     €<?= htmlspecialchars($slot['price_eur']) ?>
                                     <span class="text-base font-medium text-gray-500">/mese</span>
                                 </p>
-
-                                <a href="#" onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>', this)"
-                                    class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                                
+                                <a href="#" onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>')"
+                                   class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                                     Crea Server
                                 </a>
                             </div>
@@ -147,9 +145,7 @@ include 'includes/header.php';
     function controlServer(serverId, action) {
         fetch('ajax_server_control.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=${encodeURIComponent(action)}&id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
             })
             .then(res => res.json())
@@ -178,9 +174,9 @@ include 'includes/header.php';
     function updateButtons(serverId, status) {
         const startBtn = document.getElementById('start-' + serverId);
         const stopBtn = document.getElementById('stop-' + serverId);
-
+        
         if (!startBtn || !stopBtn) return;
-
+        
         const isRunning = status === 'running';
 
         startBtn.disabled = isRunning;
@@ -218,7 +214,7 @@ include 'includes/header.php';
                 console.error(err);
             });
     }
-    document.addEventListener('DOMContentLoaded', function() {
+       document.addEventListener('DOMContentLoaded', function() {
         const slotsContainer = document.querySelector('#slots-container');
 
 
@@ -229,7 +225,7 @@ include 'includes/header.php';
             button.addEventListener('click', function(event) {
                 const slotId = this.dataset.slotId;
                 const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
-
+                
                 // Aggiorna l'UI per mostrare lo stato di attesa
                 if (slotCard) {
                     slotCard.classList.add('pending');
@@ -246,30 +242,28 @@ include 'includes/header.php';
             });
         });
     });
-    // Funzione per chiedere il nome del server e reindirizzare
-    function promptAndCreateServer(planCode, slotId, btnElement) {
-    let serverName = prompt("Inserisci un nome per il tuo server:");
-    
-    if (serverName === null) return; // L'utente ha premuto "Annulla"
-    serverName = serverName.trim();
-    if (serverName === "") {
-        alert("Il nome del server non può essere vuoto.");
-        return;
+// Funzione per chiedere il nome del server e reindirizzare
+    function promptAndCreateServer(planCode, slotId) {
+        let serverName = prompt("Inserisci un nome per il tuo server:");
+        
+        if (serverName === null) return;
+        serverName = serverName.trim();
+        if (serverName === "") {
+            alert("Il nome del server non può essere vuoto.");
+            return;
+        }
+
+        const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
+        if (btn) {
+            // Blocca il pulsante e cambia il testo
+            btn.classList.add('pointer-events-none', 'bg-gray-600', 'text-gray-400');
+            btn.textContent = "Creazione in corso…";
+        }
+
+        // Reindirizza alla pagina di creazione con il nome
+        window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
     }
 
-    // Usa l'elemento passato direttamente
-    if (btnElement) {
-        // Rimuovi le classi di stile originali e aggiungi quelle per lo stato "in corso"
-        btnElement.classList.remove('bg-gradient-to-r', 'from-blue-600', 'to-purple-600', 'hover:scale-105');
-        btnElement.classList.add('pointer-events-none', 'bg-gray-600', 'text-gray-400', 'cursor-wait');
-        btnElement.textContent = "Creazione in corso…";
-    }
-
-    // Reindirizza alla pagina di creazione con il nome
-    // La redirezione avverrà dopo che l'UI è stata aggiornata
-    window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
-}   
 </script>
 </body>
-
 </html>
