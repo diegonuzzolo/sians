@@ -263,7 +263,24 @@ include 'includes/header.php';
         // Reindirizza alla pagina di creazione con il nome
         window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
     }
+    document.addEventListener('DOMContentLoaded', function() {
+    console.log('Avvio la chiamata a sync_server_slots.php...');
 
+    fetch('sync_server_slots.php')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Errore del server: ' + response.status);
+            }
+            return response.text();
+        })
+        .then(data => {
+            console.log('Script eseguito con successo! Risposta:');
+            console.log(data); // Mostra l'output del tuo script PHP nella console
+        })
+        .catch(error => {
+            console.error('Si è verificato un problema con la chiamata fetch:', error);
+        });
+});
 </script>
 </body>
 </html>
