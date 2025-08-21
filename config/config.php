@@ -20,8 +20,13 @@ if (!defined('DB_HOST')) {
     define('CONTAINER_SUBNET', '192.168.1.0/24');
 
         define('STRIPE_SECRET_KEY', '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');
+        // Stringa di connessione SSH statica per Pinggy Pro
+define('PINGGY_CONNECTION_STRING', 'JbrU8R0IcZe+udp@pro.pinggy.io');
 
-}
+// Percorso ASSOLUTO dell'eseguibile di pinggy.
+// NON USARE percorsi relativi come './pinggy' in uno script web!
+define('PINGGY_EXECUTABLE_PATH', '/root');
+    }
 
 try {
     $pdo = new PDO(
