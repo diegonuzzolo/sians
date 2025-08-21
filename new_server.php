@@ -10,7 +10,7 @@ require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
 
-// Sicurezza: Usa solo il metodo POST per azioni che modificano lo stato del server
+// Sicurezza: Usa solo il metodo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: dashboard.php?error=" . urlencode("Metodo non valido."));
     exit;
@@ -29,7 +29,6 @@ $slotId = $_POST['slot_id'] ?? null;
 $planCode = $_POST['plan_code'] ?? null;
 $serverName = trim($_POST['server_name'] ?? 'mcserver');
 
-// Validazione robusta del nome del server
 if (!preg_match('/^[a-zA-Z0-9-]{3,20}$/', $serverName)) {
     header("Location: dashboard.php?error=" . urlencode("Nome server non valido. Usa solo lettere, numeri e trattini (3-20 caratteri)."));
     exit;
@@ -40,7 +39,6 @@ if (!$planCode || !$slotId) {
     exit;
 }
 
-// Avvia una singola transazione per tutte le operazioni sul database
 $pdo->beginTransaction();
 
 try {
@@ -66,14 +64,13 @@ try {
     ];
     $ramMb = $plan['ram_gb'] * 1024;
 
-    // --- 3. Allocazione Risorse Interne (VMID e IP) ---
+    // --- 3. Allocazione Risorse (VMID e IP) ---
     $vmid = getNextFreeVmid($pdo);
     $vmIp = getNextFreePrivateIp($pdo);
 
     // --- 4. Inserimento Record nel Database ---
-    // Abbiamo rimosso la colonna 'progress' dalla query
-$stmtServer = $pdo->prepare("INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?, 'creating', 'bedrock', ?, ?)");
-$stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['cpu_cores'], $ramMb]);
+    $stmtServer = $pdo->prepare("INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?, 'creating', 'bedrock', ?, ?)");
+    $stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['cpu_cores'], $ramMb]);
     $serverId = $pdo->lastInsertId();
 
     $stmtContainer = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id) VALUES (?, ?, ?, ?, ?, ?, 'Creating', ?, ?)");
@@ -84,13 +81,12 @@ $stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['
     $pdo->prepare("UPDATE server_slots SET server_id = ?, status = 'created' WHERE id = ?")->execute([$serverId, $slotId]);
     $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id = 1")->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
 
-    // --- 5. Creazione della Risorsa Esterna (Proxmox) ---
+    // --- 5. Creazione Risorsa Esterna (Proxmox) ---
     $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'], $serverName, $vmIp, $plan['cpu_cores']);
     if (!$createResult['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $createResult['message']);
     }
     
-    // Se tutto è andato a buon fine, conferma le modifiche al database.
     $pdo->commit();
     
 } catch (Exception $e) {
@@ -100,15 +96,16 @@ $stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['
     header("Location: dashboard.php?error=" . urlencode("Creazione fallita: " . $e->getMessage()));
     exit;
 }
-sleep(4); 
 
 // --- 6. Creazione Tunnel Cloudflare e Setup Remoto ---
 try {
+    sleep(4); // Attesa per l'avvio del container
+
     // Parte A: Creazione del Tunnel Cloudflare
     $tunnelName = "mc-{$vmid}";
     $subdomain = "{$serverName}.mc.sians.it";
 
-    // 1. Crea il tunnel nominato e cattura l'UUID
+    // 1. Crea il tunnel e cattura l'UUID
     $output = [];
     exec("sudo /usr/bin/cloudflared tunnel create {$tunnelName} 2>&1", $output);
     
@@ -123,41 +120,32 @@ try {
         throw new Exception("Impossibile creare il tunnel Cloudflare o estrarre l'UUID.");
     }
     
-    // Salva i dati del tunnel nel DB per la gestione futura
+    // Salva i dati del tunnel nel DB
     $pdo->prepare("UPDATE servers SET tunnel_id = ?, tunnel_uuid = ? WHERE id = ?")
         ->execute([$tunnelName, $tunnelUuid, $serverId]);
 
-// ... nel blocco try di new_server.php, dopo aver ottenuto l'UUID ...
+    // 2. Crea il file di configurazione
+    $configFile = "/root/.cloudflared/{$tunnelName}.yml";
+    $configContent = "tunnel: {$tunnelUuid}\n"
+                   . "credentials-file: /root/.cloudflared/{$tunnelUuid}.json\n"
+                   . "ingress:\n"
+                   . "  - service: udp://{$vmIp}:19132\n" // Porta Bedrock
+                   . "  - service: http_status:404\n";
 
-// 2. Crea il file di configurazione specifico per questo tunnel
-$configFile = "/root/.cloudflared/{$tunnelName}.yml";
-$configContent = "tunnel: {$tunnelUuid}\n"
-               . "credentials-file: /root/.cloudflared/{$tunnelUuid}.json\n"
-               . "ingress:\n"
-               . "  - service: udp://{$vmIp}:19132\n" // Porta Bedrock
-               . "  - service: http_status:404\n";
+    $command = "echo " . escapeshellarg($configContent) . " | sudo /usr/bin/tee {$configFile}";
+    exec($command, $output, $return_var);
 
-// SOSTITUISCI IL BLOCCO file_put_contents CON QUESTO:
-// Usiamo 'echo' per passare il contenuto a 'tee', che lo scriverà nel file con i permessi di root.
-// escapeshellarg() è FONDAMENTALE per la sicurezza, per evitare command injection.
-$command = "echo " . escapeshellarg($configContent) . " | sudo /usr/bin/tee {$configFile}";
-exec($command, $output, $return_var);
+    if ($return_var !== 0) {
+        throw new Exception("Impossibile scrivere il file di configurazione del tunnel. Codice: {$return_var}");
+    }
 
-if ($return_var !== 0) {
-    throw new Exception("Impossibile scrivere il file di configurazione del tunnel con tee. Codice di errore: {$return_var}");
-}
-// FINE DELLA SOSTITUZIONE
-
-
-
-    // 3. Crea il record DNS per il sottodominio
+    // 3. Crea il record DNS
     exec("sudo /usr/bin/cloudflared tunnel route dns {$tunnelName} {$subdomain}");
 
-    // 4. Avvia e abilita il servizio systemd per questo specifico tunnel
+    // 4. Avvia e abilita il servizio
     exec("sudo /usr/bin/systemctl enable --now cloudflared@{$tunnelName}.service");
     
-    // Parte B: Setup del server remoto (es. installazione software)
-    sleep(5); 
+    // Parte B: Setup del server remoto
     $sshKey = "/var/www/.ssh/id_proxmox";
     $nodeIp = "192.168.1.251";
     $localScript = '/var/www/setup_server.sh';
@@ -166,15 +154,24 @@ if ($return_var !== 0) {
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"");
     exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp");
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp $remoteTemp\"");
-    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- chmod +x $remoteTemp && $remoteTemp $containerId > /root/setup.log 2>&1 &\"");
+    
+    // **COMANDO DI ESECUZIONE CORRETTO**
+    // Usa bash -c per eseguire la sequenza di comandi correttamente all'interno del container
+    $remoteExecCommand = "bash -c 'chmod +x {$remoteTemp} && {$remoteTemp} {$containerId} > /root/setup.log 2>&1 &'";
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$remoteExecCommand}\"");
 
 } catch (Exception $e) {
     header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il setup del tunnel/software potrebbe essere fallito: " . $e->getMessage()));
     exit;
 }
 
-// --- 7. Successo ---
-header("Location: dashboard.php?success=" . urlencode("Il tuo nuovo server è stato creato e il tunnel è attivo!"));
+// --- 7. Finalizza lo stato del server ---
+// **AGGIORNAMENTO DELLO STATO**
+// Imposta lo stato a 'stopped' per indicare che il server è pronto per essere avviato.
+$pdo->prepare("UPDATE servers SET status = 'stopped' WHERE id = ?")->execute([$serverId]);
+
+// --- 8. Successo ---
+header("Location: dashboard.php?success=" . urlencode("Il tuo nuovo server è stato creato ed è pronto per essere avviato!"));
 exit;
 
 ?>
