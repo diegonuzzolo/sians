@@ -34,7 +34,17 @@ include 'includes/header.php';
 ?>
 
 <main class="flex-grow-1 container mx-auto px-4 py-12">
+    <?php
+// Messaggi da mostrare all'utente
+$errorMessage = $_GET['error'] ?? '';
+$successMessage = $_GET['success'] ?? '';
+$warningMessage = $_GET['warning'] ?? '';
 
+// Personalizzazione dei messaggi di errore SQL
+if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
+    $errorMessage = "Nome server già esistente. Scegli un nome diverso.";
+}
+?>
     <section class="mb-16">
         <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
         <div id="server-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -150,6 +160,24 @@ include 'includes/header.php';
         </div>
     </section>
 </main>
+<?php if ($errorMessage): ?>
+    <div class="mb-6 p-4 rounded-lg bg-red-600 text-white text-center font-semibold">
+        <?= htmlspecialchars($errorMessage) ?>
+    </div>
+<?php endif; ?>
+
+<?php if ($successMessage): ?>
+    <div class="mb-6 p-4 rounded-lg bg-green-600 text-white text-center font-semibold">
+        <?= htmlspecialchars($successMessage) ?>
+    </div>
+<?php endif; ?>
+
+<?php if ($warningMessage): ?>
+    <div class="mb-6 p-4 rounded-lg bg-yellow-500 text-white text-center font-semibold">
+        <?= htmlspecialchars($warningMessage) ?>
+    </div>
+<?php endif; ?>
+
 
 <?php include "includes/footer.php"; ?>
 
