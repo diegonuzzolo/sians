@@ -9,7 +9,7 @@ require_once 'includes/csrf.php';
 
 header('Content-Type: application/json');
 
-csrf_check_or_die();
+csrf_check_or_die_json();
 try {
     $serverId = intval($_POST['server_id'] ?? 0);
     if ($serverId <= 0) throw new Exception("ID server non valido");

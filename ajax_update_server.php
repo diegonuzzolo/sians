@@ -12,7 +12,7 @@ if (empty($csrf_token) || $csrf_token !== ($_SESSION['csrf_token'] ?? '')) {
     echo json_encode(['success' => false, 'message' => 'CSRF token non valido']);
     exit;
 }
-
+csrf_check_or_die_json();
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Metodo non consentito');

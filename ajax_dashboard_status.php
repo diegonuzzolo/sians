@@ -1,7 +1,9 @@
 <?php
 require 'config/config.php';
+require_once 'includes/csrf.php';
 session_start();
 
+csrf_check_or_die_json();
 $userId = $_SESSION['user_id'] ?? 0;
 
 $response = [];
