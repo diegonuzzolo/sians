@@ -39,7 +39,7 @@ function deleteCloudflareResources(string $hostname, string $tunnelName, string 
     }
 
     // --- PARTE CLI: Pulizia del tunnel e dei file locali ---
-    // exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service");
+    exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service");
     exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName}");
     exec("sudo /bin/rm -f /root/.cloudflared/{$tunnelName}.yml");
 }
