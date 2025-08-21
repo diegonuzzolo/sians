@@ -55,7 +55,7 @@ include 'includes/header.php';
     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
         
         <div class="flex items-center space-x-4 mb-4">
-            <div class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
+            <div id="icon-container-<?= $server['id'] ?>" class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path></svg>
             </div>
             <div>
@@ -156,61 +156,103 @@ include 'includes/header.php';
 
 
     // --- CONTROLLO SERVER (start/stop) ---
-    function controlServer(serverId, action) {
-        fetch('ajax_server_control.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=${encodeURIComponent(action)}&id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.status) {
-                    const statusEl = document.getElementById('status-' + serverId);
-                    if (statusEl) {
-                        statusEl.textContent = (data.status === 'running') ? 'Attivo' : 'Spento';
-                        statusEl.className = `px-4 py-1 rounded-full text-sm font-bold text-white shadow-md ${data.status === 'running' ? 'bg-green-500' : 'bg-red-500'}`;
-                    }
-                    updateButtons(serverId, data.status);
+    // --- CONTROLLO SERVER (start/stop) ---
+function controlServer(serverId, action) {
+    fetch('ajax_server_control.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=${encodeURIComponent(action)}&id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.status) {
+            // Se la chiamata ha successo, aggiorniamo dinamicamente l'interfaccia
+            const statusEl = document.getElementById('status-' + serverId);
+            if (statusEl) {
+                statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                
+                // Rimuovi le vecchie classi di colore e aggiungi quella nuova
+                statusEl.classList.remove('bg-green-500', 'bg-red-500', 'bg-yellow-500');
+                if (data.status === 'running') {
+                    statusEl.classList.add('bg-green-500');
+                } else if (data.status === 'creating') {
+                    statusEl.classList.add('bg-yellow-500');
+                } else {
+                    statusEl.classList.add('bg-red-500');
                 }
-            })
-            .catch(err => console.error(err));
+            }
+            
+            // Aggiorna lo stato dei bottoni
+            updateButtons(serverId, data.status);
+
+            // **NUOVA PARTE: Aggiorna il colore dell'icona**
+            updateIconColor(serverId, data.status);
+        } else {
+            // Se c'è un errore, mostralo
+            alert('Errore: ' + (data.message || 'Si è verificato un problema.'));
+        }
+    })
+    .catch(err => console.error(err));
+}
+
+function startServer(serverId) {
+    controlServer(serverId, 'start');
+}
+
+function stopServer(serverId) {
+    controlServer(serverId, 'stop');
+}
+
+// **NUOVA FUNZIONE PER AGGIORNARE L'ICONA**
+function updateIconColor(serverId, status) {
+    const iconContainer = document.getElementById('icon-container-' + serverId);
+    if (!iconContainer) return;
+
+    // Rimuovi tutte le possibili classi di colore precedenti
+    iconContainer.classList.remove('text-green-400', 'text-red-400', 'text-yellow-400');
+
+    // Aggiungi la classe di colore corretta in base al nuovo stato
+    if (status === 'running') {
+        iconContainer.classList.add('text-green-400');
+    } else if (status === 'creating') {
+        iconContainer.classList.add('text-yellow-400');
+    } else { // per 'stopped', 'error', ecc.
+        iconContainer.classList.add('text-red-400');
     }
+}
 
-    function startServer(serverId) {
-        controlServer(serverId, 'start');
-    }
 
-    function stopServer(serverId) {
-        controlServer(serverId, 'stop');
-    }
+// --- AGGIORNA BOTTONI ---
+function updateButtons(serverId, status) {
+    const startBtn = document.getElementById('start-' + serverId);
+    const stopBtn = document.getElementById('stop-' + serverId);
+    
+    if (!startBtn || !stopBtn) return;
+    
+    const isRunning = status === 'running';
+    const isStopped = status === 'stopped';
+    const isBusy = !isRunning && !isStopped; // Es. 'creating', 'deleting'
 
-    // --- AGGIORNA BOTTONI ---
-    function updateButtons(serverId, status) {
-        const startBtn = document.getElementById('start-' + serverId);
-        const stopBtn = document.getElementById('stop-' + serverId);
-        
-        if (!startBtn || !stopBtn) return;
-        
-        const isRunning = status === 'running';
+    // Abilita/disabilita il bottone Avvia
+    startBtn.disabled = isRunning || isBusy;
+    startBtn.classList.toggle('bg-gray-600', isRunning || isBusy);
+    startBtn.classList.toggle('text-gray-400', isRunning || isBusy);
+    startBtn.classList.toggle('cursor-not-allowed', isRunning || isBusy);
+    startBtn.classList.toggle('bg-green-600', isStopped);
+    startBtn.classList.toggle('hover:bg-green-700', isStopped);
+    startBtn.classList.toggle('text-white', isStopped);
 
-        startBtn.disabled = isRunning;
-        startBtn.classList.toggle('bg-gray-600', isRunning);
-        startBtn.classList.toggle('text-gray-400', isRunning);
-        startBtn.classList.toggle('cursor-not-allowed', isRunning);
-        startBtn.classList.toggle('bg-green-600', !isRunning);
-        startBtn.classList.toggle('hover:bg-green-700', !isRunning);
-        startBtn.classList.toggle('text-white', !isRunning);
+    // Abilita/disabilita il bottone Ferma
+    stopBtn.disabled = isStopped || isBusy;
+    stopBtn.classList.toggle('bg-gray-600', isStopped || isBusy);
+    stopBtn.classList.toggle('text-gray-400', isStopped || isBusy);
+    stopBtn.classList.toggle('cursor-not-allowed', isStopped || isBusy);
+    stopBtn.classList.toggle('bg-red-600', isRunning);
+    stopBtn.classList.toggle('hover:bg-red-700', isRunning);
+    stopBtn.classList.toggle('text-white', isRunning);
+}
 
-        stopBtn.disabled = !isRunning;
-        stopBtn.classList.toggle('bg-gray-600', !isRunning);
-        stopBtn.classList.toggle('text-gray-400', !isRunning);
-        stopBtn.classList.toggle('cursor-not-allowed', !isRunning);
-        stopBtn.classList.toggle('bg-red-600', isRunning);
-        stopBtn.classList.toggle('hover:bg-red-700', isRunning);
-        stopBtn.classList.toggle('text-white', isRunning);
-    }
-
-    // --- ELIMINA SERVER ---
+// --- ELIMINA SERVER ---
 function deleteServer(serverId, vmid) {
     if (!confirm('Sei sicuro di voler eliminare questo server? L\'azione è irreversibile.')) {
         return;
