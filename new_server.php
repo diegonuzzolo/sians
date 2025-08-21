@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 // Dipendenze e controlli iniziali
 require 'auth_check.php';
-require 'config/config.php'; 
+require 'config/config.php';
 require_once 'proxmox_functions.php';
 require_once 'includes/csrf.php';
 
@@ -97,15 +97,22 @@ try {
     if (!$createResult['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $createResult['message']);
     }
-    
+
     $pdo->commit();
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    header("Location: dashboard.php?error=" . urlencode("Creazione fallita: " . $e->getMessage()));
+    $_SESSION['flash_message'] = [
+        'type' => 'error', // 'error', 'success', 'warning'
+        'text' => strpos($e->getMessage(), '1062 Duplicate entry') !== false
+            ? 'Nome server già esistente. Scegli un nome diverso.'
+            : 'Creazione fallita: ' . $e->getMessage()
+    ];
+    header("Location: dashboard.php");
     exit;
+
 }
 
 // --- 6. Setup DNS su Cloudflare ---
@@ -137,13 +144,13 @@ try {
     $srvRecord = [
         "type" => "SRV",
         "data" => [
-            "service"  => "_minecraft",
-            "proto"    => "_udp",
-            "name"     => $serverName,
+            "service" => "_minecraft",
+            "proto" => "_udp",
+            "name" => $serverName,
             "priority" => 1,
-            "weight"   => 1,
-            "port"     => 19132,
-            "target"   => $subdomain
+            "weight" => 1,
+            "port" => 19132,
+            "target" => $subdomain
         ],
         "ttl" => 120
     ];

@@ -161,19 +161,18 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
         </div>
     </section>
 </main>
-<?php if ($errorMessage): ?>
-    <div id="flash-message" class="mb-6 p-4 rounded-lg bg-red-600 text-white text-center font-semibold">
-        <?= htmlspecialchars($errorMessage) ?>
-    </div>
-<?php elseif ($successMessage): ?>
-    <div id="flash-message" class="mb-6 p-4 rounded-lg bg-green-600 text-white text-center font-semibold">
-        <?= htmlspecialchars($successMessage) ?>
-    </div>
-<?php elseif ($warningMessage): ?>
-    <div id="flash-message" class="mb-6 p-4 rounded-lg bg-yellow-500 text-white text-center font-semibold">
-        <?= htmlspecialchars($warningMessage) ?>
+<?php
+$flashMessage = $_SESSION['flash_message'] ?? null;
+unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
+?>
+<?php if ($flashMessage): ?>
+    <div id="flash-message"
+         class="mb-6 p-4 rounded-lg text-white text-center font-semibold
+                <?= $flashMessage['type'] === 'error' ? 'bg-red-600' : ($flashMessage['type'] === 'success' ? 'bg-green-600' : 'bg-yellow-500') ?>">
+        <?= htmlspecialchars($flashMessage['text']) ?>
     </div>
 <?php endif; ?>
+
 
 
 
@@ -181,6 +180,8 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
 
 <script>
     const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
+ 
+    
     document.addEventListener('DOMContentLoaded', function() {
     const flash = document.getElementById('flash-message');
     if (flash) {
@@ -188,9 +189,10 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
             flash.style.transition = "opacity 0.5s ease";
             flash.style.opacity = 0;
             setTimeout(() => flash.remove(), 500); // Rimuove il div completamente
-        }, 5000); // 5000 ms = 5 secondi
+        }, 10000); // 10 secondi
     }
 });
+
 
     // --- CONTROLLO SERVER (start/stop) ---
     // --- CONTROLLO SERVER (start/stop) ---
