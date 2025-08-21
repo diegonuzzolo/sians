@@ -114,29 +114,6 @@ exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remo
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp /root/setup_server.sh\"");
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"");
 
-    // Parte B: Avvio del tunnel Pinggy con stringa di connessione SSH
-    $pinggyExecutable ='/root/pinggy';
-    $pinggyConnectionString = PINGGY_CONNECTION_STRING;
-    $pinggySubdomain = $serverName . '.mc.sians.it';
-    $localIp = $vmIp;
-    $localPort = '19132'; // Porta Bedrock. Cambia in '25565' per Java Edition.
-
-    // Costruzione della regola di port forwarding remoto con il sottodominio
-    $remoteForwardRule = "{$pinggySubdomain}:0:{$localIp}:{$localPort}";
-
-    $screenSessionName = "pinggy-{$vmid}";
-    $pinggyLogFile = "/var/www/logs/pinggy_vmid_{$vmid}.log";
-
-    // Comando completo per avviare pinggy in background tramite screen, con sudo
-    $command = "sudo /usr/bin/screen -dmS {$screenSessionName} {$pinggyExecutable} -R {$remoteForwardRule} {$pinggyConnectionString} >> {$pinggyLogFile} 2>&1";
-    
-    exec($command, $output, $return_var);
-
-    if ($return_var !== 0) {
-        throw new Exception("Impossibile avviare il tunnel. Controlla i log di sistema.");
-    }
-
-
 header("Location: dashboard.php");
 
 exit;
