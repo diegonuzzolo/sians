@@ -272,26 +272,48 @@ function deleteServer(serverId, vmid) {
     });
 // Funzione per chiedere il nome del server e reindirizzare
     function promptAndCreateServer(planCode, slotId) {
-        let serverName = prompt("Inserisci un nome per il tuo server:");
-        
-        if (serverName === null) return;
-        serverName = serverName.trim();
-        if (serverName === "") {
-            alert("Il nome del server non può essere vuoto.");
-            return;
-        }
-
-        const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
-        if (btn) {
-            // Blocca il pulsante e cambia il testo
-            btn.classList.add('pointer-events-none', 'bg-gray-600', 'text-gray-400');
-            btn.textContent = "Creazione in corso…";
-        }
-
-        // Reindirizza alla pagina di creazione con il nome
-        window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
-    }
+    let serverName = prompt("Inserisci un nome per il tuo server (es. 'MioMondo'):");
     
+    if (serverName === null) return; // L'utente ha cliccato "Annulla"
+    serverName = serverName.trim();
+    
+    // Controlla che il nome non sia vuoto e che segua le regole
+    if (serverName === "") {
+        alert("Il nome del server non può essere vuoto.");
+        return;
+    }
+    if (!/^[a-zA-Z0-9-]{3,20}$/.test(serverName)) {
+        alert("Nome non valido. Usa solo lettere, numeri e trattini, da 3 a 20 caratteri.");
+        return;
+    }
+
+    // Crea un form invisibile per inviare i dati con il metodo POST
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'new_server.php';
+
+    // Dati da inviare, incluso il token CSRF per la sicurezza
+    const data = {
+        plan_code: planCode,
+        slot_id: slotId,
+        server_name: serverName,
+        csrf_token: csrfToken // Assicurati che la variabile 'csrfToken' sia definita nello script
+    };
+
+    // Aggiungi i dati come input nascosti al form
+    for (const key in data) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = data[key];
+        form.appendChild(input);
+    }
+
+    // Aggiungi il form alla pagina, invialo e poi rimuovilo
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
 </script>
 </body>
 </html>
