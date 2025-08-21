@@ -7,7 +7,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require __DIR__ . '/vendor/autoload.php';
-require __DIR__ . '/config/con  fig.php';
+require __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/csrf.php';
 
 // Abilita error reporting per debug
