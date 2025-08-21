@@ -126,17 +126,28 @@ try {
     $pdo->prepare("UPDATE servers SET tunnel_id = ?, tunnel_uuid = ? WHERE id = ?")
         ->execute([$tunnelName, $tunnelUuid, $serverId]);
 
-    // 2. Crea il file di configurazione .yml nel percorso richiesto
-    $configFile = "/root/.cloudflared/{$tunnelName}.yml";
-    $configContent = "tunnel: {$tunnelUuid}\n"
-                   . "credentials-file: /root/.cloudflared/{$tunnelUuid}.json\n"
-                   . "ingress:\n"
-                   . "  - service: udp://{$vmIp}:19132\n" // Porta Bedrock
-                   . "  - service: http_status:404\n";
-    
-    if (file_put_contents($configFile, $configContent) === false) {
-        throw new Exception("Impossibile scrivere il file di configurazione del tunnel.");
-    }
+// ... nel blocco try di new_server.php, dopo aver ottenuto l'UUID ...
+
+// 2. Crea il file di configurazione specifico per questo tunnel
+$configFile = "/root/.cloudflared/{$tunnelName}.yml";
+$configContent = "tunnel: {$tunnelUuid}\n"
+               . "credentials-file: /root/.cloudflared/{$tunnelUuid}.json\n"
+               . "ingress:\n"
+               . "  - service: udp://{$vmIp}:19132\n" // Porta Bedrock
+               . "  - service: http_status:404\n";
+
+// SOSTITUISCI IL BLOCCO file_put_contents CON QUESTO:
+// Usiamo 'echo' per passare il contenuto a 'tee', che lo scriverà nel file con i permessi di root.
+// escapeshellarg() è FONDAMENTALE per la sicurezza, per evitare command injection.
+$command = "echo " . escapeshellarg($configContent) . " | sudo /usr/bin/tee {$configFile}";
+exec($command, $output, $return_var);
+
+if ($return_var !== 0) {
+    throw new Exception("Impossibile scrivere il file di configurazione del tunnel con tee. Codice di errore: {$return_var}");
+}
+// FINE DELLA SOSTITUZIONE
+
+
 
     // 3. Crea il record DNS per il sottodominio
     exec("sudo /usr/bin/cloudflared tunnel route dns {$tunnelName} {$subdomain}");
