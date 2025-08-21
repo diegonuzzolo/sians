@@ -131,7 +131,7 @@ if (isset($_GET['success'], $_GET['plan_code'], $_GET['session_id'])) {
     $session = \Stripe\Checkout\Session::retrieve($checkoutSessionId);
     $stripeSubscription = \Stripe\Subscription::retrieve($session->subscription);
 
-    $output = shell_exec('php /var/www/html/sync_server_slots.php');
+    exec('php /var/www/html/sync_server_slots.php');
 
     header("Location: dashboard.php?subscription=success");
     exit;
