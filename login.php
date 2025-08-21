@@ -1,17 +1,18 @@
 <?php
+// FILE: login.php (Versione Aggiornata con Controllo Verifica Email)
+
 session_start();
 require 'config/config.php';
 require_once 'includes/csrf.php';
 
 // Abilita error reporting (rimuovi in produzione)
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_check_or_die(); // controlla CSRF
+    csrf_check_or_die(); // Controlla CSRF
 
     $login = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -19,21 +20,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$login || !$password) {
         $error = "Compila tutti i campi";
     } else {
-        // Recupera utente
+        // Recupera l'utente, inclusa la colonna 'email_verified'
         $stmt = $pdo->prepare("
-            SELECT id, username, email, password_hash, role, last_password_change, force_password_reset
+            SELECT id, username, email, password_hash, role, last_password_change, force_password_reset, email_verified
             FROM users
             WHERE username = ? OR email = ?
         ");
         $stmt->execute([$login, $login]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user) {
-            $error = "Nome utente o email non validi.";
-        } elseif (!password_verify($password, $user['password_hash'])) {
-            $error = "Password errata.";
-        } else {
-            // Login corretto
+        // Controlla se l'utente esiste e se la password è corretta
+        if (!$user || !password_verify($password, $user['password_hash'])) {
+            $error = "Nome utente o password non corretti.";
+        } 
+        // **NUOVO CONTROLLO: Verifica se l'email è stata attivata**
+        elseif ($user['email_verified'] != 1) {
+            $error = "Il tuo account non è stato attivato. Controlla la tua email per il link di verifica.";
+        } 
+        // Se tutti i controlli passano, procedi con il login
+        else {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
@@ -41,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Controllo cambio password periodico (90 giorni)
             $pwdChangedAt = $user['last_password_change'];
             $needsReset = (bool)$user['force_password_reset'];
-            $forceReset = $needsReset || !$pwdChangedAt || (time() - strtotime($pwdChangedAt)) > 90*24*3600;
+            $forceReset = $needsReset || !$pwdChangedAt || (time() - strtotime($pwdChangedAt)) > 90 * 24 * 3600;
 
             if ($forceReset) {
                 $_SESSION['force_password_reset'] = true;
@@ -56,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Ora includi l’header, dopo che NON c’è stato output
+// Ora includi l’header, dopo la logica PHP
 include 'includes/header.php';
 ?>
 
