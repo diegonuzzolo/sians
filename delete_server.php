@@ -70,7 +70,7 @@ function deleteCloudflareResources(string $serverName, string $tunnelName, strin
         throw new Exception("Errore nell'eliminare il tunnel da Cloudflare.");
     }
     
-    if (file_exists("/root/.cloudflared/{$tunnelName}.yml")) exec("sudo /bin/rm /root/.cloudflared/{$tunnelName}.yml");
+    exec("sudo /bin/rm /root/.cloudflared/{$tunnelName}.yml");
 }
 
 // --- Script Principale ---
