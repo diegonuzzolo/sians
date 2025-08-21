@@ -67,9 +67,14 @@ try {
 
         // a. Ferma e disabilita il servizio systemd
         exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service");
-
-        // b. Elimina il tunnel da Cloudflare (-y per confermare)
-        exec("sudo /usr/bin/cloudflared tunnel delete -y {$tunnelName}");
+           exec("sudo /usr/bin/cloudflared tunnel cleanup {$tunnelName} 2>&1", $output, $return_var);
+    if ($return_var !== 0) {
+        // Ignoriamo l'errore se il tunnel non è stato trovato, potrebbe essere già stato pulito
+        if (!str_contains(implode('', $output), 'not found')) {
+            throw new Exception("Errore nella pulizia del DNS del tunnel: " . implode("\n", $output));
+        }
+    }
+        exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName}");
 
         // c. Pulisci il file di configurazione e le credenziali
         if (file_exists($configFile)) {
