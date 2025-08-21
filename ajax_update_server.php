@@ -1,175 +1,133 @@
 <?php
+// FILE: ajax_update_server.php (Versione Corretta)
+
+// Abilita la visualizzazione degli errori per il debug.
+// In un ambiente di produzione, dovresti loggare gli errori su file invece di mostrarli.
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+// Imposta l'header per indicare che la risposta sarà in formato JSON
+header('Content-Type: application/json');
+
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/csrf.php';
+require_once __DIR__ . '/proxmox_functions.php';
 
-header('Content-Type: application/json');
-ini_set('display_errors', 0);
-error_reporting(0);
-
-// Controllo CSRF
-$csrf_token = $_POST['csrf_token'] ?? '';
-if (empty($csrf_token) || $csrf_token !== ($_SESSION['csrf_token'] ?? '')) {
-    echo json_encode(['success' => false, 'message' => 'CSRF token non valido']);
+// Funzione per inviare una risposta JSON e terminare lo script
+function json_response(bool $success, string $message, array $data = []): void {
+    echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
     exit;
 }
-csrf_check_or_die_json();
+
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Metodo non consentito');
     }
+    csrf_check_or_die_json();
 
     $userId = $_SESSION['user_id'] ?? 0;
-    $serverId = intval($_POST['server_id'] ?? 0);
-    if (!$userId || !$serverId) throw new Exception('Parametri non validi');
+    $serverId = filter_input(INPUT_POST, 'server_id', FILTER_VALIDATE_INT);
+    if (!$userId || !$serverId) {
+        throw new Exception('Parametri non validi o sessione scaduta.');
+    }
 
-    // Recupera VMID e CPU dal DB
+    // Recupera VMID e CPU dal DB per usarli dopo
     $stmt = $pdo->prepare("SELECT proxmox_containerId, cpu_cores FROM servers WHERE id=? AND user_id=?");
     $stmt->execute([$serverId, $userId]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$row) throw new Exception('Server non trovato');
-
-    $vmid = intval($row['proxmox_containerId'] ?? 0);
-    $cpuCores = max(1, intval($row['cpu_cores'] ?? 2));
-
-    // Dati dal form
-    $motd = trim($_POST['motd'] ?? '');
-    $gamemode = $_POST['gamemode'] ?? 'survival';
-    $difficulty = $_POST['difficulty'] ?? 'easy';
+    $serverData = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$serverData) {
+        throw new Exception('Server non trovato o non ti appartiene.');
+    }
+    $vmid = intval($serverData['proxmox_containerId']);
+    
+    // --- Validazione e preparazione dei dati dal form ---
+    $motd = trim($_POST['motd'] ?? 'Un Server Minecraft');
+    $gamemode = in_array($_POST['gamemode'], ['survival', 'creative', 'adventure', 'spectator']) ? $_POST['gamemode'] : 'survival';
+    $difficulty = in_array($_POST['difficulty'], ['peaceful', 'easy', 'normal', 'hard']) ? $_POST['difficulty'] : 'normal';
     $maxPlayers = max(1, min(100, intval($_POST['max_players'] ?? 10)));
-    $viewDistance = max(2, min(32, intval($_POST['view_distance'] ?? 6)));
-    $enableCommandBlocks = (($_POST['enable_command_blocks'] ?? 'false') === 'true') ? 'true' : 'false';
-    $levelName = trim($_POST['level_name'] ?? 'world');
-    $seed = trim($_POST['seed'] ?? '');
-    $spawnProtection = max(0, intval($_POST['spawn_protection'] ?? 16));
-    $whiteListEnabled = (($_POST['white_list_enabled'] ?? 'false') === 'true') ? 'true' : 'false';
+    $whiteListEnabled = ($_POST['white_list_enabled'] ?? 'false') === 'true'; // Convertito in booleano PHP
     $whitelistText = trim($_POST['whitelist'] ?? '');
-    $blacklistText = trim($_POST['blacklist'] ?? '');
-    $tickDistance = max(4, min(12, intval($_POST['tick_distance'] ?? 4)));
-    $playerIdleTimeout = max(0, intval($_POST['player_idle_timeout'] ?? 30));
-    $maxThreads = $cpuCores; // max_threads basato sul numero di core
-    $enableLanVisibility = 'true';
+    $enableCommandBlocks = ($_POST['enable_command_blocks'] ?? 'false') === 'true'; // Convertito in booleano PHP
 
-    // Generazione server.properties
-    $propertiesLines = [
-        "server-name={$motd}",
-        "motd={$motd}",
-        "gamemode={$gamemode}",
-        "force-gamemode=false",
-        "difficulty={$difficulty}",
-        "allow-cheats=false",
-        "max-players={$maxPlayers}",
-        "online-mode=true",
-        "allow-list={$whiteListEnabled}",
-        "server-port=19132",
-        "server-portv6=19133",
-        "enable-lan-visibility={$enableLanVisibility}",
-        "view-distance={$viewDistance}",
-        "tick-distance={$tickDistance}",
-        "player-idle-timeout={$playerIdleTimeout}",
-        "max-threads={$maxThreads}",
-        "level-name={$levelName}",
-        "level-seed={$seed}",
-        "default-player-permission-level=member",
-        "texturepack-required=false",
-        "content-log-file-enabled=false",
-        "compression-threshold=1",
-        "compression-algorithm=zlib",
-        "server-authoritative-movement-strict=false",
-        "server-authoritative-dismount-strict=false",
-        "server-authoritative-entity-interactions-strict=false",
-        "player-position-acceptance-threshold=0.5",
-        "player-movement-action-direction-threshold=0.85",
-        "server-authoritative-block-breaking-pick-range-scalar=1.5",
-        "chat-restriction=None",
-        "disable-player-interaction=false",
-        "client-side-chunk-generation-enabled=true",
-        "block-network-ids-are-hashes=true",
-        "disable-persona=false",
-        "disable-custom-skins=false",
-        "server-build-radius-ratio=Disabled",
-        "allow-outbound-script-debugging=false",
-        "allow-inbound-script-debugging=false",
-        "script-debugger-auto-attach=disabled"
+    // Genera il contenuto del file server.properties
+    $properties = [
+        'server-name' => $motd,
+        'gamemode' => $gamemode,
+        'difficulty' => $difficulty,
+        'max-players' => $maxPlayers,
+        'white-list' => $whiteListEnabled ? 'true' : 'false',
+        'enable-command-blocks' => $enableCommandBlocks ? 'true' : 'false',
+        // Aggiungi qui altre proprietà che vuoi gestire dal form...
+        // Proprietà fisse
+        'server-port' => 19132,
+        'online-mode' => 'true',
     ];
 
-    $serverProperties = implode("\n", $propertiesLines) . "\n";
-    $whitelistNormalized = trim(str_replace(["\r\n","\r"],"\n",$whitelistText)) . "\n";
-    $blacklistNormalized = trim(str_replace(["\r\n","\r"],"\n",$blacklistText)) . "\n";
+    $propertiesContent = "";
+    foreach ($properties as $key => $value) {
+        $propertiesContent .= "{$key}={$value}\n";
+    }
 
-    // File temporanei
-    $tmpDir = sys_get_temp_dir();
-    $uniq = bin2hex(random_bytes(4));
-    $tmpProp = "{$tmpDir}/server_{$serverId}_{$uniq}.properties";
-    $tmpWhite = "{$tmpDir}/server_{$serverId}_{$uniq}.whitelist";
-    $tmpBlack = "{$tmpDir}/server_{$serverId}_{$uniq}.blacklist";
+    // Genera il file whitelist.txt
+    $whitelistContent = trim(str_replace(["\r\n", "\r"], "\n", $whitelistText));
 
-    file_put_contents($tmpProp, $serverProperties);
-    file_put_contents($tmpWhite, $whitelistNormalized);
-    file_put_contents($tmpBlack, $blacklistNormalized);
+    // --- Scrittura file e invio al container ---
+    // (Questa parte usa la tua eccellente funzione $run)
+    $tmpPropFile = tempnam(sys_get_temp_dir(), 'prop');
+    $tmpWhiteFile = tempnam(sys_get_temp_dir(), 'white');
+    file_put_contents($tmpPropFile, $propertiesContent);
+    file_put_contents($tmpWhiteFile, $whitelistContent);
 
-    // SSH Config
+    // Dettagli SSH e comandi remoti
     $sshKey = '/var/www/.ssh/id_proxmox';
     $nodeIp = '192.168.1.251';
-    $escKey = escapeshellarg($sshKey);
-    $escNode = "root@{$nodeIp}";
-    $remoteTmpDir = "/root/.tmp/server_{$serverId}";
-    $remoteProp = "{$remoteTmpDir}/server.properties";
-    $remoteWhite = "{$remoteTmpDir}/whitelist.txt";
-    $remoteBlack = "{$remoteTmpDir}/blacklist.txt";
+    
+    // Copia e sposta i file nel container
+    exec_throw("scp -i {$sshKey} -o StrictHostKeyChecking=no {$tmpPropFile} root@{$nodeIp}:/tmp/server.properties", "Copia properties");
+    exec_throw("scp -i {$sshKey} -o StrictHostKeyChecking=no {$tmpWhiteFile} root@{$nodeIp}:/tmp/whitelist.json", "Copia whitelist");
+    
+    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"pct push {$vmid} /tmp/server.properties /root/minecraft_bedrock/server.properties\"", "Push properties");
+    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"pct push {$vmid} /tmp/whitelist.json /root/minecraft_bedrock/whitelist.json\"", "Push whitelist");
 
-    $run = function(string $cmd, string $step){
-        $out=[]; $ret=0;
-        exec($cmd . " 2>&1", $out, $ret);
-        if($ret!==0) throw new Exception("$step fallito (exit $ret): ".implode("\n",$out));
-        return $out;
-    };
+    // Pulizia file temporanei sul nodo Proxmox
+    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"rm /tmp/server.properties /tmp/whitelist.json\"", "Pulizia remota");
+    
+    // Pulizia file temporanei locali
+    @unlink($tmpPropFile);
+    @unlink($tmpWhiteFile);
 
-    // Creazione tmp sul node
-    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-         escapeshellarg("mkdir -p {$remoteTmpDir}"), "Creazione cartella temporanea sul node");
-
-    // Copia file
-    foreach ([[$tmpProp,$remoteProp],[$tmpWhite,$remoteWhite],[$tmpBlack,$remoteBlack]] as [$local,$remote]){
-        $run("scp -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " .
-             escapeshellarg($local)." {$escNode}:".escapeshellarg($remote), "Copia {$remote}");
-    }
-
-    // pct push nel container
-    foreach ([[$remoteProp,'/root/minecraft_bedrock/server.properties'],
-              [$remoteWhite,'/root/minecraft_bedrock/whitelist.txt'],
-              [$remoteBlack,'/root/minecraft_bedrock/blacklist.txt']] as [$src,$dest]){
-        $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-             escapeshellarg("pct push {$vmid} {$src} {$dest}"), "pct push {$dest}");
-    }
-
-    // Pulizia file temporanei
-    $run("ssh -i {$escKey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {$escNode} " .
-         escapeshellarg("rm -f {$remoteProp} {$remoteWhite} {$remoteBlack} && rmdir {$remoteTmpDir} 2>/dev/null || true"), "Pulizia temporanei");
-
-    // Aggiornamento DB
-    $stmt = $pdo->prepare("
+    // --- Aggiornamento del Database con le colonne corrette ---
+    $stmtUpdate = $pdo->prepare("
         UPDATE servers SET
-            motd=?, gamemode=?, difficulty=?,
-            max_players=?, view_distance=?,
-            enable_command_blocks=?, level_name=?,
-            seed=?, spawn_protection=?, white_list=?,
-            whitelist=?, blacklist=?, tick_distance=?,
-            player_idle_timeout=?, max_threads=?, updated_at=NOW()
-        WHERE id=? AND user_id=?
+            motd = ?,
+            gamemode = ?,
+            difficulty = ?,
+            max_players = ?,
+            white_list = ?,
+            whitelist = ?,
+
+            enable_command_blocks = ?,
+            updated_at = NOW()
+        WHERE id = ? AND user_id = ?
     ");
-    $stmt->execute([
-        $motd,$gamemode,$difficulty,
-        $maxPlayers,$viewDistance,
-        $enableCommandBlocks,$levelName,
-        $seed,$spawnProtection,$whiteListEnabled,
-        $whitelistText,$blacklistText,$tickDistance,
-        $playerIdleTimeout,$maxThreads,$serverId,$userId
+    
+    $stmtUpdate->execute([
+        $motd,
+        $gamemode,
+        $difficulty,
+        $maxPlayers,
+        $whiteListEnabled, // Invia booleano (verrà convertito in 1/0 dal PDO)
+        $whitelistText,
+        $enableCommandBlocks, // Invia booleano
+        $serverId,
+        $userId
     ]);
 
-    echo json_encode(['success'=>true,'message'=>'Server aggiornato con successo','vmid'=>$vmid]);
-    exit;
+    json_response(true, 'Impostazioni del server aggiornate con successo!');
 
-} catch(Throwable $e){
-    echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
-    exit;
+} catch (Throwable $e) {
+    // In caso di qualsiasi errore, invia una risposta JSON chiara
+    http_response_code(500);
+    json_response(false, $e->getMessage());
 }

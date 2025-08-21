@@ -313,7 +313,7 @@ if (!$server) {
                     const formData = new FormData();
                     formData.append('server_id', serverId);
                     formData.append('server-icon', file);
-                    formData.append('csrf_token', csrfToken);
+                    formData.append('csrf_token', csrfToken);   
 
                     fetch('ajax_upload_icon.php', {
                             method: 'POST',

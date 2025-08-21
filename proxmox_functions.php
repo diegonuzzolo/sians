@@ -4,7 +4,14 @@ $PROXMOX_HOST = "https://192.168.1.251:8006";
 $PROXMOX_API_TOKEN = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
 
 
-
+function exec_throw(string $command, string $errorMessage) {
+    $output = [];
+    $return_var = 0;
+    exec($command . " 2>&1", $output, $return_var);
+    if ($return_var !== 0) {
+        throw new Exception("{$errorMessage}. Dettagli: " . implode("\n", $output));
+    }
+}
 /**
  * Crea un container LXC
  */
