@@ -25,12 +25,13 @@ define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 // In config/config.php
 
 
+
 // Credenziali per l'invio di email tramite SMTP di Brevo
 define('SMTP_HOST', 'smtp-relay.brevo.com');
 define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'nuzzolo27@gmail.com'); // L'email con cui ti sei registrato su Brevo
-define('SMTP_PASSWORD', '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'); // <-- Incolla la chiave API che hai appena creato
-define('SMTP_FROM_ADDRESS', 'no-reply@sians.it');
+define('SMTP_USERNAME', '955021001@smtp-brevo.com'); // La tua email di login Brevo
+define('SMTP_PASSWORD', 'T8NO913M6AjXxY7p');      // La tua chiave API v3 (o password SMTP)
+define('SMTP_FROM_ADDRESS', 'no-reply@sians.it');    // L'indirizzo che i tuoi utenti vedranno
 define('SMTP_FROM_NAME', 'Sians Hosting');
     }
 

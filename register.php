@@ -1,5 +1,5 @@
 <?php
-// FILE: register.php (Versione Finale con SMTP Esterno)
+// FILE: register.php (Versione Finale Completa)
 
 session_start();
 
@@ -110,82 +110,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require 'includes/header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrazione - Sians Hosting</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.8s ease-out forwards;
-        }
-    </style>
-</head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased">
-
-    <main class="flex items-center justify-center min-h-screen p-4 bg-cover bg-center" style="background-image: url('/assets/images/minecraft-background.jpg');">
-        <div class="w-full max-w-md bg-slate-800/70 rounded-3xl p-8 shadow-2xl backdrop-blur-xl border border-slate-700 animate-fade-in">
-            
-            <div class="text-center mb-8">
-                <i class="bi bi-box-seam text-5xl text-cyan-400 mb-3"></i>
-                <h2 class="text-3xl font-bold text-white">Crea il Tuo Account</h2>
-                <p class="text-slate-400 mt-2">Unisciti a noi e lancia il tuo server in pochi minuti.</p>
-            </div>
-
-            <?php if ($error): ?>
-                <div class="bg-red-500/20 border border-red-500 text-red-300 text-sm py-2 px-4 rounded-lg mb-4 text-center animate-fade-in">
-                    <?= htmlspecialchars($error) ?>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($success): ?>
-                <div class="bg-green-500/20 border border-green-500 text-green-300 text-sm py-2 px-4 rounded-lg mb-4 text-center animate-fade-in">
-                    <?= $success ?>
-                </div>
-            <?php endif; ?>
-
-            <form method="post" class="space-y-6">
-                <?= csrf_field() ?>
-                <div>
-                    <label for="username" class="block text-slate-300 text-sm font-semibold mb-2">Username</label>
-                    <div class="relative">
-                        <i class="bi bi-person absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400"></i>
-                        <input name="username" id="username" class="w-full pl-10 p-3 rounded-lg bg-slate-700/50 text-white border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" placeholder="Il tuo nome giocatore">
-                    </div>
-                </div>
-                
-                <div>
-                    <label for="email" class="block text-slate-300 text-sm font-semibold mb-2">Email</label>
-                    <div class="relative">
-                        <i class="bi bi-envelope absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400"></i>
-                        <input type="email" name="email" id="email" class="w-full pl-10 p-3 rounded-lg bg-slate-700/50 text-white border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="latua@email.com">
-                    </div>
-                </div>
-                
-                <div>
-                    <label for="password" class="block text-slate-300 text-sm font-semibold mb-2">Password</label>
-                    <div class="relative">
-                        <i class="bi bi-shield-lock absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400"></i>
-                        <input type="password" name="password" id="password" class="w-full pl-10 p-3 rounded-lg bg-slate-700/50 text-white border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200" required placeholder="Almeno 8 caratteri">
-                    </div>
-                </div>
-                
-                <button type="submit" class="w-full py-3 mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105">
-                    Crea Account
-                </button>
-            </form>
-            
-            <div class="text-center mt-6 text-slate-400 text-sm">
-                <p>Hai già un account? <a href="login.php" class="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors duration-200">Accedi</a></p>
-            </div>
+<main class="flex items-center justify-center min-h-screen p-4 bg-cover bg-center" style="background-image: url('/assets/images/minecraft-background.jpg');">
+    <div class="w-full max-w-md bg-slate-800/70 rounded-3xl p-8 shadow-2xl backdrop-blur-xl border border-slate-700 animate-fade-in">
+        
+        <div class="text-center mb-8">
+            <i class="bi bi-box-seam text-5xl text-cyan-400 mb-3"></i>
+            <h2 class="text-3xl font-bold text-white">Crea il Tuo Account</h2>
+            <p class="text-slate-400 mt-2">Unisciti a noi e lancia il tuo server in pochi minuti.</p>
         </div>
-    </main>
+
+        <?php if ($error): ?>
+            <div class="bg-red-500/20 border border-red-500 text-red-300 text-sm py-2 px-4 rounded-lg mb-4 text-center animate-fade-in">
+                <?= htmlspecialchars($error) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($success): ?>
+            <div class="bg-green-500/20 border border-green-500 text-green-300 text-sm py-2 px-4 rounded-lg mb-4 text-center animate-fade-in">
+                <?= $success ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" class="space-y-6">
+            <?= csrf_field() ?>
+            <div>
+                <label for="username" class="block text-slate-300 text-sm font-semibold mb-2">Username</label>
+                <div class="relative">
+                    <i class="bi bi-person absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400"></i>
+                    <input name="username" id="username" class="w-full pl-10 p-3 rounded-lg bg-slate-700/50 text-white border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" placeholder="Il tuo nome giocatore">
+                </div>
+            </div>
+            
+            <div>
+                <label for="email" class="block text-slate-300 text-sm font-semibold mb-2">Email</label>
+                <div class="relative">
+                    <i class="bi bi-envelope absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400"></i>
+                    <input type="email" name="email" id="email" class="w-full pl-10 p-3 rounded-lg bg-slate-700/50 text-white border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" placeholder="latua@email.com">
+                </div>
+            </div>
+            
+            <div>
+                <label for="password" class="block text-slate-300 text-sm font-semibold mb-2">Password</label>
+                <div class="relative">
+                    <i class="bi bi-shield-lock absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400"></i>
+                    <input type="password" name="password" id="password" class="w-full pl-10 p-3 rounded-lg bg-slate-700/50 text-white border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200" required placeholder="Almeno 8 caratteri">
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full py-3 mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105">
+                Crea Account
+            </button>
+        </form>
+        
+        <div class="text-center mt-6 text-slate-400 text-sm">
+            <p>Hai già un account? <a href="login.php" class="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors duration-200">Accedi</a></p>
+        </div>
+    </div>
+</main>
 </body>
 </html>
