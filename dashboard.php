@@ -49,72 +49,50 @@ include 'includes/header.php';
                     $statusClass = ($status === 'running') ? 'bg-green-500' : 'bg-red-500';
                     $iconColor = ($status === 'running') ? 'text-green-500' : 'text-red-500';
                 ?>
-
-
-                        
-                        <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
-
-                            <div class="flex items-center space-x-4 mb-4">
-                                <div class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
-                                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
-                                    <p class="text-xs text-gray-500">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP Privato: <?= $server['ip'] ?? 'N/A' ?></p>
-                                </div>
+                    <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl transform transition-all duration-300 hover:scale-105 hover:border-blue-500">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
+                                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path></svg>
                             </div>
-
-                            <div class="flex items-center justify-between mb-4">
-                                <span id="status-<?= $server['id'] ?>" class="px-4 py-1 rounded-full text-sm font-bold text-white <?= $statusClass ?> shadow-md">
-                                    <?= ucfirst($status) ?>
-                                </span>
-                                <a href="manage_server.php?id=<?= $server['id'] ?>" class="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                                    Gestisci
-                                </a>
-                            </div>
-
-                            <?php
-                            // --- NUOVA SEZIONE PER L'INDIRIZZO PUBBLICO ---
-                            // Costruisci l'indirizzo pubblico del tunnel Pinggy
-                            $publicAddress = htmlspecialchars($server['name']) . '.mc.sians.it';
-                            ?>
-                            <div class="mt-auto">
-                                <label class="text-xs font-semibold text-gray-400">Indirizzo Server Pubblico</label>
-                                <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
-                                    <input type="text" readonly value="<?= $publicAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
-                                    <button onclick="copyToClipboard('<?= $publicAddress ?>', this)"
-                                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
-                                        Copia
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4 mt-4">
-                                <button id="start-<?= $server['id'] ?>"
-                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                <?= ($status === 'running') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>"
-                                    onclick="startServer(<?= $server['id'] ?>)"
-                                    <?= ($status === 'running') ? 'disabled' : '' ?>>
-                                    Avvia
-                                </button>
-                                <button id="stop-<?= $server['id'] ?>"
-                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                <?= ($status === 'stopped') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>"
-                                    onclick="stopServer(<?= $server['id'] ?>)"
-                                    <?= ($status === 'stopped') ? 'disabled' : '' ?>>
-                                    Ferma
-                                </button>
-                                <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
-                                    class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
-                                    Elimina
-                                </button>
+                            <div>
+                                <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
+                                <p class="text-sm text-gray-400">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></p>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                        
+                        <div class="flex items-center justify-between mb-4">
+                            <span id="status-<?= $server['id'] ?>" class="px-4 py-1 rounded-full text-sm font-bold text-white <?= $statusClass ?> shadow-md">
+                                <?= ucfirst($status) ?>
+                            </span>
+                            <a href="manage_server.php?id=<?= $server['id'] ?>" class="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                                Gestisci
+                            </a>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="start-<?= $server['id'] ?>" 
+                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                                    <?= ($status === 'running') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>" 
+                                    onclick="startServer(<?= $server['id'] ?>)" 
+                                    <?= ($status === 'running') ? 'disabled' : '' ?>>
+                                Avvia
+                            </button>
+                            <button id="stop-<?= $server['id'] ?>" 
+                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                                    <?= ($status === 'stopped') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>" 
+                                    onclick="stopServer(<?= $server['id'] ?>)" 
+                                    <?= ($status === 'stopped') ? 'disabled' : '' ?>>
+                                Ferma
+                            </button>
+                            <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
+                                    class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
+                                Elimina
+                            </button>
+                        </div>
                     </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     </section>
 
     <hr class="my-16 border-gray-700">
@@ -127,9 +105,9 @@ include 'includes/header.php';
                     <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
                 </div>
             <?php else: ?>
-                <?php foreach ($serverSlots as $slot): ?>
+                <?php foreach($serverSlots as $slot): ?>
                     <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
-
+                        
                         <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
 
                         <div class="relative z-10 flex flex-col h-full">
@@ -143,9 +121,9 @@ include 'includes/header.php';
                                     €<?= htmlspecialchars($slot['price_eur']) ?>
                                     <span class="text-base font-medium text-gray-500">/mese</span>
                                 </p>
-
+                                
                                 <a href="#" onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>')"
-                                    class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                                   class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                                     Crea Server
                                 </a>
                             </div>
@@ -161,33 +139,13 @@ include 'includes/header.php';
 
 <script>
     const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-                    // Aggiungi questa nuova funzione dentro il tag <script>
 
-function copyToClipboard(text, buttonElement) {
-    navigator.clipboard.writeText(text).then(function() {
-        // Successo! Cambia temporaneamente il testo del bottone per dare un feedback.
-        const originalText = buttonElement.textContent;
-        buttonElement.textContent = 'Copiato!';
-        buttonElement.classList.add('bg-green-500'); // Colora di verde per feedback
-        
-        setTimeout(function() {
-            buttonElement.textContent = originalText;
-            buttonElement.classList.remove('bg-green-500'); // Rimuovi il colore
-        }, 2000); // Ritorna al testo originale dopo 2 secondi
-        
-    }, function(err) {
-        // Errore
-        alert('Impossibile copiare l\'indirizzo. Errore: ' + err);
-    });
-}
 
     // --- CONTROLLO SERVER (start/stop) ---
     function controlServer(serverId, action) {
         fetch('ajax_server_control.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=${encodeURIComponent(action)}&id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
             })
             .then(res => res.json())
@@ -216,9 +174,9 @@ function copyToClipboard(text, buttonElement) {
     function updateButtons(serverId, status) {
         const startBtn = document.getElementById('start-' + serverId);
         const stopBtn = document.getElementById('stop-' + serverId);
-
+        
         if (!startBtn || !stopBtn) return;
-
+        
         const isRunning = status === 'running';
 
         startBtn.disabled = isRunning;
@@ -239,24 +197,38 @@ function copyToClipboard(text, buttonElement) {
     }
 
     // --- ELIMINA SERVER ---
-    function deleteServer(serverId, vmid) {
-        if (!confirm('Sei sicuro di voler eliminare questo server? Questa azione è irreversibile.')) return;
-        fetch(`delete_server.php?vmid=${vmid}`)
-            .then(res => res.text())
-            .then(data => {
-                if (data.includes("Server eliminato correttamente")) {
-                    // Ricarica la pagina per aggiornare lo stato
-                    window.location.reload();
-                } else {
-                    alert("Errore nell'eliminazione del server: " + data);
-                }
-            })
-            .catch(err => {
-                alert("Errore di rete durante l'eliminazione.");
-                console.error(err);
-            });
+function deleteServer(serverId, vmid) {
+    if (!confirm('Sei sicuro di voler eliminare questo server? L\'azione è irreversibile.')) {
+        return;
     }
-    document.addEventListener('DOMContentLoaded', function() {
+
+    // Crea un oggetto FormData per inviare i dati come POST
+    const formData = new FormData();
+    formData.append('vmid', vmid);
+    formData.append('csrf_token', csrfToken); // Invia il token CSRF per sicurezza
+
+    fetch('delete_server.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Se la risposta non è "OK" (es. errore 500), leggi l'errore
+            return response.text().then(text => { throw new Error(text) });
+        }
+        return response.text();
+    })
+    .then(data => {
+        alert(data); // Mostra il messaggio di successo
+        window.location.reload(); // Ricarica la pagina per aggiornare la lista
+    })
+    .catch(err => {
+        // Mostra il messaggio di errore restituito dallo script PHP
+        alert("Errore durante l'eliminazione: " + err.message);
+        console.error(err);
+    });
+}
+       document.addEventListener('DOMContentLoaded', function() {
         const slotsContainer = document.querySelector('#slots-container');
 
 
@@ -267,7 +239,7 @@ function copyToClipboard(text, buttonElement) {
             button.addEventListener('click', function(event) {
                 const slotId = this.dataset.slotId;
                 const slotCard = document.querySelector(`.slot-card[data-slot-id="${slotId}"]`);
-
+                
                 // Aggiorna l'UI per mostrare lo stato di attesa
                 if (slotCard) {
                     slotCard.classList.add('pending');
@@ -284,10 +256,10 @@ function copyToClipboard(text, buttonElement) {
             });
         });
     });
-    // Funzione per chiedere il nome del server e reindirizzare
+// Funzione per chiedere il nome del server e reindirizzare
     function promptAndCreateServer(planCode, slotId) {
         let serverName = prompt("Inserisci un nome per il tuo server:");
-
+        
         if (serverName === null) return;
         serverName = serverName.trim();
         if (serverName === "") {
@@ -305,7 +277,7 @@ function copyToClipboard(text, buttonElement) {
         // Reindirizza alla pagina di creazione con il nome
         window.location.href = `new_server.php?plan_code=${encodeURIComponent(planCode)}&slot_id=${encodeURIComponent(slotId)}&server_name=${encodeURIComponent(serverName)}`;
     }
+    
 </script>
 </body>
-
 </html>
