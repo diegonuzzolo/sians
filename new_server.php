@@ -103,7 +103,7 @@ try {
 
     // Parte A: Creazione del Tunnel Cloudflare
     $tunnelName = "mc-{$vmid}";
-    $subdomain = "{$serverName}.mc.sians.it";
+    $subdomain = "{$serverName}.sians.it";
 
     // 1. Crea il tunnel e cattura l'UUID
     $output = [];
