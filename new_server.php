@@ -71,8 +71,9 @@ try {
     $vmIp = getNextFreePrivateIp($pdo);
 
     // --- 4. Inserimento Record nel Database ---
-    $stmtServer = $pdo->prepare("INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb, progress) VALUES (?, ?, ?, ?, ?, 'creating', 'bedrock', ?, ?, 0)");
-    $stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['cpu_cores'], $ramMb]);
+    // Abbiamo rimosso la colonna 'progress' dalla query
+$stmtServer = $pdo->prepare("INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?, 'creating', 'bedrock', ?, ?)");
+$stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['cpu_cores'], $ramMb]);
     $serverId = $pdo->lastInsertId();
 
     $stmtContainer = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id) VALUES (?, ?, ?, ?, ?, ?, 'Creating', ?, ?)");
