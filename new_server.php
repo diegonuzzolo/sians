@@ -115,7 +115,7 @@ exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $
 exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- chmod +x /root/setup_server.sh && pct exec $vmid -- /root/setup_server.sh $containerId > /dev/null 2>&1 &\"");
 
     // Parte B: Avvio del tunnel Pinggy con stringa di connessione SSH
-    $pinggyExecutable = PINGGY_EXECUTABLE_PATH . '/pinggy';
+    $pinggyExecutable ='/root/pinggy';
     $pinggyConnectionString = PINGGY_CONNECTION_STRING;
     $pinggySubdomain = $serverName . '.mc.sians.it';
     $localIp = $vmIp;
