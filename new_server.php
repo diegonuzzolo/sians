@@ -39,6 +39,17 @@ if (!$planCode || !$slotId) {
     exit;
 }
 
+
+// --- NUOVO: Verifica Duplicati ---
+// Controlliamo se esiste già un server con lo stesso nome.
+$stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE name = ?");
+$stmtCheck->execute([$serverName]);
+if ($stmtCheck->fetchColumn() > 0) {
+    // Se il conteggio è maggiore di 0, il nome è già in uso.
+    header("Location: dashboard.php?error=" . urlencode("Questo nome è già in uso. Scegline un altro."));
+    exit;
+}
+
 $pdo->beginTransaction();
 
 try {
