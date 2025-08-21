@@ -49,10 +49,9 @@ include 'includes/header.php';
                     $statusClass = ($status === 'running') ? 'bg-green-500' : 'bg-red-500';
                     $iconColor = ($status === 'running') ? 'text-green-500' : 'text-red-500';
                 ?>
-                    // Cerca questa riga nel tuo file:
-                    // <div id="server-<?= $server['id'] ?>" class="bg-gray-800 ...">
 
-                        // E sostituisci l'intero blocco con questo:
+
+                        
                         <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
 
                             <div class="flex items-center space-x-4 mb-4">
