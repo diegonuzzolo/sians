@@ -34,7 +34,7 @@ include 'includes/header.php';
 ?>
 
 <main class="flex-grow-1 container mx-auto px-4 py-12">
-    <?php
+<?php
 // Messaggi da mostrare all'utente
 $errorMessage = $_GET['error'] ?? '';
 $successMessage = $_GET['success'] ?? '';
@@ -45,6 +45,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
     $errorMessage = "Nome server già esistente. Scegli un nome diverso.";
 }
 ?>
+
     <section class="mb-16">
         <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
         <div id="server-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -161,22 +162,19 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
     </section>
 </main>
 <?php if ($errorMessage): ?>
-    <div class="mb-6 p-4 rounded-lg bg-red-600 text-white text-center font-semibold">
+    <div id="flash-message" class="mb-6 p-4 rounded-lg bg-red-600 text-white text-center font-semibold">
         <?= htmlspecialchars($errorMessage) ?>
     </div>
-<?php endif; ?>
-
-<?php if ($successMessage): ?>
-    <div class="mb-6 p-4 rounded-lg bg-green-600 text-white text-center font-semibold">
+<?php elseif ($successMessage): ?>
+    <div id="flash-message" class="mb-6 p-4 rounded-lg bg-green-600 text-white text-center font-semibold">
         <?= htmlspecialchars($successMessage) ?>
     </div>
-<?php endif; ?>
-
-<?php if ($warningMessage): ?>
-    <div class="mb-6 p-4 rounded-lg bg-yellow-500 text-white text-center font-semibold">
+<?php elseif ($warningMessage): ?>
+    <div id="flash-message" class="mb-6 p-4 rounded-lg bg-yellow-500 text-white text-center font-semibold">
         <?= htmlspecialchars($warningMessage) ?>
     </div>
 <?php endif; ?>
+
 
 
 <?php include "includes/footer.php"; ?>
@@ -190,7 +188,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
             flash.style.transition = "opacity 0.5s ease";
             flash.style.opacity = 0;
             setTimeout(() => flash.remove(), 500); // Rimuove il div completamente
-        }, 10000); // 10000 ms = 10 secondi
+        }, 5000); // 5000 ms = 5 secondi
     }
 });
 
