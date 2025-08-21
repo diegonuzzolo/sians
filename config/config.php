@@ -24,11 +24,12 @@ define('CLOUDFLARE_API_TOKEN', 'UI5ZCFz62itti1220yKgJV9y5SsZtFJ4CoFvU5yo');
 define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 // In config/config.php
 
-// Credenziali per l'invio di email tramite SMTP
-define('SMTP_HOST', 'smtp.office365.com');
+
+// Credenziali per l'invio di email tramite SMTP di Brevo
+define('SMTP_HOST', 'smtp-relay.brevo.com');
 define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'no-reply@sians.it');
-define('SMTP_PASSWORD', 'wglsrbrqyxcrrjxx'); // O la tua App Password
+define('SMTP_USERNAME', 'nuzzolo27@gmail.com'); // L'email con cui ti sei registrato su Brevo
+define('SMTP_PASSWORD', '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'); // <-- Incolla la chiave API che hai appena creato
 define('SMTP_FROM_ADDRESS', 'no-reply@sians.it');
 define('SMTP_FROM_NAME', 'Sians Hosting');
     }
