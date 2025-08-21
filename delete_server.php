@@ -57,7 +57,7 @@ function deleteCloudflareResources(string $serverName, string $tunnelName, strin
         throw new Exception("Errore nel fermare il servizio del tunnel.");
     }
 
-    exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName}", $output, $return_var);
+    exec("sudo /usr/bin/cloudflared tunnel delete -y {$tunnelName}", $output, $return_var);
     if ($return_var !== 0 && !str_contains(implode('', $output), 'not found')) {
         throw new Exception("Errore nell'eliminare il tunnel da Cloudflare.");
     }
