@@ -1,7 +1,6 @@
 <?php
-// FILE: delete_server.php (Versione Finale e Definitiva)
-
 ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require 'auth_check.php';
@@ -11,37 +10,67 @@ require_once 'proxmox_functions.php';
 
 /**
  * Funzione robusta per la pulizia completa delle risorse Cloudflare.
- * Ora riceve l'hostname direttamente, rendendola più flessibile.
+ * Utilizza l'API di Cloudflare (tramite cURL) per eliminare il record DNS in modo affidabile.
  */
-function deleteCloudflareResources(string $hostname, string $tunnelName, string $tunnelUuid) {
-    // --- PARTE API: Eliminazione diretta del record DNS ---
-    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records?name=" . $hostname);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+function deleteCloudflareResources(string $serverName, string $tunnelName, string $tunnelUuid) {
+    $hostname = $serverName . '.mc.sians.it';
+    
+    // --- PARTE 1: Eliminazione del record DNS tramite API ---
+    
+    // 1a. Trova l'ID del record DNS
+    $findUrl = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records?name=" . urlencode($hostname);
+    $ch_find = curl_init($findUrl);
+    curl_setopt($ch_find, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch_find, CURLOPT_HTTPHEADER, [
         "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
         "Content-Type: application/json"
     ]);
-    $response = curl_exec($ch);
+    $response = curl_exec($ch_find);
+    if (curl_errno($ch_find)) {
+        throw new Exception("Errore cURL nella ricerca DNS: " . curl_error($ch_find));
+    }
     $data = json_decode($response, true);
-    curl_close($ch);
+    curl_close($ch_find);
 
+    // 1b. Se il record esiste, eliminalo
     if (isset($data['result']) && !empty($data['result'])) {
         $recordId = $data['result'][0]['id'];
-        $ch_del = curl_init("https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records/" . $recordId);
+        
+        $deleteUrl = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records/" . $recordId;
+        $ch_del = curl_init($deleteUrl);
         curl_setopt($ch_del, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_setopt($ch_del, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch_del, CURLOPT_HTTPHEADER, [
             "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
             "Content-Type: application/json"
         ]);
-        curl_exec($ch_del);
+        $del_response = curl_exec($ch_del);
+        if (curl_errno($ch_del)) {
+            throw new Exception("Errore cURL nell'eliminazione DNS: " . curl_error($ch_del));
+        }
+        $del_data = json_decode($del_response, true);
         curl_close($ch_del);
+
+        if (!isset($del_data['success']) || !$del_data['success']) {
+            throw new Exception("Errore API Cloudflare: Impossibile eliminare il record DNS.");
+        }
+    }
+    // Se il record non esiste, non facciamo nulla e procediamo.
+
+    // --- PARTE 2: Pulizia del tunnel e dei file locali tramite CLI ---
+    $output = []; $return_var = 0;
+    
+    exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service 2>&1", $output, $return_var);
+    if ($return_var !== 0 && !str_contains(implode('', $output), 'does not exist')) {
+        throw new Exception("Errore nel fermare il servizio del tunnel.");
     }
 
-    // --- PARTE CLI: Pulizia del tunnel e dei file locali ---
-    exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service");
-    exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName}");
-    exec("sudo /bin/rm -f /root/.cloudflared/{$tunnelName}.yml");
+    exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName} 2>&1", $output, $return_var);
+    if ($return_var !== 0 && !str_contains(implode('', $output), 'not found')) {
+        throw new Exception("Errore nell'eliminare il tunnel da Cloudflare.");
+    }
+    
+    if (file_exists("/root/.cloudflared/{$tunnelName}.yml")) exec("sudo /bin/rm /root/.cloudflared/{$tunnelName}.yml");
 }
 
 // --- Script Principale ---
@@ -60,7 +89,6 @@ if ($vmid <= 0) {
 try {
     $pdo->beginTransaction();
 
-    // Aggiorna la query per leggere anche la nuova colonna 'hostname'
     $stmt = $pdo->prepare("SELECT s.*, c.ram_mb, c.storage_gb FROM servers s LEFT JOIN containers c ON c.id = s.container_id WHERE s.user_id = ? AND s.proxmox_containerId = ?");
     $stmt->execute([$userId, $vmid]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -77,9 +105,9 @@ try {
         throw new Exception("Errore durante la distruzione del container Proxmox: " . $destroyResult['message']);
     }
 
-    // Passa l'hostname letto dal DB alla funzione di pulizia
-    if (!empty($server['hostname']) && !empty($server['tunnel_id']) && !empty($server['tunnel_uuid'])) {
-        deleteCloudflareResources($server['hostname'], $server['tunnel_id'], $server['tunnel_uuid']);
+    // Chiama la funzione di pulizia potenziata
+    if (!empty($server['name']) && !empty($server['tunnel_id']) && !empty($server['tunnel_uuid'])) {
+        deleteCloudflareResources($server['name'], $server['tunnel_id'], $server['tunnel_uuid']);
     }
 
     // Aggiornamento Database
