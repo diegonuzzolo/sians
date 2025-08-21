@@ -183,7 +183,16 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
 
 <script>
     const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-
+    document.addEventListener('DOMContentLoaded', function() {
+    const flash = document.getElementById('flash-message');
+    if (flash) {
+        setTimeout(() => {
+            flash.style.transition = "opacity 0.5s ease";
+            flash.style.opacity = 0;
+            setTimeout(() => flash.remove(), 500); // Rimuove il div completamente
+        }, 10000); // 10000 ms = 10 secondi
+    }
+});
 
     // --- CONTROLLO SERVER (start/stop) ---
     // --- CONTROLLO SERVER (start/stop) ---
