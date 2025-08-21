@@ -1,110 +1,117 @@
 <?php
-// Mostra errori
+// FILE: delete_server.php (Compatibile con new_server.php)
+
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require 'auth_check.php';
-require 'config/config.php'; 
 require_once 'includes/csrf.php';
+require 'config/config.php';
+require_once 'proxmox_functions.php';
 
-// Sicurezza
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header("Location: dashboard.php?error=" . urlencode("Metodo non valido."));
-    exit;
-}
-csrf_check_or_die();
-
-// Verifica login
-$userId = $_SESSION['user_id'] ?? 0;
-if (!$userId) {
-    header("Location: login.php?error=" . urlencode("Accesso negato."));
-    exit;
-}
-
-$serverId = $_POST['server_id'] ?? null;
-if (!$serverId) {
-    header("Location: dashboard.php?error=" . urlencode("Server non specificato."));
-    exit;
-}
-
-try {
-    // Recupera i dati del server
-    $stmt = $pdo->prepare("SELECT s.id, s.name, c.ip 
-                           FROM servers s 
-                           JOIN containers c ON c.server_id = s.id 
-                           WHERE s.id = ? AND s.user_id = ?");
-    $stmt->execute([$serverId, $userId]);
-    $server = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$server) {
-        throw new Exception("Server non trovato o non autorizzato.");
-    }
-
-    $serverName = $server['name'];
-    $subdomain  = "{$serverName}.sians.it";
-
-    // --- Rimozione record DNS ---
+// Funzione per rimuovere record DNS A e SRV su Cloudflare
+function deleteCloudflareRecords(string $serverName) {
     $headers = [
         "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
         "Content-Type: application/json"
     ];
 
-    // 1. Trova i record DNS (A e SRV) con quel nome
-    $searchUrl = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records?name={$subdomain}";
-    $ch = curl_init($searchUrl);
+    $zoneId = CLOUDFLARE_ZONE_ID;
+    $hostname = $serverName . '.sians.it';
+
+    // --- 1. Trova tutti i record DNS per questo hostname ---
+    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?name=" . urlencode($hostname));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch);
+    if (curl_errno($ch)) throw new Exception("Errore cURL nella ricerca DNS: " . curl_error($ch));
+    $data = json_decode($resp, true);
     curl_close($ch);
 
-    $result = json_decode($resp, true);
-
-    if (!empty($result['result'])) {
-        foreach ($result['result'] as $record) {
+    if (!empty($data['result'])) {
+        foreach ($data['result'] as $record) {
             $recordId = $record['id'];
-            $deleteUrl = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records/" . $recordId;
+            $chDel = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId");
+            curl_setopt($chDel, CURLOPT_CUSTOMREQUEST, "DELETE");
+            curl_setopt($chDel, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($chDel, CURLOPT_RETURNTRANSFER, true);
+            $delResp = curl_exec($chDel);
+            if (curl_errno($chDel)) throw new Exception("Errore cURL nell'eliminazione DNS: " . curl_error($chDel));
+            $delData = json_decode($delResp, true);
+            curl_close($chDel);
 
-            $ch = curl_init($deleteUrl);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_exec($ch);
-            curl_close($ch);
+            if (!($delData['success'] ?? false)) {
+                throw new Exception("Impossibile eliminare il record DNS: {$record['name']} ({$record['type']})");
+            }
         }
     }
+}
 
-    // 2. Elimina anche il record SRV (_minecraft._udp.subdomain)
-    $srvSearch = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records?name=_minecraft._udp.{$subdomain}";
-    $ch = curl_init($srvSearch);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $resp = curl_exec($ch);
-    curl_close($ch);
+// --- Script Principale ---
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    die("Metodo non consentito");
+}
+csrf_check_or_die();
 
-    $resultSrv = json_decode($resp, true);
-    if (!empty($resultSrv['result'])) {
-        foreach ($resultSrv['result'] as $record) {
-            $recordId = $record['id'];
-            $deleteUrl = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records/" . $recordId;
+$userId = $_SESSION['user_id'] ?? 0;
+$vmid = intval($_POST['vmid'] ?? 0);
+if ($vmid <= 0) die("VMID non valido");
 
-            $ch = curl_init($deleteUrl);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_exec($ch);
-            curl_close($ch);
-        }
+try {
+    $pdo->beginTransaction();
+
+    // Recupera server e container
+    $stmt = $pdo->prepare("
+        SELECT s.*, c.ip, c.ram_mb, c.storage_gb, c.id as container_id 
+        FROM servers s 
+        LEFT JOIN containers c ON c.id = s.container_id 
+        WHERE s.user_id = ? AND s.proxmox_containerId = ?
+    ");
+    $stmt->execute([$userId, $vmid]);
+    $server = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$server) throw new Exception("Server non trovato o non appartiene all'utente");
+
+    $containerId = $server['container_id'] ?? null;
+
+    // --- 1. Ferma e distruggi container Proxmox ---
+    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
+    sleep(3);
+    $destroy = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
+    if (!$destroy['success']) throw new Exception("Errore distruzione container: " . $destroy['message']);
+
+    // --- 2. Rimuove record DNS A e SRV ---
+    if (!empty($server['name'])) {
+        deleteCloudflareRecords($server['name']);
     }
 
-    // --- Elimina il server dal DB ---
-    $pdo->prepare("DELETE FROM containers WHERE server_id = ?")->execute([$serverId]);
-    $pdo->prepare("DELETE FROM servers WHERE id = ?")->execute([$serverId]);
+    // --- 3. Aggiorna risorse nel DB ---
+    $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1")
+        ->execute([
+            intval($server['cpu_cores']),
+            intval($server['ram_mb']),
+            intval($server['storage_gb'])
+        ]);
 
-    header("Location: dashboard.php?success=" . urlencode("Server e DNS rimossi correttamente!"));
-    exit;
+    // --- 4. Reset slot ---
+    if (!empty($server['slot_id'])) {
+        $pdo->prepare("UPDATE server_slots SET server_id = NULL, status = 'pending' WHERE id = ?")
+            ->execute([$server['slot_id']]);
+    }
+
+    // --- 5. Elimina server e container dal DB ---
+    if ($containerId) {
+        $pdo->prepare("DELETE FROM containers WHERE id = ?")->execute([$containerId]);
+    }
+    $pdo->prepare("DELETE FROM servers WHERE id = ?")->execute([$server['id']]);
+
+    $pdo->commit();
+
+    echo "Server eliminato correttamente";
 
 } catch (Exception $e) {
-    header("Location: dashboard.php?error=" . urlencode("Errore eliminazione server: " . $e->getMessage()));
-    exit;
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    http_response_code(500);
+    die("Errore: " . $e->getMessage());
 }
