@@ -85,10 +85,10 @@ try {
 
     // --- 5. Creazione della Risorsa Esterna (Proxmox) ---
     $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'], $serverName, $vmIp, $plan['cpu_cores']);
-    sleep(10); 
     if (!$createResult['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $createResult['message']);
     }
+    sleep(4); 
 
     // Se tutto è andato a buon fine, conferma le modifiche al database.
     $pdo->commit();
