@@ -42,19 +42,30 @@ if (!$planCode || !$slotId) {
 $pdo->beginTransaction();
 
 try {
-    // --- 2. Validazione Dati e Slot ---
-    $stmtSlot = $pdo->prepare("
-        SELECT ss.*, p.stripe_price_id, p.ram_gb, p.cpu_cores, p.storage_gb, p.id as plan_id
-        FROM server_slots ss 
-        JOIN plans p ON ss.plan_id = p.stripe_price_id 
-        WHERE ss.id = ? AND ss.user_id = ? AND ss.status = 'pending' AND ss.server_id IS NULL
-    ");
-    $stmtSlot->execute([$slotId, $userId]);
-    $slot = $stmtSlot->fetch(PDO::FETCH_ASSOC);
+// --- 2. BLOCCO ATOMICO DELLO SLOT (Anti-Race Condition) ---
+// Tentiamo di "rivendicare" lo slot impostando il suo stato a 'processing'.
+// Questo comando atomico avrà successo solo per la PRIMA richiesta che arriva.
+$stmtLock = $pdo->prepare(
+    "UPDATE server_slots SET status = 'processing' 
+     WHERE id = ? AND user_id = ? AND status = 'pending'"
+);
+$stmtLock->execute([$slotId, $userId]);
 
-    if (!$slot) {
-        throw new Exception("Slot non disponibile o non valido.");
-    }
+// Controlliamo quante righe sono state modificate.
+// Se è 0, significa che un'altra richiesta ci ha battuti sul tempo o lo slot non era valido.
+if ($stmtLock->rowCount() === 0) {
+    throw new Exception("Slot non disponibile, già in uso o non valido. Riprova.");
+}
+
+// Ora che lo slot è nostro, recuperiamo i dati necessari in sicurezza.
+$stmtSlot = $pdo->prepare("SELECT ss.*, p.stripe_price_id, p.ram_gb, p.cpu_cores, p.storage_gb, p.id as plan_id FROM server_slots ss JOIN plans p ON ss.plan_id = p.stripe_price_id WHERE ss.id = ?");
+$stmtSlot->execute([$slotId]);
+$slot = $stmtSlot->fetch(PDO::FETCH_ASSOC);
+
+if (!$slot) {
+    // Questo errore non dovrebbe mai accadere se il blocco ha funzionato, ma è una sicurezza in più.
+    throw new Exception("Errore critico: impossibile recuperare i dati dello slot dopo il blocco.");
+}
 
     $plan = [
         'id' => $slot['plan_id'],
