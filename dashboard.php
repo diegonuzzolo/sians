@@ -45,52 +45,66 @@ include 'includes/header.php';
                 </div>
             <?php else: ?>
                 <?php foreach ($servers as $server):
-                    $status = htmlspecialchars($server['status']);
-                    $statusClass = ($status === 'running') ? 'bg-green-500' : 'bg-red-500';
-                    $iconColor = ($status === 'running') ? 'text-green-500' : 'text-red-500';
-                ?>
-                    <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl transform transition-all duration-300 hover:scale-105 hover:border-blue-500">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
-                                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path></svg>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
-                                <p class="text-sm text-gray-400">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP: <?= $server['ip'] ?? 'N/A' ?></p>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center justify-between mb-4">
-                            <span id="status-<?= $server['id'] ?>" class="px-4 py-1 rounded-full text-sm font-bold text-white <?= $statusClass ?> shadow-md">
-                                <?= ucfirst($status) ?>
-                            </span>
-                            <a href="manage_server.php?id=<?= $server['id'] ?>" class="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                                Gestisci
-                            </a>
-                        </div>
+    $status = htmlspecialchars($server['status']);
+    $statusClass = ($status === 'running') ? 'bg-green-500' : ($status === 'creating' ? 'bg-yellow-500' : 'bg-red-500');
+    $iconColor = ($status === 'running') ? 'text-green-400' : ($status === 'creating' ? 'text-yellow-400' : 'text-red-400');
+    
+    // Costruiamo l'indirizzo pubblico che l'utente userà per connettersi
+    $publicAddress = htmlspecialchars($server['name']) . '.mc.sians.it';
+?>
+    <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
+        
+        <div class="flex items-center space-x-4 mb-4">
+            <div class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
+                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"></path></svg>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
+                <p class="text-xs text-gray-500">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP Privato: <?= $server['ip'] ?? 'N/A' ?></p>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-between mb-4">
+            <span id="status-<?= $server['id'] ?>" class="px-4 py-1 rounded-full text-sm font-bold text-white <?= $statusClass ?> shadow-md">
+                <?= ucfirst($status) ?>
+            </span>
+            <a href="manage_server.php?id=<?= $server['id'] ?>" class="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                Gestisci
+            </a>
+        </div>
 
-                        <div class="grid grid-cols-2 gap-4">
-                            <button id="start-<?= $server['id'] ?>" 
-                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                                    <?= ($status === 'running') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>" 
-                                    onclick="startServer(<?= $server['id'] ?>)" 
-                                    <?= ($status === 'running') ? 'disabled' : '' ?>>
-                                Avvia
-                            </button>
-                            <button id="stop-<?= $server['id'] ?>" 
-                                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                                    <?= ($status === 'stopped') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>" 
-                                    onclick="stopServer(<?= $server['id'] ?>)" 
-                                    <?= ($status === 'stopped') ? 'disabled' : '' ?>>
-                                Ferma
-                            </button>
-                            <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
-                                    class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
-                                Elimina
-                            </button>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+        <div class="mt-auto">
+            <label class="text-xs font-semibold text-gray-400">Indirizzo Server Pubblico</label>
+            <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
+                <input type="text" readonly value="<?= $publicAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
+                <button onclick="copyToClipboard('<?= $publicAddress ?>', this)" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
+                    Copia
+                </button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-4">
+            <button id="start-<?= $server['id'] ?>" 
+                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                    <?= ($status === 'running' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>" 
+                    onclick="startServer(<?= $server['id'] ?>)" 
+                    <?= ($status === 'running' || $status === 'creating') ? 'disabled' : '' ?>>
+                Avvia
+            </button>
+            <button id="stop-<?= $server['id'] ?>" 
+                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                    <?= ($status === 'stopped' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>" 
+                    onclick="stopServer(<?= $server['id'] ?>)" 
+                    <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
+                Ferma
+            </button>
+            <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
+                    class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
+                Elimina
+            </button>
+        </div>
+    </div>
+<?php endforeach; ?>
             <?php endif; ?>
         </div>
     </section>
