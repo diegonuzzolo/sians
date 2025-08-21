@@ -1,6 +1,7 @@
 <?php
+// FILE: delete_server.php (Versione Finale)
+
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require 'auth_check.php';
@@ -10,7 +11,8 @@ require_once 'proxmox_functions.php';
 
 /**
  * Funzione robusta per la pulizia completa delle risorse Cloudflare.
- * Utilizza l'API di Cloudflare (tramite cURL) per eliminare il record DNS in modo affidabile.
+ * Esegue la logica "trova e distruggi" per il record DNS tramite API
+ * e poi pulisce il tunnel e i file locali.
  */
 function deleteCloudflareResources(string $serverName, string $tunnelName, string $tunnelUuid) {
     $hostname = $serverName . '.mc.sians.it';
@@ -33,7 +35,7 @@ function deleteCloudflareResources(string $serverName, string $tunnelName, strin
     curl_close($ch_find);
 
     // 1b. Se il record esiste, eliminalo
-    if (isset($data['result']) && !empty($data['result'])) {
+    if (isset($data['success']) && $data['success'] === true && !empty($data['result'])) {
         $recordId = $data['result'][0]['id'];
         
         $deleteUrl = "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records/" . $recordId;
@@ -51,26 +53,17 @@ function deleteCloudflareResources(string $serverName, string $tunnelName, strin
         $del_data = json_decode($del_response, true);
         curl_close($ch_del);
 
-        if (!isset($del_data['success']) || !$del_data['success']) {
+        if (!isset($del_data['success']) || $del_data['success'] !== true) {
             throw new Exception("Errore API Cloudflare: Impossibile eliminare il record DNS.");
         }
     }
-    // Se il record non esiste, non facciamo nulla e procediamo.
+    // Se il record non viene trovato (result è vuoto), non facciamo nulla e procediamo.
 
     // --- PARTE 2: Pulizia del tunnel e dei file locali tramite CLI ---
-    $output = []; $return_var = 0;
-    
-    exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service 2>&1", $output, $return_var);
-    if ($return_var !== 0 && !str_contains(implode('', $output), 'does not exist')) {
-        throw new Exception("Errore nel fermare il servizio del tunnel.");
-    }
-
-    exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName} 2>&1", $output, $return_var);
-    if ($return_var !== 0 && !str_contains(implode('', $output), 'not found')) {
-        throw new Exception("Errore nell'eliminare il tunnel da Cloudflare.");
-    }
-    
+    exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service");
+    exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName}");
     exec("sudo /bin/rm /root/.cloudflared/{$tunnelName}.yml");
+   
 }
 
 // --- Script Principale ---
@@ -105,7 +98,6 @@ try {
         throw new Exception("Errore durante la distruzione del container Proxmox: " . $destroyResult['message']);
     }
 
-    // Chiama la funzione di pulizia potenziata
     if (!empty($server['name']) && !empty($server['tunnel_id']) && !empty($server['tunnel_uuid'])) {
         deleteCloudflareResources($server['name'], $server['tunnel_id'], $server['tunnel_uuid']);
     }
