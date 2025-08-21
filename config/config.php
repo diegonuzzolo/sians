@@ -28,7 +28,7 @@ define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 define('SMTP_HOST', 'smtp.office365.com');
 define('SMTP_PORT', 587);
 define('SMTP_USERNAME', 'no-reply@sians.it');
-define('SMTP_PASSWORD', 'G@873820005370uy'); // O la tua App Password
+define('SMTP_PASSWORD', 'Lgu8330Serve6'); // O la tua App Password
 define('SMTP_FROM_ADDRESS', 'no-reply@sians.it');
 define('SMTP_FROM_NAME', 'Sians Hosting');
     }
