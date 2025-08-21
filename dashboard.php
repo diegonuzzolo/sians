@@ -50,7 +50,7 @@ include 'includes/header.php';
     $iconColor = ($status === 'running') ? 'text-green-400' : ($status === 'creating' ? 'text-yellow-400' : 'text-red-400');
     
     // Costruiamo l'indirizzo pubblico che l'utente userà per connettersi
-    $publicAddress = htmlspecialchars($server['name']) . '.mc.sians.it';
+    $publicAddress = htmlspecialchars($server['name']) . '.sians.it';
 ?>
     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
         
