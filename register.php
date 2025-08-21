@@ -8,7 +8,8 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 // Includi tutti i file necessari
-require 'vendor/autoload.php';
+require __DIR__ . '/vendor/autoload.php';
+require 'auth_check.php'; // Controlla se l'utente è già loggato
 require 'config/config.php';
 require 'includes/header.php';
 require_once 'includes/csrf.php';
