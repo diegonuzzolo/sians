@@ -22,6 +22,15 @@ if (!defined('DB_HOST')) {
         define('STRIPE_SECRET_KEY', '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');
 define('CLOUDFLARE_API_TOKEN', 'UI5ZCFz62itti1220yKgJV9y5SsZtFJ4CoFvU5yo');
 define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
+// In config/config.php
+
+// Credenziali per l'invio di email tramite SMTP
+define('SMTP_HOST', 'smtp.office365.com');
+define('SMTP_PORT', 587);
+define('SMTP_USERNAME', 'no-reply@sians.it');
+define('SMTP_PASSWORD', 'G@873820005370uy'); // O la tua App Password
+define('SMTP_FROM_ADDRESS', 'no-reply@sians.it');
+define('SMTP_FROM_NAME', 'Sians Hosting');
     }
 
 try {
