@@ -189,7 +189,7 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
             flash.style.transition = "opacity 0.5s ease";
             flash.style.opacity = 0;
             setTimeout(() => flash.remove(), 500); // Rimuove il div completamente
-        }, 10000); // 10 secondi
+        }, 5000); // 5 secondi
     }
 });
 
