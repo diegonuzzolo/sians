@@ -15,7 +15,7 @@ require_once 'proxmox_functions.php';
  * e poi pulisce il tunnel e i file locali.
  */
 function deleteCloudflareResources(string $serverName, string $tunnelName, string $tunnelUuid) {
-    $hostname = $serverName . '.mc.sians.it';
+    $hostname = $serverName . '.sians.it';
     
     // --- PARTE 1: Eliminazione del record DNS tramite API ---
     
