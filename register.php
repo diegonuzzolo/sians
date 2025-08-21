@@ -1,15 +1,23 @@
 <?php
-// FILE: register.php (Versione Finale con Stile)
+// FILE: register.php (Versione Corretta e Riorganizzata)
 
 session_start();
+
+// Usa le dichiarazioni 'use' all'inizio del file per chiarezza
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// Includi tutti i file necessari
+require 'vendor/autoload.php';
 require 'config/config.php';
 require 'includes/header.php';
 require_once 'includes/csrf.php';
 
-// Abilita error reporting (rimuovi in produzione)
+// Abilita error reporting (da rimuovere in produzione)
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+// Reindirizza se l'utente è già loggato
 if (isset($_SESSION['user_id'])) {
     header("Location: dashboard.php");
     exit;
@@ -18,6 +26,7 @@ if (isset($_SESSION['user_id'])) {
 $error = null;
 $success = null;
 
+// Tutta la logica viene eseguita solo quando il form viene inviato
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_or_die();
     
@@ -25,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
+    // 1. Validazione dell'input
     if (!$username || !$email || !$password) {
         $error = "Compila tutti i campi.";
     } elseif (strlen($password) < 8) {
@@ -32,47 +42,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Indirizzo email non valido.";
     } else {
+        // 2. Controllo se l'utente esiste già
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
         $stmt->execute([$username, $email]);
         if ($stmt->fetchColumn() > 0) {
             $error = "Username o email già registrati.";
         } else {
+            // 3. Preparazione dei dati per il nuovo utente
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
             $verification_token = bin2hex(random_bytes(32));
             $token_expires_at = (new DateTime('+1 hour'))->format('Y-m-d H:i:s');
 
             $pdo->beginTransaction();
             try {
+                // 4. Inserimento dell'utente nel database
                 $stmt = $pdo->prepare(
                     "INSERT INTO users (username, email, password_hash, email_verified, verification_token, token_expires_at) 
                      VALUES (?, ?, ?, 0, ?, ?)"
                 );
                 $stmt->execute([$username, $email, $password_hash, $verification_token, $token_expires_at]);
 
-                $verification_link = "https://sians.it/verify_email.php?token=" . $verification_token;
-                $subject = "Verifica il tuo account su Sians Hosting";
-                $message = "Ciao {$username},\n\nGrazie per esserti registrato! Clicca sul link per attivare il tuo account:\n{$verification_link}\n\nIl link scadrà tra un'ora.\n\nSaluti,\nIl Team di Sians Hosting";
-                $headers = 'From: no-reply@sians.it' . "\r\n" .
-                           'Reply-To: no-reply@sians.it' . "\r\n" .
-                           'X-Mailer: PHP/' . phpversion();
+                // 5. Invio dell'email di verifica con PHPMailer
+                $mail = new PHPMailer(true);
+                
+                // Impostazioni del server SMTP (da config.php o direttamente qui)
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.office365.com'; // Sostituisci se necessario
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'no-reply@sians.it';
+                $mail->Password   = 'G@873820005370uy'; // **IMPORTANTE: Usa una password per le app o una chiave API**
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port       = 587;
 
-                if (mail($email, $subject, $message, $headers)) {
-                    $pdo->commit();
-                    $success = "Registrazione quasi completata! Controlla la tua email per il link di verifica.";
-                    $_POST = array();
-                } else {
-                    throw new Exception("Impossibile inviare l'email di verifica. Riprova più tardi.");
-                }
+                // Mittente e destinatario
+                $mail->setFrom('no-reply@sians.it', 'Sians Hosting');
+                $mail->addAddress($email, $username);
+
+                // Contenuto dell'email
+                $verification_link = "https://sians.it/verify_email.php?token=" . $verification_token;
+                $mail->isHTML(true);
+                $mail->Subject = 'Verifica il tuo account su Sians Hosting';
+                $mail->Body    = "Ciao <b>{$username}</b>,<br><br>Grazie per esserti registrato! Clicca sul link qui sotto per attivare il tuo account:<br><br><a href='{$verification_link}' style='background-color:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;'>Attiva il mio Account</a><br><br>Il link scadrà tra un'ora.<br><br>Saluti,<br>Il Team di Sians Hosting";
+                $mail->AltBody = "Ciao {$username},\n\nGrazie per esserti registrato! Copia e incolla questo link nel tuo browser per attivare il tuo account:\n{$verification_link}\n\nIl link scadrà tra un'ora.\n\nSaluti,\nIl Team di Sians Hosting";
+
+                $mail->send();
+                
+                // Se l'email è stata inviata, conferma le modifiche al database
+                $pdo->commit();
+                $success = "Registrazione quasi completata! Controlla la tua email per il link di verifica.";
+                $_POST = array(); // Pulisce i campi del form per sicurezza
 
             } catch (Exception $e) {
+                // Se qualcosa va storto (inserimento DB o invio email), annulla tutto
                 $pdo->rollBack();
+                // Mostra un errore più dettagliato per il debug
                 $error = "Errore durante la registrazione: " . $e->getMessage();
+                // Potresti voler loggare $mail->ErrorInfo se l'errore proviene da PHPMailer
+                // error_log("PHPMailer Error: " . $mail->ErrorInfo);
             }
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -110,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <?php if ($success): ?>
                 <div class="bg-green-500/20 border border-green-500 text-green-300 text-sm py-2 px-4 rounded-lg mb-4 text-center animate-fade-in">
-                    <?= $success // L'HTML è sicuro, non serve htmlspecialchars qui ?>
+                    <?= $success ?>
                 </div>
             <?php endif; ?>
 
