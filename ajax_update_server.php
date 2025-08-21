@@ -1,23 +1,27 @@
 <?php
-// FILE: ajax_update_server.php (Versione Corretta)
+// FILE: ajax_update_server.php (Versione Finale e Autonoma)
 
+// Abilita la visualizzazione degli errori per il debug.
+// In un ambiente di produzione, dovresti loggare gli errori su file.
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+// Imposta l'header per indicare che la risposta sarà sempre in formato JSON
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/auth_check.php';
-require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/includes/csrf.php';
-require_once __DIR__ . '/proxmox_functions.php';
+// --- Funzioni Helper (incluse direttamente per robustezza) ---
 
-// Funzione per inviare risposte JSON standardizzate
+/**
+ * Invia una risposta JSON standardizzata e termina lo script.
+ */
 function json_response(bool $success, string $message, array $data = []): void {
     echo json_encode(['success' => $success, 'message' => $message, 'data' => $data]);
     exit;
 }
 
-// Funzione helper per eseguire comandi con controllo degli errori
+/**
+ * Esegue un comando di sistema e lancia un'eccezione in caso di fallimento.
+ */
 function exec_throw(string $command, string $errorMessage) {
     $output = [];
     $return_var = 0;
@@ -27,7 +31,14 @@ function exec_throw(string $command, string $errorMessage) {
     }
 }
 
+// --- Inizio Script Principale ---
+
 try {
+    // Includi i file necessari solo dopo aver definito le funzioni
+    require_once __DIR__ . '/auth_check.php';
+    require_once __DIR__ . '/config/config.php';
+    require_once __DIR__ . '/includes/csrf.php';
+    
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Metodo non consentito');
     }
@@ -40,7 +51,7 @@ try {
     }
 
     // Verifica la proprietà del server
-    $stmt = $pdo->prepare("SELECT proxmox_containerId, cpu_cores FROM servers WHERE id=? AND user_id=?");
+    $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
     $stmt->execute([$serverId, $userId]);
     $serverData = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$serverData) {
@@ -56,7 +67,7 @@ try {
     $levelName = trim($_POST['level_name'] ?? 'world');
     $seed = trim($_POST['seed'] ?? '');
     
-    // **CORREZIONE CHIAVE: Converti le stringhe 'true'/'false' in booleani PHP**
+    // Conversione corretta dei valori booleani
     $whiteListEnabled = ($_POST['white_list_enabled'] ?? 'false') === 'true';
     $enableCommandBlocks = ($_POST['enable_command_blocks'] ?? 'false') === 'true';
     
@@ -92,13 +103,13 @@ try {
     $sshKey = '/var/www/.ssh/id_proxmox';
     $nodeIp = '192.168.1.251';
     
-    exec_throw("scp -i {$sshKey} -o StrictHostKeyChecking=no {$tmpPropFile} root@{$nodeIp}:/tmp/server.properties", "Copia properties");
-    exec_throw("scp -i {$sshKey} -o StrictHostKeyChecking=no {$tmpWhiteFile} root@{$nodeIp}:/tmp/whitelist.json", "Copia whitelist");
+    exec_throw("scp -i {$sshKey} -o StrictHostKeyChecking=no {$tmpPropFile} root@{$nodeIp}:/tmp/server.properties", "Copia properties fallita");
+    exec_throw("scp -i {$sshKey} -o StrictHostKeyChecking=no {$tmpWhiteFile} root@{$nodeIp}:/tmp/whitelist.json", "Copia whitelist fallita");
     
-    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"pct push {$vmid} /tmp/server.properties /root/minecraft_bedrock/server.properties\"", "Push properties");
-    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"pct push {$vmid} /tmp/whitelist.json /root/minecraft_bedrock/whitelist.json\"", "Push whitelist");
+    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"pct push {$vmid} /tmp/server.properties /root/minecraft_bedrock/server.properties\"", "Push properties fallito");
+    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"pct push {$vmid} /tmp/whitelist.json /root/minecraft_bedrock/whitelist.json\"", "Push whitelist fallito");
 
-    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"rm /tmp/server.properties /tmp/whitelist.json\"", "Pulizia remota");
+    exec_throw("ssh -i {$sshKey} -o StrictHostKeyChecking=no root@{$nodeIp} \"rm /tmp/server.properties /tmp/whitelist.json\"", "Pulizia remota fallita");
     
     @unlink($tmpPropFile);
     @unlink($tmpWhiteFile);
@@ -114,9 +125,9 @@ try {
     
     $stmtUpdate->execute([
         $motd, $gamemode, $difficulty, $maxPlayers,
-        $whiteListEnabled, // Ora inviamo un booleano (che PDO converte in 1 o 0)
+        $whiteListEnabled, // Invia booleano (PDO lo converte in 1/0)
         $whitelistText,
-        $enableCommandBlocks, // Anche qui inviamo un booleano
+        $enableCommandBlocks, // Invia booleano
         $levelName, $seed,
         $serverId, $userId
     ]);
@@ -124,6 +135,8 @@ try {
     json_response(true, 'Impostazioni del server aggiornate con successo!');
 
 } catch (Throwable $e) {
+    // In caso di qualsiasi errore, invia una risposta JSON chiara
     http_response_code(500);
     json_response(false, "Errore: " . $e->getMessage());
 }
+?>
