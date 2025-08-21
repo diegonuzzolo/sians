@@ -39,54 +39,9 @@ if (!$planCode || !$slotId) {
     exit;
 }
 
-
-
-// --- NUOVO: Verifica Duplicati ---
-// Controlliamo se esiste già un server con lo stesso nome.
-$stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE name = ?");
-$stmtCheck->execute([$serverName]);
-if ($stmtCheck->fetchColumn() > 0) {
-    // Se il conteggio è maggiore di 0, il nome è già in uso.
-    header("Location: dashboard.php?error=" . urlencode("Questo nome è già in uso. Scegline un altro."));
-    exit;
-}
-
 $pdo->beginTransaction();
 
 try {
-
-      // --- 2. NUOVA LOGICA DI VERIFICA DETTAGLIATA ---
-    
-    // a. Controlla se lo slot esiste e appartiene all'utente
-    $stmtCheckSlot = $pdo->prepare(
-        "SELECT status FROM server_slots WHERE id = ? AND user_id = ?"
-    );
-    $stmtCheckSlot->execute([$slotId, $userId]);
-    $slotStatus = $stmtCheckSlot->fetchColumn();
-
-    if ($slotStatus === false) {
-        // Nessuna riga trovata, quindi lo slot non esiste o non è dell'utente
-        throw new Exception("Slot non trovato o non ti appartiene. Controlla che l'ID sia corretto.");
-    }
-
-    // b. Controlla se lo stato è corretto
-    if ($slotStatus !== 'pending') {
-        // Lo slot esiste, ma non è nello stato corretto per la creazione
-        throw new Exception("Questo slot non è disponibile. Potrebbe essere già in uso o in fase di elaborazione.");
-    }
-    
-    // c. Ora che i controlli sono superati, tentiamo il blocco atomico
-    $stmtLock = $pdo->prepare(
-        "UPDATE server_slots SET status = 'processing' 
-         WHERE id = ? AND user_id = ? AND status = 'pending'"
-    );
-    $stmtLock->execute([$slotId, $userId]);
-
-    if ($stmtLock->rowCount() === 0) {
-        // Questo è un controllo di sicurezza finale contro le race condition
-        throw new Exception("Impossibile bloccare lo slot. Un altro processo potrebbe averlo preso. Riprova.");
-    }
-    // --- FINE NUOVA LOGICA ---
     // --- 2. Validazione Dati e Slot ---
     $stmtSlot = $pdo->prepare("
         SELECT ss.*, p.stripe_price_id, p.ram_gb, p.cpu_cores, p.storage_gb, p.id as plan_id
