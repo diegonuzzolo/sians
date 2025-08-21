@@ -88,11 +88,10 @@ try {
     if (!$createResult['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $createResult['message']);
     }
-    sleep(4); 
-
+    
     // Se tutto è andato a buon fine, conferma le modifiche al database.
     $pdo->commit();
-
+    
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
@@ -100,6 +99,7 @@ try {
     header("Location: dashboard.php?error=" . urlencode("Creazione fallita: " . $e->getMessage()));
     exit;
 }
+sleep(4); 
 
 // --- 6. Creazione Tunnel Cloudflare e Setup Remoto ---
 try {
