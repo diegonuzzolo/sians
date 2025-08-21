@@ -25,7 +25,7 @@ define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 // In config/config.php
 
 // Credenziali per l'invio di email tramite SMTP
-define('SMTP_HOST', 'smtp.sians.it');
+define('SMTP_HOST', 'smtp.office365.com');
 define('SMTP_PORT', 587);
 define('SMTP_USERNAME', 'no-reply@sians.it');
 define('SMTP_PASSWORD', 'Lgu8330Serve6'); // O la tua App Password
