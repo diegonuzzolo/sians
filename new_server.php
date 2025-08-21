@@ -42,30 +42,27 @@ if (!$planCode || !$slotId) {
 $pdo->beginTransaction();
 
 try {
-// --- 2. BLOCCO ATOMICO DELLO SLOT (Anti-Race Condition) ---
-// Tentiamo di "rivendicare" lo slot impostando il suo stato a 'processing'.
-// Questo comando atomico avrà successo solo per la PRIMA richiesta che arriva.
-$stmtLock = $pdo->prepare(
-    "UPDATE server_slots SET status = 'processing' 
-     WHERE id = ? AND user_id = ? AND status = 'pending'"
-);
-$stmtLock->execute([$slotId, $userId]);
+    // --- 2. BLOCCO SLOT ---
+    $stmtLock = $pdo->prepare(
+        "UPDATE server_slots SET status = 'processing' 
+         WHERE id = ? AND user_id = ? AND status = 'pending'"
+    );
+    $stmtLock->execute([$slotId, $userId]);
 
-// Controlliamo quante righe sono state modificate.
-// Se è 0, significa che un'altra richiesta ci ha battuti sul tempo o lo slot non era valido.
-if ($stmtLock->rowCount() === 0) {
-    throw new Exception("Slot non disponibile, già in uso o non valido. Riprova.");
-}
+    if ($stmtLock->rowCount() === 0) {
+        throw new Exception("Slot non disponibile, già in uso o non valido. Riprova.");
+    }
 
-// Ora che lo slot è nostro, recuperiamo i dati necessari in sicurezza.
-$stmtSlot = $pdo->prepare("SELECT ss.*, p.stripe_price_id, p.ram_gb, p.cpu_cores, p.storage_gb, p.id as plan_id FROM server_slots ss JOIN plans p ON ss.plan_id = p.stripe_price_id WHERE ss.id = ?");
-$stmtSlot->execute([$slotId]);
-$slot = $stmtSlot->fetch(PDO::FETCH_ASSOC);
+    $stmtSlot = $pdo->prepare("SELECT ss.*, p.stripe_price_id, p.ram_gb, p.cpu_cores, p.storage_gb, p.id as plan_id 
+                               FROM server_slots ss 
+                               JOIN plans p ON ss.plan_id = p.stripe_price_id 
+                               WHERE ss.id = ?");
+    $stmtSlot->execute([$slotId]);
+    $slot = $stmtSlot->fetch(PDO::FETCH_ASSOC);
 
-if (!$slot) {
-    // Questo errore non dovrebbe mai accadere se il blocco ha funzionato, ma è una sicurezza in più.
-    throw new Exception("Errore critico: impossibile recuperare i dati dello slot dopo il blocco.");
-}
+    if (!$slot) {
+        throw new Exception("Errore critico: impossibile recuperare i dati dello slot dopo il blocco.");
+    }
 
     $plan = [
         'id' => $slot['plan_id'],
@@ -75,31 +72,34 @@ if (!$slot) {
     ];
     $ramMb = $plan['ram_gb'] * 1024;
 
-    // --- 3. Allocazione Risorse (VMID e IP) ---
+    // --- 3. Allocazione Risorse ---
     $vmid = getNextFreeVmid($pdo);
     $vmIp = getNextFreePrivateIp($pdo);
 
-    // --- 4. Inserimento Record nel Database ---
-    $stmtServer = $pdo->prepare("INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb) VALUES (?, ?, ?, ?, ?, 'creating', 'bedrock', ?, ?)");
+    // --- 4. Inserimento DB ---
+    $stmtServer = $pdo->prepare("INSERT INTO servers (name, user_id, plan_id, slot_id, proxmox_containerId, status, type, cpu_cores, ram_mb) 
+                                 VALUES (?, ?, ?, ?, ?, 'creating', 'bedrock', ?, ?)");
     $stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['cpu_cores'], $ramMb]);
     $serverId = $pdo->lastInsertId();
 
-    $stmtContainer = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id) VALUES (?, ?, ?, ?, ?, ?, 'Creating', ?, ?)");
+    $stmtContainer = $pdo->prepare("INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id) 
+                                    VALUES (?, ?, ?, ?, ?, ?, 'Creating', ?, ?)");
     $stmtContainer->execute([$vmid, $ramMb, $plan['storage_gb'], $userId, $serverName, $vmIp, $plan['cpu_cores'], $serverId]);
     $containerId = $pdo->lastInsertId();
 
     $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?")->execute([$containerId, $serverId]);
     $pdo->prepare("UPDATE server_slots SET server_id = ?, status = 'created' WHERE id = ?")->execute([$serverId, $slotId]);
-    $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id = 1")->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
+    $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id = 1")
+        ->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
 
-    // --- 5. Creazione Risorsa Esterna (Proxmox) ---
+    // --- 5. Creazione container su Proxmox ---
     $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'], $serverName, $vmIp, $plan['cpu_cores']);
     if (!$createResult['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $createResult['message']);
     }
     
     $pdo->commit();
-    
+
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
@@ -108,81 +108,79 @@ if (!$slot) {
     exit;
 }
 
-// --- 6. Creazione Tunnel Cloudflare e Setup Remoto ---
+// --- 6. Setup DNS su Cloudflare ---
 try {
-    sleep(4); // Attesa per l'avvio del container
-
-    // Parte A: Creazione del Tunnel Cloudflare
-    $tunnelName = "mc-{$vmid}";
     $subdomain = "{$serverName}.sians.it";
 
-    // 1. Crea il tunnel e cattura l'UUID
-    $output = [];
-    exec("sudo /usr/bin/cloudflared tunnel create {$tunnelName} 2>&1", $output);
-    
-    $tunnelUuid = '';
-    foreach ($output as $line) {
-        if (preg_match('/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/', $line, $matches)) {
-            $tunnelUuid = $matches[1];
-            break;
-        }
-    }
-    if (empty($tunnelUuid)) {
-        throw new Exception("Impossibile creare il tunnel Cloudflare o estrarre l'UUID.");
-    }
-    
-    // Salva i dati del tunnel nel DB
-    $pdo->prepare("UPDATE servers SET tunnel_id = ?, tunnel_uuid = ? WHERE id = ?")
-        ->execute([$tunnelName, $tunnelUuid, $serverId]);
+    $headers = [
+        "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
+        "Content-Type: application/json"
+    ];
 
-    // 2. Crea il file di configurazione
-    $configFile = "/root/.cloudflared/{$tunnelName}.yml";
-    $configContent = "tunnel: {$tunnelUuid}\n"
-                   . "credentials-file: /root/.cloudflared/{$tunnelUuid}.json\n"
-                   . "ingress:\n"
-                   . "  - service: udp://{$vmIp}:19132\n" // Porta Bedrock
-                   . "  - service: http_status:404\n";
+    // A Record
+    $aRecord = [
+        "type" => "A",
+        "name" => $serverName,
+        "content" => $vmIp,
+        "ttl" => 120,
+        "proxied" => false
+    ];
 
-    $command = "echo " . escapeshellarg($configContent) . " | sudo /usr/bin/tee {$configFile}";
-    exec($command, $output, $return_var);
+    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($aRecord));
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $respA = curl_exec($ch);
 
-    if ($return_var !== 0) {
-        throw new Exception("Impossibile scrivere il file di configurazione del tunnel. Codice: {$return_var}");
-    }
+    // SRV Record
+    $srvRecord = [
+        "type" => "SRV",
+        "data" => [
+            "service"  => "_minecraft",
+            "proto"    => "_udp",
+            "name"     => $serverName,
+            "priority" => 1,
+            "weight"   => 1,
+            "port"     => 19132,
+            "target"   => $subdomain
+        ],
+        "ttl" => 120
+    ];
 
-    // 3. Crea il record DNS
-    exec("sudo /usr/bin/cloudflared tunnel route dns {$tunnelName} {$subdomain}");
+    curl_setopt($ch, CURLOPT_URL, "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records");
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($srvRecord));
+    $respSRV = curl_exec($ch);
 
-    // 4. Avvia e abilita il servizio
-    exec("sudo /usr/bin/systemctl enable --now cloudflared@{$tunnelName}.service");
-    
-    // Parte B: Setup del server remoto
+    curl_close($ch);
+
+} catch (Exception $e) {
+    header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il DNS non è stato configurato: " . $e->getMessage()));
+    exit;
+}
+
+// --- 7. Setup software remoto ---
+try {
     $sshKey = "/var/www/.ssh/id_proxmox";
     $nodeIp = "192.168.1.251";
     $localScript = '/var/www/setup_server.sh';
     $remoteTemp = "/root/setup_server.sh";
-    
+
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"");
     exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp");
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp $remoteTemp\"");
-    
-    // **COMANDO DI ESECUZIONE CORRETTO**
-    // Usa bash -c per eseguire la sequenza di comandi correttamente all'interno del container
+
     $remoteExecCommand = "bash -c 'chmod +x {$remoteTemp} && {$remoteTemp} {$containerId} > /root/setup.log 2>&1 &'";
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$remoteExecCommand}\"");
 
 } catch (Exception $e) {
-    header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il setup del tunnel/software potrebbe essere fallito: " . $e->getMessage()));
+    header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il setup software potrebbe essere fallito: " . $e->getMessage()));
     exit;
 }
 
-// --- 7. Finalizza lo stato del server ---
-// **AGGIORNAMENTO DELLO STATO**
-// Imposta lo stato a 'stopped' per indicare che il server è pronto per essere avviato.
+// --- 8. Finalizza stato ---
 $pdo->prepare("UPDATE servers SET status = 'stopped' WHERE id = ?")->execute([$serverId]);
 
-// --- 8. Successo ---
 header("Location: dashboard.php?success=" . urlencode("Il tuo nuovo server è stato creato ed è pronto per essere avviato!"));
 exit;
-
 ?>
