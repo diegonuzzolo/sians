@@ -40,6 +40,7 @@ if (!$planCode || !$slotId) {
 }
 
 
+
 // --- NUOVO: Verifica Duplicati ---
 // Controlliamo se esiste già un server con lo stesso nome.
 $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM servers WHERE name = ?");
@@ -53,6 +54,22 @@ if ($stmtCheck->fetchColumn() > 0) {
 $pdo->beginTransaction();
 
 try {
+
+       // --- 2. BLOCCO ATOMICO DELLO SLOT (Anti-Bypass e Anti-Race Condition) ---
+    // Tentiamo di "rivendicare" lo slot impostando il suo stato a 'processing'.
+    // Questo comando avrà successo solo se lo slot è dell'utente e ha lo stato 'pending'.
+    $stmtLock = $pdo->prepare(
+        "UPDATE server_slots SET status = 'processing' 
+         WHERE id = ? AND user_id = ? AND status = 'pending'"
+    );
+    $stmtLock->execute([$slotId, $userId]);
+
+    // Controlliamo quante righe sono state modificate.
+    // Se è 0, significa che un'altra richiesta ci ha battuti sul tempo o lo slot non era valido.
+    if ($stmtLock->rowCount() === 0) {
+        throw new Exception("Slot non disponibile, già in uso o non valido. Riprova.");
+    }
+    // --- FINE BLOCCO ---
     // --- 2. Validazione Dati e Slot ---
     $stmtSlot = $pdo->prepare("
         SELECT ss.*, p.stripe_price_id, p.ram_gb, p.cpu_cores, p.storage_gb, p.id as plan_id
