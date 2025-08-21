@@ -22,7 +22,8 @@ if (!defined('DB_HOST')) {
         define('STRIPE_SECRET_KEY', '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');
         // Stringa di connessione SSH statica per Pinggy Pro
 define('PINGGY_CONNECTION_STRING', 'JbrU8R0IcZe+udp@pro.pinggy.io');
-
+define('CLOUDFLARE_API_TOKEN', 'bbf2boNd2zo_KhfCB67_pL0v0E6HAyKbsZIhu2Dw');
+define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 // Percorso ASSOLUTO dell'eseguibile di pinggy.
 // NON USARE percorsi relativi come './pinggy' in uno script web!
 define('PINGGY_EXECUTABLE_PATH', '/root');

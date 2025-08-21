@@ -8,38 +8,81 @@ require_once 'includes/csrf.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 
-// --- 1. Sicurezza: Accetta solo richieste POST ---
+/**
+ * Funzione robusta per la pulizia completa delle risorse Cloudflare.
+ * USA L'API per eliminare il DNS e poi i comandi CLI per il tunnel.
+ */
+function deleteCloudflareResources(string $serverName, string $tunnelName, string $tunnelUuid) {
+    $hostname = $serverName . '.mc.sians.it';
+    
+    // --- PARTE API: Eliminazione diretta del record DNS ---
+    // 1. Trova l'ID del record DNS tramite API
+    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records?name=" . $hostname);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
+        "Content-Type: application/json"
+    ]);
+    $response = curl_exec($ch);
+    $data = json_decode($response, true);
+    curl_close($ch);
+
+    if (isset($data['result']) && !empty($data['result'])) {
+        $recordId = $data['result'][0]['id'];
+
+        // 2. Elimina il record DNS usando il suo ID
+        $ch_del = curl_init("https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records/" . $recordId);
+        curl_setopt($ch_del, CURLOPT_CUSTOMREQUEST, "DELETE");
+        curl_setopt($ch_del, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch_del, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
+            "Content-Type: application/json"
+        ]);
+        $del_response = curl_exec($ch_del);
+        $del_data = json_decode($del_response, true);
+        curl_close($ch_del);
+
+        if (!isset($del_data['success']) || !$del_data['success']) {
+            throw new Exception("API Error: Impossibile eliminare il record DNS per {$hostname}.");
+        }
+    }
+    // Se il record non viene trovato, procediamo senza errori.
+
+    // --- PARTE CLI: Pulizia del tunnel e dei file locali ---
+    $configFile = "/root/.cloudflared/{$tunnelName}.yml";
+    $credentialsFile = "/root/.cloudflared/{$tunnelUuid}.json";
+    
+    exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service", $output, $return_var);
+    if ($return_var !== 0 && !str_contains(implode('', $output), 'does not exist')) {
+        throw new Exception("Errore nel fermare il servizio del tunnel.");
+    }
+
+    exec("sudo /usr/bin/cloudflared tunnel delete -y {$tunnelName}", $output, $return_var);
+    if ($return_var !== 0 && !str_contains(implode('', $output), 'not found')) {
+        throw new Exception("Errore nell'eliminare il tunnel da Cloudflare.");
+    }
+    
+    if (file_exists($configFile)) exec("sudo /bin/rm {$configFile}");
+    if (file_exists($credentialsFile)) exec("sudo /bin/rm {$credentialsFile}");
+}
+
+// --- Script Principale ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    die("Metodo non consentito.");
+    http_response_code(405); die("Metodo non consentito.");
 }
 csrf_check_or_die();
 
 $userId = $_SESSION['user_id'] ?? 0;
-// Il VMID ora viene passato tramite POST
 $vmid = intval($_POST['vmid'] ?? 0);
 
 if ($vmid <= 0) {
-    die("VMID non valido.");
+    http_response_code(400); die("VMID non valido.");
 }
 
 try {
     $pdo->beginTransaction();
 
-    // --- 2. Recupera tutte le informazioni necessarie del server, incluso il tunnel ---
-    $stmt = $pdo->prepare("
-        SELECT 
-            s.id AS server_id, 
-            s.slot_id, 
-            s.cpu_cores, 
-            s.tunnel_id, 
-            s.tunnel_uuid,
-            c.ram_mb, 
-            c.storage_gb, 
-            c.proxmox_containerId
-        FROM servers s
-        LEFT JOIN containers c ON c.id = s.container_id
-        WHERE s.user_id = ? AND c.proxmox_containerId = ?
-    ");
+    $stmt = $pdo->prepare("SELECT s.*, c.ram_mb, c.storage_gb FROM servers s LEFT JOIN containers c ON c.id = s.container_id WHERE s.user_id = ? AND s.proxmox_containerId = ?");
     $stmt->execute([$userId, $vmid]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -47,67 +90,37 @@ try {
         throw new Exception("Server non trovato o non appartiene all'utente. VMID: $vmid");
     }
 
-    // --- 3. Distruzione Risorse Esterne (Proxmox e Cloudflare) ---
-    
-    // Ferma e distruggi il container su Proxmox
-    $stopResult = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
-    // Nota: Non consideriamo un fallimento se il container è già fermo.
+    // Distruzione Risorse Esterne
+    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
     sleep(4);
     $destroyResult = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
     if (!$destroyResult['success']) {
         throw new Exception("Errore durante la distruzione del container Proxmox: " . $destroyResult['message']);
     }
 
-    // NUOVO: Ferma e distruggi il tunnel Cloudflare associato
     if (!empty($server['tunnel_id']) && !empty($server['tunnel_uuid'])) {
-        $tunnelName = $server['tunnel_id'];
-        $tunnelUuid = $server['tunnel_uuid'];
-        $configFile = "/root/.cloudflared/{$tunnelName}.yml";
-        $credentialsFile = "/root/.cloudflared/{$tunnelUuid}.json";
-
-        // a. Ferma e disabilita il servizio systemd
-        exec("sudo /usr/bin/systemctl disable --now cloudflared@{$tunnelName}.service");
-        exec("sudo /usr/bin/cloudflared tunnel cleanup {$tunnelName} 2>&1");
-        exec("sudo /usr/bin/cloudflared tunnel delete {$tunnelName}");
-
-        // c. Pulisci il file di configurazione e le credenziali
-        if (file_exists($configFile)) {
-            exec("sudo /bin/rm {$configFile}");
-        }
-        if (file_exists($credentialsFile)) {
-            exec("sudo /bin/rm {$credentialsFile}");
-        }
+        deleteCloudflareResources($server['name'], $server['tunnel_id'], $server['tunnel_uuid']);
     }
 
-    // --- 4. Aggiornamento Database ---
-    
-    // Libera le risorse
-    $stmt = $pdo->prepare(
-        "UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1"
-    );
+    // Aggiornamento Database
+    $stmt = $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1");
     $stmt->execute([intval($server['cpu_cores']), intval($server['ram_mb']), intval($server['storage_gb'])]);
     
-    // Libera lo slot
     $stmt = $pdo->prepare("UPDATE server_slots SET server_id=NULL, status='pending' WHERE id = ?");
     $stmt->execute([$server['slot_id']]);
 
-    // Elimina il record del server (e a cascata il container)
     $stmt = $pdo->prepare("DELETE FROM servers WHERE id = ?");
-    $stmt->execute([$server['server_id']]);
+    $stmt->execute([$server['id']]);
     
-    // Se tutto è andato a buon fine, conferma
     $pdo->commit();
 
     echo "Server eliminato correttamente";
-    //header("Location: dashboard.php?msg=Server eliminato correttamente");
     exit;
 
 } catch (Exception $e) {
-    // Se qualcosa va storto, annulla tutte le modifiche al DB
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    // Invia un errore HTTP 500 (Internal Server Error) e il messaggio
     http_response_code(500);
     die("Errore: " . $e->getMessage());
 }
