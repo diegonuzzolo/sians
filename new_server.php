@@ -85,6 +85,7 @@ try {
 
     // --- 5. Creazione della Risorsa Esterna (Proxmox) ---
     $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'], $serverName, $vmIp, $plan['cpu_cores']);
+    sleep(4); 
     if (!$createResult['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $createResult['message']);
     }
