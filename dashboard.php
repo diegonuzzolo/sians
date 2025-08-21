@@ -314,6 +314,35 @@ function deleteServer(serverId, vmid) {
     form.submit();
     document.body.removeChild(form);
 }
+
+function copyToClipboard(text, buttonElement) {
+    // Controlla se il browser supporta l'API per gli appunti (per sicurezza)
+    if (!navigator.clipboard) {
+        alert("La funzione di copia non è supportata da questo browser.");
+        return;
+    }
+
+    // Prova a scrivere il testo negli appunti
+    navigator.clipboard.writeText(text).then(function() {
+        // Successo: Fornisci un feedback visivo all'utente
+        const originalText = buttonElement.textContent;
+        buttonElement.disabled = true;
+        buttonElement.textContent = 'Copiato!';
+        buttonElement.classList.add('bg-green-500', 'hover:bg-green-500'); // Aggiunge uno stile per indicare il successo
+
+        // Dopo 2 secondi, ripristina il pulsante al suo stato originale
+        setTimeout(function() {
+            buttonElement.textContent = originalText;
+            buttonElement.disabled = false;
+            buttonElement.classList.remove('bg-green-500', 'hover:bg-green-500');
+        }, 2000);
+
+    }, function(err) {
+        // Errore: Avvisa l'utente
+        alert('Impossibile copiare l\'indirizzo.');
+        console.error('Errore durante la copia:', err);
+    });
+}
 </script>
 </body>
 </html>
