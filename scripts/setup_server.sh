@@ -44,21 +44,8 @@ echo "eula=true" > eula.txt
 # --- Crea start.sh e stop.sh ---
 cat > start.sh << 'EOF'
 #!/bin/bash
-SERVER_DIR="/root/minecraft_bedrock"
-LOG_FILE="$SERVER_DIR/server.log"
-PID_FILE="$SERVER_DIR/server.pid"
-
-cd "$SERVER_DIR" || exit 1
-
-# Crea log se non esiste
-touch "$LOG_FILE"
-chmod 664 "$LOG_FILE"
-rm -f "$PID_FILE"
-
-# Avvia server in background
-nohup ./bedrock_server > "$LOG_FILE" 2>&1 &
-echo $! > "$PID_FILE"
-
+cd "$(dirname "$0")"
+LD_LIBRARY_PATH=. ./bedrock_server
 EOF
 # --- Disabilita telemetria ---
 chmod +x start.sh
