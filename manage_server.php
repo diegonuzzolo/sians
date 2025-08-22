@@ -407,10 +407,14 @@ if (!$server) {
                 btn.classList.add('active');
                 document.getElementById(`${btn.dataset.tab}-tab`).classList.remove('hidden');
 
-                // Disabilita il pulsante Salva se siamo sulla tab console
-                if (saveBtn) {
-                    saveBtn.disabled = (btn.dataset.tab === 'console');
-                }
+                // NUOVA LOGICA: Nasconde il pulsante Salva se siamo sulla tab console
+if (saveBtn) {
+    if (btn.dataset.tab === 'console') {
+        saveBtn.classList.add('hidden');
+    } else {
+        saveBtn.classList.remove('hidden');
+    }
+}
             });
         });
 
