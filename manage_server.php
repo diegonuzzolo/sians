@@ -112,11 +112,7 @@ if (!$server) {
                 <button type="button"
                     class="tab-button active text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
                     data-tab="general">Generale</button>
-                <button type="button"
-                    class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
-                    data-tab="console">
-                    Console
-                </button>
+             
 
 
                 <button type="button"
