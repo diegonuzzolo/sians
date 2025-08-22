@@ -392,9 +392,9 @@ if (!$server) {
             if (consoleTabButton) {
                 consoleTabButton.addEventListener('click', () => {
                     if (!logIntervalId) {
-                        console.log("Avvio aggiornamento console ogni 3 secondi.");
+                        console.log("Avvio aggiornamento console ogni 1.5 secondi.");
                         fetchLogAndUpdateConsole();
-                        logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000);
+                        logIntervalId = setInterval(fetchLogAndUpdateConsole, 1500);
                     }
                 });
             }
