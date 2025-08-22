@@ -100,7 +100,7 @@ $vmStorageSpeed = 7500;
                 <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
                     <i class="bi bi-headset text-3xl text-yellow-400 mb-2"></i>
                     <h5 class="text-xl font-semibold text-white mb-1">Supporto tecnico 24/7</h5>
-                    <p class="text-gray-400 text-sm">Assistenza professionale sempre disponibile via chat o ticket.</p>
+                    <p class="text-gray-400 text-sm">Assistenza professionale sempre disponibile via email</p>
                 </div>
                 <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
                     <i class="bi bi-tools text-3xl text-yellow-400 mb-2"></i>
@@ -110,13 +110,9 @@ $vmStorageSpeed = 7500;
                 <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
                     <i class="bi bi-layout-text-window-reverse text-3xl text-yellow-400 mb-2"></i>
                     <h5 class="text-xl font-semibold text-white mb-1">Console Web e Dashboard</h5>
-                    <p class="text-gray-400 text-sm">Accesso remoto sicuro per controllo completo e gestione intuitiva.</p>
+                    <p class="text-gray-400 text-sm">Interfaccia alla console del server per controllo completo e gestione intuitiva.</p>
                 </div>
-                <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
-                    <i class="bi bi-graph-up text-3xl text-yellow-400 mb-2"></i>
-                    <h5 class="text-xl font-semibold text-white mb-1">Scalabilità semplice</h5>
-                    <p class="text-gray-400 text-sm">Possibilità di aumentare CPU, RAM e banda quando vuoi.</p>
-                </div>
+
                 <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
                     <i class="bi bi-shield-check text-3xl text-yellow-400 mb-2"></i>
                     <h5 class="text-xl font-semibold text-white mb-1">Uptime garantito 99.9%</h5>
