@@ -23,22 +23,19 @@ try {
     // Recupera VMID del server e l'IP del nodo Proxmox a cui appartiene
     $stmt = $pdo->prepare("
         SELECT 
-            s.proxmox_containerId, 
-            n.ip AS node_ip
+            s.proxmox_containerId
         FROM servers s
-        JOIN containers c ON s.container_id = c.id
-        JOIN nodes n ON c.node_id = n.id
         WHERE s.id = ? AND s.user_id = ?
     ");
     $stmt->execute([$serverId, $userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$server || empty($server['proxmox_containerId']) || empty($server['node_ip'])) {
-        throw new Exception("Server non trovato o configurazione incompleta (VMID o IP del nodo mancante).");
+    if (!$server || empty($server['proxmox_containerId'])) {
+        throw new Exception("Server non trovato o configurazione incompleta (VMID mancante).");
     }
 
     $vmid   = intval($server['proxmox_containerId']);
-    $nodeIp = $server['node_ip']; // Usiamo l'IP recuperato dal DB
+    $nodeIp = "192.168.1.251"; // Usiamo l'IP recuperato dal DB
     $sshKey = '/var/www/.ssh/id_proxmox'; // Percorso della chiave SSH sul server web
 
     // --- MODIFICA 2: Nome della sessione screen coerente con start.sh ---
