@@ -311,90 +311,93 @@ if (!$server) {
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-    const consoleOutput = document.getElementById('console-output');
-    const consoleInput = document.getElementById('console-input');
-    const sendBtn = document.getElementById('send-command-btn');
-
-    let lastSize = 0; // Tiene traccia della dimensione del log letto
-
-    // Funzione per inviare un comando
-    async function sendCommand() {
-        const command = consoleInput.value.trim();
-        if (!command) return;
-
-        consoleInput.value = ''; // Pulisci l'input
         
-        const formData = new FormData();
-        formData.append('server_id', serverId);
-        formData.append('csrf_token', csrfToken);
-        formData.append('command', command);
+        console.log("Pagina caricata. Script di gestione avviato.");
 
-        try {
-            const response = await fetch('ajax_send_command.php', {
-                method: 'POST',
-                body: formData
+        // Variabili globali necessarie
+        const csrfToken = '<?= $csrf_token ?>';
+        const serverId = '<?= $serverId ?>';
+        let lastSize = 0;
+
+        // Seleziona tutti gli elementi che ci servono
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const consoleTabButton = document.querySelector('button[data-tab="console"]');
+        const consoleOutput = document.getElementById('console-output');
+        const consoleInput = document.getElementById('console-input');
+        const sendCommandBtn = document.getElementById('send-command-btn');
+
+        console.log("Pulsante console trovato:", consoleTabButton);
+        console.log("Area di output trovata:", consoleOutput);
+
+        // --- Gestione delle Tab ---
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.add('hidden'));
+                button.classList.add('active');
+                document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
             });
-            const data = await response.json();
-            if (!data.success) {
-                appendToConsole(`\n<span class="text-red-400">Errore: ${data.message}</span>\n`);
-            }
-        } catch (error) {
-            appendToConsole(`\n<span class="text-red-400">Errore di rete nell'invio del comando.</span>\n`);
-        }
-    }
-
-    // Funzione per aggiungere testo alla console e scrollare in fondo
-    function appendToConsole(text) {
-        consoleOutput.innerHTML += text.replace(/\n/g, '<br>'); // Converte newline in <br>
-        consoleOutput.scrollTop = consoleOutput.scrollHeight;
-    }
-
-    // Funzione di long polling per ricevere l'output
-    async function fetchLog() {
-        try {
-            const response = await fetch(`ajax_get_log.php?id=${serverId}&lastSize=${lastSize}`);
-            const data = await response.json();
-
-            if (data.success && data.content) {
-                // Se è la prima volta che carichiamo, puliamo il messaggio "Caricamento..."
-                if (consoleOutput.textContent === 'Caricamento console...') {
-                    consoleOutput.innerHTML = '';
-                }
-                appendToConsole(data.content);
-            }
-            lastSize = data.newSize;
-        } catch (error) {
-            console.error('Errore nel fetch del log:', error);
-            appendToConsole(`\n<span class="text-yellow-400">Connessione persa... Riprovo.</span>\n`);
-            // Aspetta un po' prima di riprovare in caso di errore di rete
-            await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-        
-        // Richiama se stessa per creare un loop infinito
-        fetchLog();
-    }
-    
-    // Gestione eventi
-    sendBtn.addEventListener('click', sendCommand);
-    consoleInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            sendCommand();
-        }
-    });
-
-    // Avvia il polling quando la tab della console diventa visibile
-    const consoleTabButton = document.querySelector('button[data-tab="console"]');
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.attributeName === 'class' && !document.getElementById('console-tab').classList.contains('hidden')) {
-                if (consoleOutput.textContent === 'Caricamento console...') {
-                     fetchLog(); // Avvia il polling solo la prima volta che la tab viene aperta
-                }
-            }
         });
+
+        // --- Logica della Console ---
+        let isLogStarted = false;
+
+        // Funzione per ricevere i log (Long Polling)
+        async function fetchLog() {
+            console.log(`Chiamata a fetchLog. Ultima dimensione: ${lastSize}`);
+            try {
+                const response = await fetch(`ajax_get_log.php?id=${serverId}&lastSize=${lastSize}`);
+                if (!response.ok) {
+                    console.error("Errore di rete nella risposta:", response.status, response.statusText);
+                    appendToConsole(`\n<span class="text-red-400">Errore di rete: ${response.status}. Riprovo tra 5 secondi...</span>\n`);
+                    setTimeout(fetchLog, 5000); // Riprova dopo 5 secondi
+                    return;
+                }
+                
+                const data = await response.json();
+
+                if (data.success && data.content) {
+                    if (consoleOutput.textContent === 'Caricamento console...') {
+                        consoleOutput.innerHTML = '';
+                    }
+                    appendToConsole(data.content);
+                }
+                lastSize = data.newSize;
+
+            } catch (error) {
+                console.error('Errore grave durante il fetch del log:', error);
+                appendToConsole(`\n<span class="text-yellow-400">Connessione persa... Riprovo tra 5 secondi.</span>\n`);
+                setTimeout(fetchLog, 5000); // Riprova dopo 5 secondi
+                return;
+            }
+            
+            // Richiama se stessa per creare un loop
+            fetchLog();
+        }
+
+        // Aggiunge testo alla console e scrolla
+        function appendToConsole(text) {
+            consoleOutput.innerHTML += text.replace(/\n/g, '<br>');
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        // Listener per avviare il caricamento della console
+        if (consoleTabButton) {
+            consoleTabButton.addEventListener('click', () => {
+                console.log("Click sulla tab Console rilevato.");
+                if (!isLogStarted) {
+                    console.log("Avvio del fetchLog per la prima volta.");
+                    isLogStarted = true;
+                    fetchLog();
+                }
+            });
+        } else {
+            console.error("ERRORE CRITICO: Pulsante della tab console non trovato!");
+        }
+
+        // Aggiungi qui gli altri event listener per il form, upload icona, ecc.
     });
-    observer.observe(document.getElementById('console-tab'), { attributes: true });
-});
 
 
         const csrfToken = '<?= $csrf_token ?>';
