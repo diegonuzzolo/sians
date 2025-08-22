@@ -4,47 +4,53 @@ require 'config/config.php';
 
 header('Content-Type: application/json');
 
-$serverId = intval($_GET['id'] ?? 0);
-$lastSize = intval($_GET['lastSize'] ?? 0);
-$userId = $_SESSION['user_id'] ?? 0;
+try {
+    $userId   = $_SESSION['user_id'] ?? 0;
+    $serverId = intval($_GET['id'] ?? 0);
 
-// Recupera l'ID del container
-$stmt = $pdo->prepare("SELECT c.proxmox_containerId FROM servers s JOIN containers c ON s.container_id = c.id WHERE s.id = ? AND s.user_id = ?");
-$stmt->execute([$serverId, $userId]);
-$containerId = $stmt->fetchColumn();
-
-if (!$containerId) {
-    echo json_encode(['success' => false, 'content' => 'Server non trovato.', 'newSize' => 0]);
-    exit;
-}
-
-// Il percorso del file di log *sul server che ospita il PHP*, non dentro il container
-$logFile = "/var/lib/vz/private/{$containerId}/root/minecraft_bedrock/server.log";
-
-if (!file_exists($logFile)) {
-    echo json_encode(['success' => false, 'content' => "Log file non trovato: {$logFile}", 'newSize' => 0]);
-    exit;
-}
-
-// Long polling: controlla per 20 secondi se il file cambia
-set_time_limit(30);
-$startTime = time();
-while (time() - $startTime < 20) {
-    clearstatcache(); // Pulisce la cache delle info sui file
-    $currentSize = filesize($logFile);
-
-    if ($currentSize > $lastSize) {
-        $handle = fopen($logFile, 'r');
-        fseek($handle, $lastSize);
-        $newContent = fread($handle, $currentSize - $lastSize);
-        fclose($handle);
-
-        echo json_encode(['success' => true, 'content' => $newContent, 'newSize' => $currentSize]);
-        exit;
+    if (!$userId || !$serverId) {
+        throw new Exception("Parametri non validi");
     }
 
-    usleep(250000); // Aspetta 0.25 secondi prima di ricontrollare
-}
+    // Recupera le info necessarie per la connessione (VMID e IP del nodo)
+    $stmt = $pdo->prepare("
+        SELECT s.proxmox_containerId, n.ip AS node_ip
+        FROM servers s
+        JOIN containers c ON s.container_id = c.id
+        JOIN nodes n ON c.node_id = n.id
+        WHERE s.id = ? AND s.user_id = ?
+    ");
+    $stmt->execute([$serverId, $userId]);
+    $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Se non ci sono novità dopo 20 secondi, rispondi vuoto
-echo json_encode(['success' => true, 'content' => '', 'newSize' => $lastSize]);
+    if (!$server) {
+        throw new Exception("Server non trovato");
+    }
+
+    $vmid     = intval($server['proxmox_containerId']);
+    $nodeIp   = $server['node_ip'];
+    $sshKey   = '/var/www/.ssh/id_proxmox';
+    $remoteLogPath = '/root/minecraft_bedrock/server.log';
+
+    // Comando per leggere il contenuto del file DENTRO il container
+    $cmd = sprintf(
+        'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- cat %s"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid,
+        escapeshellarg($remoteLogPath)
+    );
+
+    $logContent = shell_exec($cmd);
+
+    // shell_exec può restituire null in caso di errore
+    if ($logContent === null) {
+        throw new Exception("Errore durante l'esecuzione del comando per leggere il log. Controlla la connessione SSH e i log di debug.");
+    }
+
+    echo json_encode(['success' => true, 'content' => $logContent]);
+
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+}

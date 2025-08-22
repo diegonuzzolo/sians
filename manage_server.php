@@ -310,93 +310,66 @@ if (!$server) {
     <div id="notification-message" class="notification hidden"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-        
-        console.log("Pagina caricata. Script di gestione avviato.");
+       document.addEventListener('DOMContentLoaded', () => {
+        console.log("Pagina caricata. Script di gestione v2 avviato.");
 
-        // Variabili globali necessarie
         const csrfToken = '<?= $csrf_token ?>';
         const serverId = '<?= $serverId ?>';
-        let lastSize = 0;
-
-        // Seleziona tutti gli elementi che ci servono
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const consoleTabButton = document.querySelector('button[data-tab="console"]');
-        const consoleOutput = document.getElementById('console-output');
-        const consoleInput = document.getElementById('console-input');
-        const sendCommandBtn = document.getElementById('send-command-btn');
-
-        console.log("Pulsante console trovato:", consoleTabButton);
-        console.log("Area di output trovata:", consoleOutput);
-
-        // --- Gestione delle Tab ---
-        tabButtons.forEach(button => {
+        
+        // --- Gestione Tab ---
+        // (codice per cambiare tab, se lo hai messo qui, lascialo)
+        document.querySelectorAll('.tab-button').forEach(button => {
             button.addEventListener('click', () => {
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabContents.forEach(content => content.classList.add('hidden'));
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
                 button.classList.add('active');
                 document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
             });
         });
 
         // --- Logica della Console ---
-        let isLogStarted = false;
+        const consoleTabButton = document.querySelector('button[data-tab="console"]');
+        const consoleOutput = document.getElementById('console-output');
+        let logIntervalId = null; // ID per fermare l'aggiornamento
 
-        // Funzione per ricevere i log (Long Polling)
-        async function fetchLog() {
-            console.log(`Chiamata a fetchLog. Ultima dimensione: ${lastSize}`);
+        async function fetchLogAndUpdateConsole() {
             try {
-                const response = await fetch(`ajax_get_log.php?id=${serverId}&lastSize=${lastSize}`);
+                const response = await fetch(`ajax_get_log.php?id=${serverId}`);
                 if (!response.ok) {
-                    console.error("Errore di rete nella risposta:", response.status, response.statusText);
-                    appendToConsole(`\n<span class="text-red-400">Errore di rete: ${response.status}. Riprovo tra 5 secondi...</span>\n`);
-                    setTimeout(fetchLog, 5000); // Riprova dopo 5 secondi
+                    console.error("Errore di rete:", response.status);
+                    // Ferma l'aggiornamento in caso di errore grave
+                    if(logIntervalId) clearInterval(logIntervalId); 
                     return;
                 }
                 
                 const data = await response.json();
 
-                if (data.success && data.content) {
-                    if (consoleOutput.textContent === 'Caricamento console...') {
-                        consoleOutput.innerHTML = '';
-                    }
-                    appendToConsole(data.content);
+                if (data.success) {
+                    // Sostituisce l'intero contenuto e scrolla in fondo
+                    consoleOutput.textContent = data.content;
+                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                } else {
+                    consoleOutput.textContent = "Errore nel caricamento del log: " + data.message;
+                    if(logIntervalId) clearInterval(logIntervalId);
                 }
-                lastSize = data.newSize;
-
             } catch (error) {
-                console.error('Errore grave durante il fetch del log:', error);
-                appendToConsole(`\n<span class="text-yellow-400">Connessione persa... Riprovo tra 5 secondi.</span>\n`);
-                setTimeout(fetchLog, 5000); // Riprova dopo 5 secondi
-                return;
+                console.error('Errore durante il fetch del log:', error);
+                if(logIntervalId) clearInterval(logIntervalId);
             }
-            
-            // Richiama se stessa per creare un loop
-            fetchLog();
         }
-
-        // Aggiunge testo alla console e scrolla
-        function appendToConsole(text) {
-            consoleOutput.innerHTML += text.replace(/\n/g, '<br>');
-            consoleOutput.scrollTop = consoleOutput.scrollHeight;
-        }
-
-        // Listener per avviare il caricamento della console
+        
         if (consoleTabButton) {
             consoleTabButton.addEventListener('click', () => {
-                console.log("Click sulla tab Console rilevato.");
-                if (!isLogStarted) {
-                    console.log("Avvio del fetchLog per la prima volta.");
-                    isLogStarted = true;
-                    fetchLog();
+                // Se l'intervallo non è già attivo, avvialo
+                if (!logIntervalId) {
+                    console.log("Avvio aggiornamento console ogni 3 secondi.");
+                    fetchLogAndUpdateConsole(); // Carica subito la prima volta
+                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000); // E poi ogni 3 secondi
                 }
             });
-        } else {
-            console.error("ERRORE CRITICO: Pulsante della tab console non trovato!");
         }
-
-        // Aggiungi qui gli altri event listener per il form, upload icona, ecc.
+        
+        // Aggiungi qui gli altri listener (form, icona, comandi console)
     });
 
 
