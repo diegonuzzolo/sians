@@ -1,6 +1,9 @@
 <?php
+// ajax_get_log.php
 ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
 include("auth_check.php");
 require 'config/config.php';
 
@@ -11,10 +14,10 @@ try {
     $serverId = intval($_GET['id'] ?? 0);
 
     if (!$userId || !$serverId) {
-        throw new Exception("Parametri non validi");
+        throw new Exception("Parametri non validi.");
     }
 
-    // Recupera le info necessarie per la connessione (VMID e IP del nodo)
+    // Recupera VMID e IP del nodo
     $stmt = $pdo->prepare("
         SELECT s.proxmox_containerId, n.ip AS node_ip
         FROM servers s
@@ -26,17 +29,22 @@ try {
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$server) {
-        throw new Exception("Server non trovato");
+        throw new Exception("Server non trovato.");
     }
 
-    $vmid     = intval($server['proxmox_containerId']);
-    $nodeIp   = $server['node_ip'];
-    $sshKey   = '/var/www/.ssh/id_proxmox';
+    $vmid = intval($server['proxmox_containerId']);
+    $nodeIp = $server['node_ip'];
+    $sshKey = '/var/www/.ssh/id_proxmox';
     $remoteLogPath = '/root/minecraft_bedrock/server.log';
 
-    // Comando per leggere il contenuto del file DENTRO il container
+    // Controlla che la chiave SSH sia leggibile
+    if (!file_exists($sshKey) || !is_readable($sshKey)) {
+        throw new Exception("Chiave SSH non leggibile: $sshKey");
+    }
+
+    // Comando sicuro per leggere il log
     $cmd = sprintf(
-        'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- cat %s"',
+        'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- cat %s 2>&1"',
         escapeshellarg($sshKey),
         escapeshellarg($nodeIp),
         $vmid,
@@ -45,9 +53,8 @@ try {
 
     $logContent = shell_exec($cmd);
 
-    // shell_exec può restituire null in caso di errore
     if ($logContent === null) {
-        throw new Exception("Errore durante l'esecuzione del comando per leggere il log. Controlla la connessione SSH e i log di debug.");
+        throw new Exception("Errore durante l'esecuzione del comando SSH.");
     }
 
     echo json_encode(['success' => true, 'content' => $logContent]);
