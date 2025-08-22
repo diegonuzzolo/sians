@@ -23,12 +23,12 @@ $stmt = $pdo->prepare("SELECT * FROM billing_profiles WHERE user_id = ?");
 $stmt->execute([$userId]);
 $billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-// --- Recupero piani di abbonamento attivi dalla tabella subscriptions ---
+// Ricarico i piani attivi
 $stmt = $pdo->prepare("
     SELECT
         p.name AS plan_name,
         p.cpu_cores,
-        p.ram_gb,
+        p.ram_gb, -- CORRECTED LINE
         s.status
     FROM subscriptions s
     JOIN plans p ON p.stripe_price_id = s.plan_id
