@@ -5,70 +5,43 @@ require 'includes/csrf.php';
 
 header('Content-Type: application/json');
 
-if($_SERVER['REQUEST_METHOD'] !== 'POST'){
-    echo json_encode(['success'=>false,'message'=>'Metodo non consentito.']);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['success' => false, 'message' => 'Metodo non consentito.']);
     exit;
 }
-
 csrf_check_or_die();
 
-$userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_POST['server_id'] ?? 0);
+$userId = $_SESSION['user_id'] ?? 0;
 $command = trim($_POST['command'] ?? '');
 
-if(empty($command)){
-    echo json_encode(['success'=>false,'message'=>'Comando vuoto.']);
-    exit;
-}
-
-// Recupera container e nodo
-$stmt = $pdo->prepare("SELECT proxmox_containerId, proxmox_node FROM servers WHERE id=? AND user_id=?");
+$stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if(!$server || empty($server['proxmox_node'])){
-    echo json_encode(['success'=>false,'message'=>'Accesso negato o nodo non configurato.']);
+if (!$server || empty($command)) {
+    echo json_encode(['success' => false, 'message' => 'Dati non validi o accesso negato.']);
     exit;
 }
 
 $containerId = $server['proxmox_containerId'];
-$node = 'pve';
+$proxmox_host = '192.168.1.251'; // Es. 192.168.1.251
+$ssh_key_path = '/var/www/.ssh/id_proxmox';
 
-// Funzione invio comando
-function sendCommandToContainer($containerId, $node, $command){
-    global $proxmox_host, $proxmox_port, $proxmox_user, $proxmox_token_id, $proxmox_token_secret;
+// Sanifica il comando per evitare injection nel comando shell
+$escaped_command = escapeshellarg($command);
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "https://$proxmox_host:$proxmox_port/api2/json/access/ticket");
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: PVEAPIToken=$proxmox_user!$proxmox_token_id=$proxmox_token_secret"]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $auth = curl_exec($ch);
-    curl_close($ch);
+// Costruisce il comando screen da eseguire dentro il container
+$screen_command = "screen -S minecraft_server -p 0 -X stuff {$escaped_command}$'\\n'";
 
-    $authData = json_decode($auth,true);
-    if(!isset($authData['data']['ticket'])) return false;
-    $ticket = $authData['data']['ticket'];
-    $csrf = $authData['data']['CSRFPreventionToken'];
+// Costruisce il comando SSH completo
+$full_ssh_command = "ssh -i {$ssh_key_path} -o StrictHostKeyChecking=no root@{$proxmox_host} "
+                  . escapeshellarg("pct exec {$containerId} -- bash -c " . escapeshellarg($screen_command));
 
-    $screenCmd = "screen -S minecraft_server -p 0 -X stuff \"$command\\n\"";
-    $apiCmd = json_encode(['/bin/sh','-c',$screenCmd]);
-    $postData = http_build_query(['command'=>$apiCmd]);
+exec($full_ssh_command . " 2>&1", $output, $return_var);
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "https://$proxmox_host:$proxmox_port/api2/json/nodes/$node/lxc/$containerId/exec");
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["CSRFPreventionToken: $csrf", "Cookie: PVEAuthCookie=$ticket"]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $res = curl_exec($ch);
-    curl_close($ch);
-
-    $data = json_decode($res,true);
-    return isset($data['data']);
+if ($return_var === 0) {
+    echo json_encode(['success' => true]);
+} else {
+    echo json_encode(['success' => false, 'message' => 'Impossibile eseguire il comando via SSH.', 'details' => $output]);
 }
-
-$success = sendCommandToContainer($containerId,$node,$command);
-echo json_encode(['success'=>$success,'message'=>$success?'Comando inviato':'Errore invio comando']);

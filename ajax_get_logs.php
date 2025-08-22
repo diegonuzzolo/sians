@@ -4,75 +4,54 @@ require 'config/config.php';
 
 header('Content-Type: application/json');
 
-$userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_GET['server_id'] ?? 0);
+$userId = $_SESSION['user_id'] ?? 0;
 $offset = intval($_GET['offset'] ?? 0);
 
-// Recupera container e nodo
-$stmt = $pdo->prepare("SELECT proxmox_containerId, proxmox_node FROM servers WHERE id=? AND user_id=?");
+$stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if(!$server || empty($server['proxmox_node'])){
-    echo json_encode(['success'=>false,'message'=>'Accesso negato o nodo non configurato.']);
+if (!$server) {
+    echo json_encode(['success' => false, 'message' => 'Accesso negato.']);
     exit;
 }
 
 $containerId = $server['proxmox_containerId'];
-$node = 'pve';
+$proxmox_host = 'IL_TUO_IP_PROXMOX'; // Es. 192.168.1.251
+$ssh_key_path = '/var/www/.ssh/id_proxmox';
+$logFilePathInContainer = "/root/minecraft_bedrock/logs/latest.log"; // O il tuo percorso di debug
 
-// Percorso del log dentro il container
-$logPath = "/root/minecraft_bedrock/debug_output.log";
+// --- Esegui i comandi su Proxmox via SSH ---
 
-// Funzione di recupero log (diretto da Proxmox)
-function getContainerLog($containerId, $node, $filePath, $offset = 0) {
-    global $proxmox_host, $proxmox_port, $proxmox_user, $proxmox_token_id, $proxmox_token_secret;
+try {
+    // 1. Ottieni la dimensione del file di log
+    $stat_command = "ssh -i {$ssh_key_path} -o StrictHostKeyChecking=no root@{$proxmox_host} "
+                  . escapeshellarg("pct exec {$containerId} -- stat -c%s " . escapeshellarg($logFilePathInContainer));
+    
+    $fileSize_str = shell_exec($stat_command . " 2>/dev/null");
+    $fileSize = intval(trim($fileSize_str));
 
-    // Autenticazione
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "https://$proxmox_host:$proxmox_port/api2/json/access/ticket");
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: PVEAPIToken=$proxmox_user!$proxmox_token_id=$proxmox_token_secret"]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $auth = curl_exec($ch);
-    curl_close($ch);
+    $logContent = '';
 
-    $authData = json_decode($auth,true);
-    if(!isset($authData['data']['ticket'])) return ['log'=>'','new_size'=>0];
-    $ticket = $authData['data']['ticket'];
-    $csrf = $authData['data']['CSRFPreventionToken'];
+    // 2. Se il file è cresciuto, leggi le nuove righe
+    if ($fileSize > $offset) {
+        // tail -c +N parte dall'N-esimo byte. L'offset è la dimensione vecchia, quindi partiamo dal byte successivo.
+        $start_byte = $offset + 1;
+        $tail_command = "ssh -i {$ssh_key_path} -o StrictHostKeyChecking=no root@{$proxmox_host} "
+                      . escapeshellarg("pct exec {$containerId} -- tail -c +{$start_byte} " . escapeshellarg($logFilePathInContainer));
+        
+        $logContent = shell_exec($tail_command . " 2>/dev/null");
+    }
 
-    // Stat file
-    $statUrl = "https://$proxmox_host:$proxmox_port/api2/json/nodes/$node/lxc/$containerId/files/stat?filepath=".urlencode($filePath);
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $statUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["CSRFPreventionToken: $csrf", "Cookie: PVEAuthCookie=$ticket"]);
-    $statRes = curl_exec($ch);
-    curl_close($ch);
+    $logContent = htmlspecialchars($logContent ?? '');
 
-    $statData = json_decode($statRes,true);
-    $size = $statData['data']['size'] ?? 0;
-    if($size <= $offset) return ['log'=>'','new_size'=>$size];
+    echo json_encode([
+        'success' => true,
+        'log' => nl2br($logContent),
+        'new_size' => $fileSize
+    ]);
 
-    // Read file
-    $readUrl = "https://$proxmox_host:$proxmox_port/api2/json/nodes/$node/lxc/$containerId/files/read?filepath=".urlencode($filePath)."&start=$offset";
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $readUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["CSRFPreventionToken: $csrf", "Cookie: PVEAuthCookie=$ticket"]);
-    $readRes = curl_exec($ch);
-    curl_close($ch);
-
-    $readData = json_decode($readRes,true);
-    $log = $readData['data']['content'] ?? '';
-
-    return ['log'=>$log,'new_size'=>$size];
+} catch (\Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Errore durante l esecuzione SSH: ' . $e->getMessage()]);
 }
-
-$result = getContainerLog($containerId,$node,$logPath,$offset);
-$result['log'] = htmlspecialchars($result['log']);
-$result['log'] = nl2br($result['log']);
-
-echo json_encode(array_merge(['success'=>true],$result));
