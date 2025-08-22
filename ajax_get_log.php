@@ -1,65 +1,58 @@
 <?php
-// ajax_get_log.php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-include("auth_check.php");
-require 'config/config.php';
-
+// ajax_console_logs.php
+session_start();
 header('Content-Type: application/json');
 
-try {
-    $userId   = $_SESSION['user_id'] ?? 0;
-    $serverId = intval($_GET['id'] ?? 0);
+require 'config/config.php'; // PDO $pdo
+require_once 'includes/auth_check.php';
+require_once 'includes/csrf.php';
 
-    if (!$userId || !$serverId) {
-        throw new Exception("Parametri non validi.");
-    }
+use phpseclib3\Net\SSH2;
 
-    // Recupera VMID e IP del nodo
-    $stmt = $pdo->prepare("
-        SELECT s.proxmox_containerId, n.ip AS node_ip
-        FROM servers s
-        JOIN containers c ON s.container_id = c.id
-        JOIN nodes n ON c.node_id = n.id
-        WHERE s.id = ? AND s.user_id = ?
-    ");
-    $stmt->execute([$serverId, $userId]);
-    $server = $stmt->fetch(PDO::FETCH_ASSOC);
+require 'vendor/autoload.php'; // phpseclib
 
-    if (!$server) {
-        throw new Exception("Server non trovato.");
-    }
+$userId = $_SESSION['user_id'] ?? 0;
+$serverId = intval($_GET['id'] ?? 0);
+$csrfToken = $_GET['csrf_token'] ?? '';
 
-    $vmid = intval($server['proxmox_containerId']);
-    $nodeIp = '192.168.1.251';
-    $sshKey = '/var/www/.ssh/id_proxmox';
-    $remoteLogPath = '/root/minecraft_bedrock/server.log';
-
-    // Controlla che la chiave SSH sia leggibile
-    if (!file_exists($sshKey) || !is_readable($sshKey)) {
-        throw new Exception("Chiave SSH non leggibile: $sshKey");
-    }
-
-    // Comando sicuro per leggere il log
-    $cmd = sprintf(
-        'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- cat %s 2>&1"',
-        escapeshellarg($sshKey),
-        escapeshellarg($nodeIp),
-        $vmid,
-        escapeshellarg($remoteLogPath)
-    );
-
-    $logContent = shell_exec($cmd);
-
-    if ($logContent === null) {
-        throw new Exception("Errore durante l'esecuzione del comando SSH.");
-    }
-
-    echo json_encode(['success' => true, 'content' => $logContent]);
-
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+if (!verifyCsrfToken($csrfToken)) {
+    echo json_encode(['success' => false, 'error' => 'Token CSRF non valido']);
+    exit;
 }
+
+// Recupera il server dell'utente con container associato
+$stmt = $pdo->prepare("
+    SELECT s.id AS server_id, s.name AS server_name, s.proxmox_containerId, c.hostname, c.ip
+    FROM servers s
+    LEFT JOIN containers c ON s.container_id = c.id
+    WHERE s.id = ? AND s.user_id = ?
+");
+$stmt->execute([$serverId, $userId]);
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$server) {
+    echo json_encode(['success' => false, 'error' => 'Server non trovato']);
+    exit;
+}
+
+// Connessione SSH al nodo Proxmox
+$nodeIp = '192.168.1.251';
+$sshUser = 'root'; // o altro utente autorizzato
+$sshKey = '/var/www/.ssh/id_proxmox'; // percorso chiave privata
+
+$ssh = new SSH2($nodeIp);
+$key = \phpseclib3\Crypt\PublicKeyLoader::load(file_get_contents($sshKey));
+
+if (!$ssh->login($sshUser, $key)) {
+    echo json_encode(['success' => false, 'error' => 'Login SSH fallito']);
+    exit;
+}
+
+// Comando per leggere gli ultimi 200 log dal container LXC
+$containerId = $server['proxmox_containerId'];
+$command = "sudo pct exec $containerId -- tail -n 200 /var/log/minecraft/server.log";
+
+$output = $ssh->exec($command);
+$lines = explode("\n", trim($output));
+
+echo json_encode(['success' => true, 'logs' => $lines]);
