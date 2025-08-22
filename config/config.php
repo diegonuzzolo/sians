@@ -10,6 +10,15 @@ if (!defined('DB_HOST')) {
     define('DB_PASSWORD', 'Lgu8330Serve6');
     define('DB_CHARSET', 'utf8mb4');
     
+// ... altre configurazioni già presenti ...
+
+// --- Configurazione Proxmox ---
+$proxmox_host = '192.168.1.251';      // IP o hostname di Proxmox
+$proxmox_port = 8006;                 // Porta API
+$proxmox_user = 'root@pam';           // Utente Proxmox
+$proxmox_token_id = 'sians';          // ID token
+$proxmox_token_secret = '0b4b070d-90bc-40a5-b0d1-9db4df95aa79'; // Secret token
+
     define('PROXMOX_API_URL', 'https://192.168.1.251:8006/api2/json');
     define('PROXMOX_NODE', 'pve');
     define('PROXMOX_USERNAME', 'root@pam');
