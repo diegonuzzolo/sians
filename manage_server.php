@@ -88,15 +88,6 @@ if (!$server) {
             background-color: #fecaca;
             color: #991b1b;
         }
-        
-        /* Stili Console */
-        #console-output {
-            scroll-behavior: smooth;
-        }
-        #console-output span {
-            display: block;
-            word-wrap: break-word;
-        }
     </style>
 </head>
 
@@ -114,7 +105,6 @@ if (!$server) {
 
             <div class="flex justify-center border-b border-gray-700 mb-6 scrollbar-hidden overflow-x-auto whitespace-nowrap">
                 <button type="button" class="tab-button active text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none" data-tab="general">Generale</button>
-                <button type="button" class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none" data-tab="console">Console</button>
                 <button type="button" class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none" data-tab="players">Giocatori</button>
                 <button type="button" class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none" data-tab="world">Mondo</button>
                 <button type="button" class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none" data-tab="advanced">Avanzate</button>
@@ -227,25 +217,13 @@ if (!$server) {
                     </div>
                 </div>
 
-                <div id="save-button-container" class="text-center mt-8">
-    <button type="submit" class="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105">
-        <i class="bi bi-save mr-2"></i> Salva Modifiche
-    </button>
-</div>
-            </form>
-
-            <div id="console-tab" class="tab-content hidden">
-                <div class="bg-gray-900 border border-gray-700 rounded-lg p-4 h-96 overflow-y-auto flex flex-col-reverse font-mono text-sm" id="console-output">
-                    <div class="text-gray-500">Inizializzazione console...</div>
-                </div>
-                <div class="mt-4 flex">
-                    <input type="text" id="console-input" class="flex-grow p-3 rounded-l-lg bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="Digita un comando e premi Invio...">
-                    <button id="send-command-btn" class="px-6 py-3 bg-blue-600 text-white rounded-r-lg font-bold shadow-lg hover:bg-blue-700 transition-colors duration-200">
-                        <i class="bi bi-send"></i>
+                <div class="text-center mt-8">
+                    <button type="submit" class="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105">
+                        <i class="bi bi-save mr-2"></i> Salva Modifiche
                     </button>
                 </div>
-            </div>
-            </div>
+            </form>
+        </div>
     </main>
     
     <div id="notification-message" class="notification hidden"></div>
@@ -335,7 +313,7 @@ if (!$server) {
                     const formData = new FormData();
                     formData.append('server_id', serverId);
                     formData.append('server-icon', file);
-                    formData.append('csrf_token', csrfToken);  
+                    formData.append('csrf_token', csrfToken);   
 
                     fetch('ajax_upload_icon.php', {
                             method: 'POST',
@@ -355,88 +333,6 @@ if (!$server) {
             };
             reader.readAsDataURL(file);
         });
-        
-        // ## INIZIO LOGICA CONSOLE ##
-        const consoleOutput = document.getElementById('console-output');
-        const consoleInput = document.getElementById('console-input');
-        const sendCommandBtn = document.getElementById('send-command-btn');
-        let logPollingInterval;
-        let lastLogSize = 0; // Per leggere solo le nuove righe
-
-        // Funzione per recuperare i log
-        function fetchLogs() {
-            fetch(`ajax_get_logs.php?server_id=${serverId}&offset=${lastLogSize}`)
-
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.log.length > 0) {
-                        // Rimuovi il messaggio di inizializzazione se presente
-                        const initMsg = consoleOutput.querySelector('.text-gray-500');
-                        if (initMsg) initMsg.remove();
-
-                        // Aggiungi le nuove righe di log
-                        consoleOutput.innerHTML = data.log + consoleOutput.innerHTML;
-                        lastLogSize = data.new_size;
-                    }
-                })
-                .catch(error => console.error("Errore nel recupero dei log:", error));
-        }
-
-        // Funzione per inviare un comando
-        function sendCommand() {
-            const command = consoleInput.value.trim();
-            if (command === '') return;
-
-            const formData = new FormData();
-            formData.append('server_id', serverId);
-            formData.append('csrf_token', csrfToken);
-            formData.append('command', command);
-
-            fetch('ajax_send_command.php', { method: 'POST', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        showNotification(false, data.message || "Comando fallito.");
-                    }
-                // Il comando inviato apparirà nei log al prossimo polling
-            })
-            .catch(() => showNotification(false, "Errore di rete."));
-
-            consoleInput.value = ''; // Pulisci l'input
-        }
-
-       // Gestione cambio tab
-const saveButtonContainer = document.getElementById('save-button-container');
-
-document.querySelectorAll('.tab-button').forEach(button => {
-    button.addEventListener('click', () => {
-        // Nasconde tutti i contenuti e rimuove lo stato attivo dai pulsanti
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-
-        // Mostra il contenuto e il pulsante attivi
-        button.classList.add('active');
-        document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
-
-        // Controlla se il tab selezionato è la console
-        if (button.dataset.tab === 'console') {
-            // Se è la console, nascondi il pulsante Salva
-            saveButtonContainer.classList.add('hidden');
-        } else {
-            // Altrimenti, mostralo
-            saveButtonContainer.classList.remove('hidden');
-        }
-    });
-});
-
-        // Event listener per inviare comandi
-        sendCommandBtn.addEventListener('click', sendCommand);
-        consoleInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendCommand();
-            }
-        });
-        // ## FINE LOGICA CONSOLE ##
     </script>
 </body>
 </html>
