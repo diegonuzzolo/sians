@@ -1,57 +1,54 @@
 <?php
 require 'auth_check.php';
 require 'config/config.php';
+require_once 'includes/csrf.php';
 
 header('Content-Type: application/json');
+csrf_check_or_die();
 
 $serverId = intval($_GET['server_id'] ?? 0);
 $userId = $_SESSION['user_id'] ?? 0;
 $offset = intval($_GET['offset'] ?? 0);
 
-$stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
+// Recupera i dati del container dal DB
+$stmt = $pdo->prepare("SELECT s.name, c.proxmox_containerId, c.node 
+                       FROM servers s 
+                       JOIN containers c ON c.id = s.container_id 
+                       WHERE s.id = ? AND s.user_id = ?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$server) {
-    echo json_encode(['success' => false, 'message' => 'Accesso negato.']);
+    echo json_encode(['success' => false, 'log' => '', 'new_size' => 0]);
     exit;
 }
 
-$containerId = $server['proxmox_containerId'];
-$proxmox_host = 'IL_TUO_IP_PROXMOX'; // Es. 192.168.1.251
-$ssh_key_path = '/var/www/.ssh/id_proxmox';
-$logFilePathInContainer = "/root/minecraft_bedrock/logs/latest.log"; // O il tuo percorso di debug
+$vmid = $server['proxmox_containerId'];
+$node = $server['node'];
 
-// --- Esegui i comandi su Proxmox via SSH ---
+// Chiave SSH generata manualmente
+$sshKey = '/var/www/.ssh/id_rsa_container';
+$nodeIp = '192.168.1.251'; // IP del nodo Proxmox
+
+// File di log temporaneo nel container
+$logFile = '/root/minecraft.log';
 
 try {
-    // 1. Ottieni la dimensione del file di log
-    $stat_command = "ssh -i {$ssh_key_path} -o StrictHostKeyChecking=no root@{$proxmox_host} "
-                  . escapeshellarg("pct exec {$containerId} -- stat -c%s " . escapeshellarg($logFilePathInContainer));
-    
-    $fileSize_str = shell_exec($stat_command . " 2>/dev/null");
-    $fileSize = intval(trim($fileSize_str));
+    // Legge il log dal container usando ssh + pct exec
+    $cmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- tail -n +$offset $logFile\"";
+    $output = shell_exec($cmd);
 
-    $logContent = '';
+    if ($output === null) $output = '';
 
-    // 2. Se il file è cresciuto, leggi le nuove righe
-    if ($fileSize > $offset) {
-        // tail -c +N parte dall'N-esimo byte. L'offset è la dimensione vecchia, quindi partiamo dal byte successivo.
-        $start_byte = $offset + 1;
-        $tail_command = "ssh -i {$ssh_key_path} -o StrictHostKeyChecking=no root@{$proxmox_host} "
-                      . escapeshellarg("pct exec {$containerId} -- tail -c +{$start_byte} " . escapeshellarg($logFilePathInContainer));
-        
-        $logContent = shell_exec($tail_command . " 2>/dev/null");
+    $lines = explode("\n", trim($output));
+    $htmlLog = '';
+    foreach ($lines as $line) {
+        $htmlLog .= '<span>' . htmlspecialchars($line) . '</span>';
     }
 
-    $logContent = htmlspecialchars($logContent ?? '');
+    $newSize = $offset + count($lines);
 
-    echo json_encode([
-        'success' => true,
-        'log' => nl2br($logContent),
-        'new_size' => $fileSize
-    ]);
-
-} catch (\Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Errore durante l esecuzione SSH: ' . $e->getMessage()]);
+    echo json_encode(['success' => true, 'log' => $htmlLog, 'new_size' => $newSize]);
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'log' => '', 'new_size' => 0]);
 }
