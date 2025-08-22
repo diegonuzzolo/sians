@@ -45,7 +45,12 @@ echo "eula=true" > eula.txt
 cat > start.sh << 'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
-screen -dmS "bedrock_$SERVER_ID" bash -c 'LD_LIBRARY_PATH=. ./bedrock_server'
+
+# Nome screen univoco
+SESSION="bedrock_$SERVER_ID"
+
+# Avvia in screen e logga su server.log
+screen -dmS "$SESSION" bash -c 'LD_LIBRARY_PATH=. ./bedrock_server >> server.log 2>&1'
 EOF
 # --- Disabilita telemetria ---
 chmod +x start.sh
