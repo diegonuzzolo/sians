@@ -47,35 +47,17 @@ cat > start.sh << 'EOF'
 SERVER_DIR="/root/minecraft_bedrock"
 LOG_FILE="$SERVER_DIR/server.log"
 PID_FILE="$SERVER_DIR/server.pid"
-SESSION_NAME="mcserver"
 
 cd "$SERVER_DIR" || exit 1
 
-# Se non esiste, crea il log file
+# Crea log se non esiste
 touch "$LOG_FILE"
 chmod 664 "$LOG_FILE"
 rm -f "$PID_FILE"
 
-# Se esiste già una sessione screen con lo stesso nome, la killo
-if screen -list | grep -q "$SESSION_NAME"; then
-    echo "⚠️  Sessione $SESSION_NAME già in esecuzione. La termino..."
-    screen -S "$SESSION_NAME" -X quit
-fi
-
-# Avvio del server in una sessione screen con log persistente
-echo "✅ Avvio del server Bedrock..."
-screen -dmS "$SESSION_NAME" bash -c "LD_LIBRARY_PATH=. ./bedrock_server | tee -a '$LOG_FILE'"
-
-# Salva il PID del processo bedrock_server
-sleep 2
-BEDROCK_PID=$(pgrep -f bedrock_server | head -n 1)
-if [ -n "$BEDROCK_PID" ]; then
-    echo "$BEDROCK_PID" > "$PID_FILE"
-    echo "✅ Server avviato con PID $BEDROCK_PID"
-else
-    echo "❌ Errore: impossibile trovare il PID del server!"
-fi
-
+# Avvia server in background
+nohup ./bedrock_server > "$LOG_FILE" 2>&1 &
+echo $! > "$PID_FILE"
 
 EOF
 # --- Disabilita telemetria ---
