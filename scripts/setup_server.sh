@@ -45,7 +45,15 @@ echo "eula=true" > eula.txt
 cat > start.sh << 'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
-LD_LIBRARY_PATH=. ./bedrock_server
+LOG_FILE="server.log"
+
+# Crea log se non esiste
+touch "$LOG_FILE"
+chmod 664 "$LOG_FILE"
+
+# Avvia server redirectando stdout/stderr
+LD_LIBRARY_PATH=. ./bedrock_server > "$LOG_FILE" 2>&1
+
 EOF
 # --- Disabilita telemetria ---
 chmod +x start.sh
