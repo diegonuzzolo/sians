@@ -31,13 +31,17 @@ try {
         $newStatus = 'running';
         $successMessage = 'Server avviato!';
     } elseif ($action === 'stop') {
-        $cmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-             . "\"pct exec $vmid -- /root/minecraft_bedrock/stop.sh\"";
-        $newStatus = 'stopped';
-        $successMessage = 'Server fermato!';
-    } else {
-        throw new Exception('Azione non valida');
-    }
+    // METODO SICURO: Invia il comando 'stop' alla sessione screen esistente.
+    // Permette al server di salvarsi correttamente.
+    $cmd = sprintf(
+        'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- screen -S %s -p 0 -X stuff %s"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid,
+        escapeshellarg($sessionName),
+        escapeshellarg("stop\n") // Invia il comando 'stop' seguito da Invio
+    );
+}
 
     // Esegui comando
     exec($cmd . " 2>&1", $output, $status);
