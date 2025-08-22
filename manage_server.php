@@ -171,20 +171,6 @@ if (!$server) {
                         </div>
                     </div>
                 </div>
-                <div id="console-tab" class="tab-content hidden">
-                    <div id="console-output"
-                        class="bg-black text-green-400 p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm border border-gray-700 shadow-inner">
-                        <p class="text-gray-500 italic">Caricamento log...</p>
-                    </div>
-                    <div class="flex mt-4">
-                        <input id="console-command" type="text" placeholder="Scrivi un comando..."
-                            class="flex-grow p-3 rounded-l-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <button id="send-command-btn"
-                            class="px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-r-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
-                            Invia
-                        </button>
-                    </div>
-                </div>
 
                 <div id="players-tab" class="tab-content hidden">
                     <div class="space-y-6">
@@ -311,69 +297,6 @@ if (!$server) {
     <div id="notification-message" class="notification hidden"></div>
 
     <script>
-        // Caricamento log console
-        function loadLogs() {
-            fetch('ajax_console_log.php', {
-                method: 'POST',
-                body: new URLSearchParams({
-                    id: serverId,
-                    csrf_token: csrfToken
-                })
-            })
-                .then(r => r.json())
-                .then(data => {
-                    const output = document.getElementById('console-output');
-                    if (data.success) {
-                        output.innerHTML = data.log.split("\n").map(line =>
-                            `<div class="whitespace-pre-wrap">${line}</div>`
-                        ).join("");
-                        output.scrollTop = output.scrollHeight;
-                    } else {
-                        output.innerHTML = `<p class="text-red-500">${data.message}</p>`;
-                    }
-                })
-                .catch(() => {
-                    document.getElementById('console-output').innerHTML =
-                        "<p class='text-red-500'>Errore nel caricamento log</p>";
-                });
-        }
-
-        // Aggiorna log ogni 2 secondi quando la tab Console è attiva
-        setInterval(() => {
-            const consoleTab = document.getElementById("console-tab");
-            if (!consoleTab.classList.contains("hidden")) {
-                loadLogs();
-            }
-        }, 2000);
-
-        // Invio comandi
-        document.getElementById('send-command-btn').addEventListener('click', () => {
-            const cmdInput = document.getElementById('console-command');
-            const cmd = cmdInput.value.trim();
-            if (!cmd) return;
-
-            fetch('ajax_send_command.php', {
-                method: 'POST',
-                body: new URLSearchParams({
-                    command: cmd,
-                    id: serverId,
-                    csrf_token: csrfToken
-                })
-            })
-                .then(r => r.json())
-                .then(data => {
-                    showNotification(data.success, data.message);
-                    if (data.success) cmdInput.value = "";
-                })
-                .catch(() => showNotification(false, "Errore nell'invio del comando"));
-        });
-
-        // Invio con tasto Invio
-        document.getElementById('console-command').addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                document.getElementById('send-command-btn').click();
-            }
-        });
 
 
 
