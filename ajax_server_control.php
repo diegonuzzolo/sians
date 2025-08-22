@@ -3,6 +3,7 @@ include("auth_check.php");
 require 'config/config.php';
 require_once 'includes/csrf.php';
 
+// Controlla il token CSRF o termina l'esecuzione
 csrf_check_or_die_json();
 
 try {
@@ -11,43 +12,71 @@ try {
     $action   = $_POST['action'] ?? '';
 
     if (!$userId || !$serverId) {
-        throw new Exception("Parametri non validi");
+        throw new Exception("Parametri della richiesta non validi.");
     }
 
     if (!in_array($action, ['start', 'stop'])) {
-        throw new Exception("Azione non valida");
+        throw new Exception("Azione non consentita.");
     }
 
-    // Recupera VMID del server
-    $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
+    // --- MODIFICA 1: Migliorata la query per ottenere anche l'IP del nodo ---
+    // Recupera VMID del server e l'IP del nodo Proxmox a cui appartiene
+    $stmt = $pdo->prepare("
+        SELECT 
+            s.proxmox_containerId, 
+            n.ip AS node_ip
+        FROM servers s
+        JOIN containers c ON s.container_id = c.id
+        JOIN nodes n ON c.node_id = n.id
+        WHERE s.id = ? AND s.user_id = ?
+    ");
     $stmt->execute([$serverId, $userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$server || empty($server['proxmox_containerId'])) {
-        throw new Exception("Server non trovato o VMID mancante");
+    if (!$server || empty($server['proxmox_containerId']) || empty($server['node_ip'])) {
+        throw new Exception("Server non trovato o configurazione incompleta (VMID o IP del nodo mancante).");
     }
 
-    $vmid     = intval($server['proxmox_containerId']);
-    $nodeIp   = '192.168.1.251';
-    $sshKey   = '/var/www/.ssh/id_proxmox';
-    $remoteScript = ($action === 'start') ? '/root/minecraft_bedrock/start.sh' : '/root/minecraft_bedrock/stop.sh';
+    $vmid   = intval($server['proxmox_containerId']);
+    $nodeIp = $server['node_ip']; // Usiamo l'IP recuperato dal DB
+    $sshKey = '/var/www/.ssh/id_proxmox'; // Percorso della chiave SSH sul server web
 
-    // Comando SSH con pct exec + screen
-    $cmd = sprintf(
-        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -dmS mcserver %s"',
-        escapeshellarg($sshKey),
-        escapeshellarg($nodeIp),
-        $vmid,
-        escapeshellarg($remoteScript)
-    );
+    // --- MODIFICA 2: Nome della sessione screen coerente con start.sh ---
+    // Il nome della sessione DEVE essere lo stesso usato in start.sh (es. mc-101)
+    $sessionName = "mc-" . $vmid;
+    
+    $cmd = '';
 
+    // --- MODIFICA 3: Logica separata e corretta per 'start' e 'stop' ---
+    if ($action === 'start') {
+        // Per avviare, eseguiamo semplicemente lo script. Sarà lui a creare la sessione screen.
+        $remoteScript = '/root/minecraft_bedrock/start.sh';
+        $cmd = sprintf(
+            'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
+            escapeshellarg($sshKey),
+            escapeshellarg($nodeIp),
+            $vmid,
+            escapeshellarg($remoteScript)
+        );
+    } elseif ($action === 'stop') {
+        // Per fermare, inviamo il comando 'stop' alla sessione screen già esistente.
+        $cmd = sprintf(
+            'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- screen -S %s -p 0 -X stuff %s"',
+            escapeshellarg($sshKey),
+            escapeshellarg($nodeIp),
+            $vmid,
+            escapeshellarg($sessionName),
+            escapeshellarg("stop\n") // Invia il comando 'stop' seguito da Invio
+        );
+    }
+    
     exec($cmd . " 2>&1", $output, $ret);
 
-    // Log per debug
-    file_put_contents('/tmp/debug_server_control.log', date('Y-m-d H:i:s') . " | CMD: $cmd\nRET: $ret\nOUTPUT:\n" . implode("\n", $output) . "\n\n", FILE_APPEND);
+    // Log per debug, molto utile
+    file_put_contents('/tmp/debug_server_control.log', date('Y-m-d H:i:s') . " | ACTION: {$action} | CMD: {$cmd}\nRET: {$ret}\nOUTPUT:\n" . implode("\n", $output) . "\n\n", FILE_APPEND);
 
     if ($ret !== 0) {
-        throw new Exception("Errore esecuzione {$action}. Controlla log: /tmp/debug_server_control.log");
+        throw new Exception("Errore durante l'esecuzione dell'azione '{$action}'. L'output del comando è stato loggato per debug.");
     }
 
     // Aggiorna lo status nel DB
@@ -57,11 +86,14 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => ucfirst($action) . " del server eseguita con successo",
+        'message' => "Azione '{$action}' eseguita con successo.",
         'status'  => $newStatus
     ]);
 
 } catch (Exception $e) {
+    // Logga anche l'errore catturato
+    file_put_contents('/tmp/debug_server_control.log', date('Y-m-d H:i:s') . " | EXCEPTION: " . $e->getMessage() . "\n\n", FILE_APPEND);
+    
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
