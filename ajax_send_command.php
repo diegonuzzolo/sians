@@ -49,18 +49,12 @@ $proxmoxUser = 'root'; // utente con accesso pct
 $proxmoxHost = '192.168.1.251';
 
 // Escape comando per screen
-$escapedCommand = addslashes($command) . "\n";
+$escapedCommand = str_replace("'", "'\\''", $command) . "\\n";
 
-// Costruzione comando SSH con chiave privata
-$sshCommand = sprintf(
-    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "pct exec %d -- screen -S %s -X stuff \'%s\'"',
-    escapeshellarg($privateKeyPath),
-    escapeshellarg($proxmoxUser),
-    escapeshellarg($proxmoxHost),
-    $vmid,
-    escapeshellarg($screenSession),
-    $escapedCommand
-);
+$sshCommand = "ssh -i " . escapeshellarg($privateKeyPath) . 
+              " -o StrictHostKeyChecking=no " . escapeshellarg($proxmoxUser) . "@" . escapeshellarg($proxmoxHost) . 
+              " \"pct exec $vmid -- screen -S '$screenSession' -X stuff '$escapedCommand'\"";
+
 
 // Esegui comando
 exec($sshCommand . ' 2>&1', $output, $returnVar);
