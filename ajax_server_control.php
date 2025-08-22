@@ -49,7 +49,7 @@ try {
         // Per avviare, eseguiamo semplicemente lo script. Sarà lui a creare la sessione screen.
         $remoteScript = '/root/minecraft_bedrock/start.sh';
         $cmd = sprintf(
-            'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
+            'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
             escapeshellarg($sshKey),
             escapeshellarg($nodeIp),
             $vmid,
@@ -60,7 +60,7 @@ try {
     $remoteScript = '/root/minecraft_bedrock/stop.sh';
     
     $cmd = sprintf(
-        'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
+        'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
         escapeshellarg($sshKey),
         escapeshellarg($nodeIp),
         $vmid,
