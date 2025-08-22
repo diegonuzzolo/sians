@@ -18,32 +18,33 @@ try {
         throw new Exception("Azione non valida");
     }
 
-    // Recupera VMID del server
-    $stmt = $pdo->prepare("SELECT proxmox_containerId FROM servers WHERE id=? AND user_id=?");
+    // Recupera IP del container
+    $stmt = $pdo->prepare("SELECT c.ip 
+                           FROM servers s 
+                           JOIN containers c ON s.container_id = c.id 
+                           WHERE s.id=? AND s.user_id=?");
     $stmt->execute([$serverId, $userId]);
-    $server = $stmt->fetch(PDO::FETCH_ASSOC);
+    $container = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$server || empty($server['proxmox_containerId'])) {
-        throw new Exception("Server non trovato o VMID mancante");
+    if (!$container || empty($container['ip'])) {
+        throw new Exception("Server non trovato o IP container mancante");
     }
 
-    $vmid     = intval($server['proxmox_containerId']);
-    $nodeIp   = '192.168.1.251';
-    $sshKey   = '/var/www/.ssh/id_rsa_container';
-    $remoteScript = ($action === 'start') ? '/root/minecraft_bedrock/start.sh' : '/root/minecraft_bedrock/stop.sh';
+    $containerIp   = $container['ip'];
+    $sshKey        = '/var/www/.ssh/id_rsa_container'; // chiave statica www-data
+    $remoteScript  = ($action === 'start') ? '/root/minecraft_bedrock/start.sh' : '/root/minecraft_bedrock/stop.sh';
 
-    // Comando SSH con pct exec + screen
+    // Comando SSH diretto nel container
     $cmd = sprintf(
-        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -dmS mcserver %s"',
+        'ssh -i %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@%s "screen -dmS mcserver %s"',
         escapeshellarg($sshKey),
-        escapeshellarg($nodeIp),
-        $vmid,
+        escapeshellarg($containerIp),
         escapeshellarg($remoteScript)
     );
 
     exec($cmd . " 2>&1", $output, $ret);
 
-    // Log per debug
+    // Log debug
     file_put_contents('/tmp/debug_server_control.log', date('Y-m-d H:i:s') . " | CMD: $cmd\nRET: $ret\nOUTPUT:\n" . implode("\n", $output) . "\n\n", FILE_APPEND);
 
     if ($ret !== 0) {
