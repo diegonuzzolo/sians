@@ -1,6 +1,6 @@
 <?php
 require 'config/config.php';
-require 'proxmox_functions.php';
+require 'proxmox_api.php';
 session_start();
 
 $userId = $_SESSION['user_id'] ?? 0;
@@ -27,21 +27,26 @@ if (!$server) {
 $vmid = $server['proxmox_containerId'];
 $node = $server['node'];
 
-// Recupera ultime 100 righe del log
+// Avvia il comando "tail"
 $payload = [
     "command" => "/bin/bash",
     "extra-args" => ["-c", "tail -n 100 /root/minecraft_bedrock/server.log"]
 ];
 
-$response = callProxmox("POST", "/nodes/$node/lxc/$vmid/exec", $payload);
+$exec = callProxmox("POST", "/nodes/$node/lxc/$vmid/exec", $payload);
 
-if (!empty($response['upid'])) {
-    // Recupera output del comando
-    $execId = $response['upid'];
-    sleep(1); // piccola attesa
-    $output = callProxmox("GET", "/nodes/$node/tasks/$execId/log");
-    $lines = array_column($output['data'] ?? [], 't'); // testo log
-    echo json_encode(['success' => true, 'logs' => $lines]);
-} else {
-    echo json_encode(['success' => false, 'message' => 'Errore recupero log']);
+if (empty($exec['data']['pid'])) {
+    echo json_encode(['success' => false, 'message' => 'Errore avvio exec']);
+    exit;
 }
+
+$pid = $exec['data']['pid'];
+
+// Attendi un attimo che il comando finisca
+usleep(500000);
+
+// Recupera stdout
+$output = callProxmox("GET", "/nodes/$node/lxc/$vmid/exec/$pid/stdout");
+$logs = $output['data'] ?? [];
+
+echo json_encode(['success' => true, 'logs' => $logs]);
