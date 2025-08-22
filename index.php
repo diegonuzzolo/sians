@@ -103,11 +103,6 @@ $vmStorageSpeed = 7500;
                     <p class="text-gray-400 text-sm">Assistenza professionale sempre disponibile via email</p>
                 </div>
                 <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
-                    <i class="bi bi-tools text-3xl text-yellow-400 mb-2"></i>
-                    <h5 class="text-xl font-semibold text-white mb-1">Gestione e aggiornamenti</h5>
-                    <p class="text-gray-400 text-sm">Manutenzione, aggiornamenti e ottimizzazioni server incluse nel prezzo.</p>
-                </div>
-                <div class="plan-item bg-gray-700 rounded-xl p-6 shadow-md transition-all duration-300 hover:bg-gray-600">
                     <i class="bi bi-layout-text-window-reverse text-3xl text-yellow-400 mb-2"></i>
                     <h5 class="text-xl font-semibold text-white mb-1">Console Web e Dashboard</h5>
                     <p class="text-gray-400 text-sm">Interfaccia alla console del server per controllo completo e gestione intuitiva.</p>
