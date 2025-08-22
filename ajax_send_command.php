@@ -4,7 +4,6 @@ require 'config/config.php';
 
 header('Content-Type: application/json');
 
-// Controllo CSRF
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['csrf_token'], $_POST['server_id'], $_POST['command'])) {
     echo json_encode(['success' => false, 'message' => 'Dati mancanti.']);
     exit;
@@ -24,40 +23,43 @@ if ($command === '') {
     exit;
 }
 
-// Recupera VMID del container, nome del server e chiave privata
+// Recupera VMID e nome del server
 $stmt = $pdo->prepare("
-    SELECT c.proxmox_containerId, s.name, n.id_proxmox
+    SELECT c.proxmox_containerId, s.name
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
-    LEFT JOIN proxmox_nodes n ON c.node_id = n.id
     WHERE s.id = ? AND s.user_id = ?
 ");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$server || empty($server['proxmox_containerId']) || empty($server['id_proxmox'])) {
-    echo json_encode(['success' => false, 'message' => 'Container o chiave privata non trovati.']);
+if (!$server || empty($server['proxmox_containerId'])) {
+    echo json_encode(['success' => false, 'message' => 'Container non trovato.']);
     exit;
 }
 
 $vmid = intval($server['proxmox_containerId']);
-$screenSession = 'mc-' . str_replace(' ', '_', $server['name']); // SESSION_NAME="mc-<nome_server>"
+$screenSession = 'mc-' . $server['name'];
+
+$proxmoxUser = 'root';
+$proxmoxHost = '192.168.1.251';
 $privateKeyPath = '/var/www/.ssh/id_proxmox';
 
-// SSH verso il nodo Proxmox
-$proxmoxUser = 'root'; // utente con accesso pct
-$proxmoxHost = '192.168.1.251';
-
-// Escape comando per screen
+// Escape comando: apici singoli e newline finale
 $escapedCommand = str_replace("'", "'\\''", $command) . "\\n";
 
-$sshCommand = "ssh -i " . escapeshellarg($privateKeyPath) . 
-              " -o StrictHostKeyChecking=no " . escapeshellarg($proxmoxUser) . "@" . escapeshellarg($proxmoxHost) . 
-              " \"pct exec $vmid -- screen -S '$screenSession' -X stuff '$escapedCommand'\"";
+// Comando completo
+$sshCommand = sprintf(
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "pct exec %d -- screen -S \'%s\' -X stuff \'%s\'"',
+    escapeshellarg($privateKeyPath),
+    escapeshellarg($proxmoxUser),
+    escapeshellarg($proxmoxHost),
+    $vmid,
+    $screenSession,
+    $escapedCommand
+);
 
-
-// Esegui comando
-exec($sshCommand . ' 2>&1', $output, $returnVar);
+exec($sshCommand, $output, $returnVar);
 
 if ($returnVar !== 0) {
     echo json_encode([
