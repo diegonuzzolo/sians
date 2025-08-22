@@ -311,15 +311,20 @@ if (!$server) {
     <div id="notification-message" class="notification hidden"></div>
 
     <script>
-
         // Caricamento log console
         function loadLogs() {
-            fetch('ajax_console_logs.php?id=' + serverId + '&csrf_token=' + csrfToken)
+            fetch('ajax_console_log.php', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    id: serverId,
+                    csrf_token: csrfToken
+                })
+            })
                 .then(r => r.json())
                 .then(data => {
                     const output = document.getElementById('console-output');
                     if (data.success) {
-                        output.innerHTML = data.logs.map(line =>
+                        output.innerHTML = data.log.split("\n").map(line =>
                             `<div class="whitespace-pre-wrap">${line}</div>`
                         ).join("");
                         output.scrollTop = output.scrollHeight;
@@ -347,11 +352,11 @@ if (!$server) {
             const cmd = cmdInput.value.trim();
             if (!cmd) return;
 
-            fetch('ajax_console_send.php', {
+            fetch('ajax_send_command.php', {
                 method: 'POST',
                 body: new URLSearchParams({
                     command: cmd,
-                    server_id: serverId,
+                    id: serverId,
                     csrf_token: csrfToken
                 })
             })
