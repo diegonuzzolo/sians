@@ -34,7 +34,7 @@ try {
 
     // Comando per leggere il contenuto del file DENTRO il container
     $cmd = sprintf(
-        'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- cat %s"',
+        'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- cat %s"',
         escapeshellarg($sshKey),
         escapeshellarg($nodeIp),
         $vmid,
