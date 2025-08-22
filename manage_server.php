@@ -113,7 +113,9 @@ if (!$server) {
                     class="tab-button active text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
                     data-tab="general">Generale</button>
              
-
+                <button type="button"
+    class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
+    data-tab="console">Console</button>
 
                 <button type="button"
                     class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
@@ -287,13 +289,112 @@ if (!$server) {
                     </button>
                 </div>
             </form>
+
+<div id="console-tab" class="tab-content hidden mt-6">
+    <div id="console-output" class="h-96 bg-black p-4 rounded-lg font-mono text-sm overflow-y-auto border border-gray-700">
+        Caricamento console...
+    </div>
+    <div class="mt-4 flex">
+        <input type="text" id="console-input" 
+               class="flex-grow p-3 rounded-l-lg bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+               placeholder="Scrivi un comando e premi Invio...">
+        <button id="send-command-btn" 
+                class="px-6 py-3 bg-blue-600 text-white rounded-r-lg font-bold hover:bg-blue-700 transition-colors duration-200">
+            Invia
+        </button>
+    </div>
+</div>
         </div>
     </main>
 
     <div id="notification-message" class="notification hidden"></div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+    const consoleOutput = document.getElementById('console-output');
+    const consoleInput = document.getElementById('console-input');
+    const sendBtn = document.getElementById('send-command-btn');
 
+    let lastSize = 0; // Tiene traccia della dimensione del log letto
+
+    // Funzione per inviare un comando
+    async function sendCommand() {
+        const command = consoleInput.value.trim();
+        if (!command) return;
+
+        consoleInput.value = ''; // Pulisci l'input
+        
+        const formData = new FormData();
+        formData.append('server_id', serverId);
+        formData.append('csrf_token', csrfToken);
+        formData.append('command', command);
+
+        try {
+            const response = await fetch('ajax_send_command.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (!data.success) {
+                appendToConsole(`\n<span class="text-red-400">Errore: ${data.message}</span>\n`);
+            }
+        } catch (error) {
+            appendToConsole(`\n<span class="text-red-400">Errore di rete nell'invio del comando.</span>\n`);
+        }
+    }
+
+    // Funzione per aggiungere testo alla console e scrollare in fondo
+    function appendToConsole(text) {
+        consoleOutput.innerHTML += text.replace(/\n/g, '<br>'); // Converte newline in <br>
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    // Funzione di long polling per ricevere l'output
+    async function fetchLog() {
+        try {
+            const response = await fetch(`ajax_get_log.php?id=${serverId}&lastSize=${lastSize}`);
+            const data = await response.json();
+
+            if (data.success && data.content) {
+                // Se è la prima volta che carichiamo, puliamo il messaggio "Caricamento..."
+                if (consoleOutput.textContent === 'Caricamento console...') {
+                    consoleOutput.innerHTML = '';
+                }
+                appendToConsole(data.content);
+            }
+            lastSize = data.newSize;
+        } catch (error) {
+            console.error('Errore nel fetch del log:', error);
+            appendToConsole(`\n<span class="text-yellow-400">Connessione persa... Riprovo.</span>\n`);
+            // Aspetta un po' prima di riprovare in caso di errore di rete
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        
+        // Richiama se stessa per creare un loop infinito
+        fetchLog();
+    }
+    
+    // Gestione eventi
+    sendBtn.addEventListener('click', sendCommand);
+    consoleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            sendCommand();
+        }
+    });
+
+    // Avvia il polling quando la tab della console diventa visibile
+    const consoleTabButton = document.querySelector('button[data-tab="console"]');
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class' && !document.getElementById('console-tab').classList.contains('hidden')) {
+                if (consoleOutput.textContent === 'Caricamento console...') {
+                     fetchLog(); // Avvia il polling solo la prima volta che la tab viene aperta
+                }
+            }
+        });
+    });
+    observer.observe(document.getElementById('console-tab'), { attributes: true });
+});
 
 
         const csrfToken = '<?= $csrf_token ?>';

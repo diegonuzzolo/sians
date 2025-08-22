@@ -45,15 +45,21 @@ echo "eula=true" > eula.txt
 cat > start.sh << 'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
+
+# Nome univoco per la sessione screen, es. "mc-123" dove 123 è l'ID del container
+SESSION_NAME="mc-$(hostname)"
 LOG_FILE="server.log"
 
-# Crea log se non esiste
-touch "$LOG_FILE"
-chmod 664 "$LOG_FILE"
+# Se una sessione con lo stesso nome è già in esecuzione, la terminiamo
+if screen -list | grep -q "$SESSION_NAME"; then
+    screen -S "$SESSION_NAME" -X quit
+fi
 
-# Avvia server redirectando stdout/stderr
-LD_LIBRARY_PATH=. ./bedrock_server > "$LOG_FILE" 2>&1
+# Avvia il server dentro una sessione screen staccata (-d -m)
+# L'output viene loggato su screen e anche nel file LOG_FILE
+screen -dmS "$SESSION_NAME" -L -Logfile "$LOG_FILE" ./bedrock_server
 
+echo "Server avviato nella sessione screen '$SESSION_NAME'."
 EOF
 # --- Disabilita telemetria ---
 chmod +x start.sh
