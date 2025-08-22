@@ -24,33 +24,46 @@ if ($command === '') {
     exit;
 }
 
-// Recupera VMID del container e nome del server
+// Recupera VMID del container, nome del server e chiave privata
 $stmt = $pdo->prepare("
-    SELECT c.proxmox_containerId, s.name
+    SELECT c.proxmox_containerId, s.name, n.id_proxmox
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
+    LEFT JOIN proxmox_nodes n ON c.node_id = n.id
     WHERE s.id = ? AND s.user_id = ?
 ");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$server || empty($server['proxmox_containerId'])) {
-    echo json_encode(['success' => false, 'message' => 'Container non trovato.']);
+if (!$server || empty($server['proxmox_containerId']) || empty($server['id_proxmox'])) {
+    echo json_encode(['success' => false, 'message' => 'Container o chiave privata non trovati.']);
     exit;
 }
 
 $vmid = intval($server['proxmox_containerId']);
-$screenSession = 'mc-' . $server['name']; // SESSION_NAME="mc-<nome_server>"
+$screenSession = 'mc-' . str_replace(' ', '_', $server['name']); // SESSION_NAME="mc-<nome_server>"
+$privateKeyPath = '/var/www/.ssh/id_proxmox';
 
 // SSH verso il nodo Proxmox
-$proxmoxUser = 'root'; // o altro utente con accesso pct
+$proxmoxUser = 'root'; // utente con accesso pct
 $proxmoxHost = '192.168.1.251';
-$escapedCommand = str_replace("'", "'\\''", $command) . "\\n";
 
-$sshCommand = "ssh -o StrictHostKeyChecking=no $proxmoxUser@$proxmoxHost 'pct exec $vmid -- screen -S \"$screenSession\" -X stuff \'$escapedCommand\''";
+// Escape comando per screen
+$escapedCommand = addslashes($command) . "\n";
+
+// Costruzione comando SSH con chiave privata
+$sshCommand = sprintf(
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "pct exec %d -- screen -S %s -X stuff \'%s\'"',
+    escapeshellarg($privateKeyPath),
+    escapeshellarg($proxmoxUser),
+    escapeshellarg($proxmoxHost),
+    $vmid,
+    escapeshellarg($screenSession),
+    $escapedCommand
+);
 
 // Esegui comando
-exec($sshCommand, $output, $returnVar);
+exec($sshCommand . ' 2>&1', $output, $returnVar);
 
 if ($returnVar !== 0) {
     echo json_encode([
