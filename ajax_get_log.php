@@ -33,7 +33,7 @@ try {
     }
 
     $vmid = intval($server['proxmox_containerId']);
-    $nodeIp = $server['node_ip'];
+    $nodeIp = '192.168.1.251';
     $sshKey = '/var/www/.ssh/id_proxmox';
     $remoteLogPath = '/root/minecraft_bedrock/server.log';
 
