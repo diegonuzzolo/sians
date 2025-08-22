@@ -1,47 +1,60 @@
 <?php
-include("auth_check.php");
-require 'config/config.php';
-
+session_start();
 header('Content-Type: application/json');
 
-// Validazione CSRF e input
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-    echo json_encode(['success' => false, 'message' => 'Richiesta non valida.']);
-    exit;
-}
+require 'config/config.php';
+require_once 'includes/auth_check.php';
 
+$userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_POST['server_id'] ?? 0);
 $command = trim($_POST['command'] ?? '');
-$userId = $_SESSION['user_id'] ?? 0;
+$csrfToken = $_POST['csrf_token'] ?? '';
 
-if (empty($command)) {
-    echo json_encode(['success' => false, 'message' => 'Il comando non può essere vuoto.']);
+if (!hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+    echo json_encode(['success' => false, 'message' => 'Token CSRF non valido']);
     exit;
 }
 
-// Recupera l'ID del container dal DB
-$stmt = $pdo->prepare("SELECT c.proxmox_containerId FROM servers s JOIN containers c ON s.container_id = c.id WHERE s.id = ? AND s.user_id = ?");
+// Recupera il server e il container
+$stmt = $pdo->prepare("
+    SELECT s.*, c.proxmox_containerId
+    FROM servers s
+    LEFT JOIN containers c ON c.id = s.container_id
+    WHERE s.id=? AND s.user_id=?
+");
 $stmt->execute([$serverId, $userId]);
-$containerId = $stmt->fetchColumn();
+$server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$containerId) {
-    echo json_encode(['success' => false, 'message' => 'Server non trovato.']);
+if (!$server) {
+    echo json_encode(['success' => false, 'message' => 'Server non trovato']);
     exit;
 }
 
-// Nome della sessione screen (deve corrispondere a quello in start.sh)
-$sessionName = "mc-" . $containerId;
+$containerId = $server['proxmox_containerId'];
+$nodeIp = '192.168.1.251';
+$sshUser = 'root';
+$sshKey = '/root/.ssh/id_rsa';
 
-// Comando da eseguire su Proxmox per inviare il comando a screen
-// escapeshellarg è FONDAMENTALE per la sicurezza
-$proxmoxCommand = sprintf(
-    'pct exec %d -- screen -S %s -p 0 -X stuff %s',
-    $containerId,
-    escapeshellarg($sessionName),
-    escapeshellarg($command . "\n") // Aggiungiamo "\n" per simulare l'Invio
+// Il nome della sessione screen deve corrispondere allo script di avvio
+$screenSession = "mc-$containerId";
+
+// Comando da inviare dentro screen (aggiungi il newline \n)
+$escapedCommand = str_replace('"', '\"', $command);
+$screenCommand = "screen -S $screenSession -X stuff \"$escapedCommand\n\"";
+
+// Esecuzione via SSH sul nodo Proxmox
+$sshCommand = sprintf(
+    'ssh -i %s -o StrictHostKeyChecking=no %s@%s "%s"',
+    escapeshellarg($sshKey),
+    escapeshellarg($sshUser),
+    escapeshellarg($nodeIp),
+    $screenCommand
 );
 
-// Esegui il comando (ATTENZIONE: l'utente del webserver, es. www-data, deve avere i permessi sudo per pct)
-$output = shell_exec("sudo " . $proxmoxCommand);
+exec($sshCommand, $output, $returnVar);
 
-echo json_encode(['success' => true, 'message' => 'Comando inviato.']);
+if ($returnVar !== 0) {
+    echo json_encode(['success' => false, 'message' => 'Errore nell\'invio del comando']);
+} else {
+    echo json_encode(['success' => true, 'message' => 'Comando inviato']);
+}

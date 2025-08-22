@@ -44,14 +44,21 @@ if (!$server) {
             background-color: #121212;
             color: #fff;
         }
+
         /* Aggiungi questo nuovo stile */
-#console-output {
-    white-space: pre-wrap;      /* Preserva gli spazi e va a capo automaticamente */
-    word-break: break-all;      /* Forza le parole lunghe (es. URL) ad andare a capo */
-    font-family: 'Menlo', 'Monaco', 'Consolas', monospace; /* Usa un font monospaziato */
-    font-size: 0.8rem;          /* Rende il testo più piccolo (puoi usare 12px, 0.75rem, etc.) */
-    line-height: 1.5;           /* Aumenta lo spazio tra le righe per una migliore leggibilità */
-}
+        #console-output {
+            white-space: pre-wrap;
+            /* Preserva gli spazi e va a capo automaticamente */
+            word-break: break-all;
+            /* Forza le parole lunghe (es. URL) ad andare a capo */
+            font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+            /* Usa un font monospaziato */
+            font-size: 0.8rem;
+            /* Rende il testo più piccolo (puoi usare 12px, 0.75rem, etc.) */
+            line-height: 1.5;
+            /* Aumenta lo spazio tra le righe per una migliore leggibilità */
+        }
+
         .tab-button.active {
             background-color: #3b82f6;
             color: #fff;
@@ -119,10 +126,10 @@ if (!$server) {
                 <button type="button"
                     class="tab-button active text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
                     data-tab="general">Generale</button>
-             
+
                 <button type="button"
-    class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
-    data-tab="console">Console</button>
+                    class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
+                    data-tab="console">Console</button>
 
                 <button type="button"
                     class="tab-button text-lg py-3 px-6 rounded-t-xl transition-colors duration-200 hover:bg-gray-700 focus:outline-none"
@@ -297,20 +304,20 @@ if (!$server) {
                 </div>
             </form>
 
-<div id="console-tab" class="tab-content hidden mt-6">
-    <div id="console-output" class="h-96 bg-black p-4 rounded-lg overflow-y-auto border border-gray-700">
-        Caricamento console...
-    </div>
-    <div class="mt-4 flex">
-        <input type="text" id="console-input" 
-               class="flex-grow p-3 rounded-l-lg bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
-               placeholder="Scrivi un comando e premi Invio...">
-        <button id="send-command-btn" 
-                class="px-6 py-3 bg-blue-600 text-white rounded-r-lg font-bold hover:bg-blue-700 transition-colors duration-200">
-            Invia
-        </button>
-    </div>
-</div>
+            <div id="console-tab" class="tab-content hidden mt-6">
+                <div id="console-output" class="h-96 bg-black p-4 rounded-lg overflow-y-auto border border-gray-700">
+                    Caricamento console...
+                </div>
+                <div class="mt-4 flex">
+                    <input type="text" id="console-input"
+                        class="flex-grow p-3 rounded-l-lg bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Scrivi un comando e premi Invio...">
+                    <button id="send-command-btn"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-r-lg font-bold hover:bg-blue-700 transition-colors duration-200">
+                        Invia
+                    </button>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -318,126 +325,156 @@ if (!$server) {
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-        console.log("Pagina caricata. Script di gestione unificato avviato.");
+            console.log("Pagina caricata. Script di gestione unificato avviato.");
 
-        // --- Variabili Globali ---
-        const csrfToken = '<?= $csrf_token ?>';
-        const serverId = '<?= $serverId ?>';
-        const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
+            // --- Variabili Globali ---
+            const csrfToken = '<?= $csrf_token ?>';
+            const serverId = '<?= $serverId ?>';
+            const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
 
-        // --- Elementi del DOM ---
-        const iconPreview = document.getElementById('server-icon-preview');
-        const msgBox = document.getElementById('notification-message');
-        const serverPropertiesForm = document.getElementById('serverPropertiesForm');
-        const uploadIconButton = document.getElementById('upload-icon-btn');
-        const consoleTabButton = document.querySelector('button[data-tab="console"]');
-        const consoleOutput = document.getElementById('console-output');
-        let logIntervalId = null;
+            // --- Elementi del DOM ---
+            const iconPreview = document.getElementById('server-icon-preview');
+            const msgBox = document.getElementById('notification-message');
+            const serverPropertiesForm = document.getElementById('serverPropertiesForm');
+            const uploadIconButton = document.getElementById('upload-icon-btn');
+            const consoleTabButton = document.querySelector('button[data-tab="console"]');
+            const consoleOutput = document.getElementById('console-output');
+            let logIntervalId = null;
 
-        // --- Funzioni ---
-        function showNotification(success, message) {
-            msgBox.textContent = message;
-            msgBox.className = `notification ${success ? 'success' : 'error'}`;
-            msgBox.classList.remove('hidden');
-            msgBox.style.opacity = '1';
-            setTimeout(() => {
-                msgBox.style.opacity = '0';
-                setTimeout(() => msgBox.classList.add('hidden'), 300);
-            }, 5000);
-        }
-
-        async function fetchLogAndUpdateConsole() {
-            try {
-                const response = await fetch(`ajax_get_log.php?id=${serverId}`);
-                if (!response.ok) {
-                    console.error("Errore di rete:", response.status);
-                    if(logIntervalId) clearInterval(logIntervalId); 
-                    return;
-                }
-                const data = await response.json();
-                if (data.success) {
-                    // Usare .textContent è sicuro e preserva i newline (\n)
-                    consoleOutput.textContent = data.content;
-                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                } else {
-                    consoleOutput.textContent = "Errore nel caricamento del log: " + data.message;
-                    if(logIntervalId) clearInterval(logIntervalId);
-                }
-            } catch (error) {
-                console.error('Errore durante il fetch del log:', error);
-                if(logIntervalId) clearInterval(logIntervalId);
+            // --- Funzioni ---
+            function showNotification(success, message) {
+                msgBox.textContent = message;
+                msgBox.className = `notification ${success ? 'success' : 'error'}`;
+                msgBox.classList.remove('hidden');
+                msgBox.style.opacity = '1';
+                setTimeout(() => {
+                    msgBox.style.opacity = '0';
+                    setTimeout(() => msgBox.classList.add('hidden'), 300);
+                }, 5000);
             }
-        }
 
-        // --- Gestione Eventi ---
+            async function fetchLogAndUpdateConsole() {
+                try {
+                    const response = await fetch(`ajax_get_log.php?id=${serverId}`);
+                    if (!response.ok) {
+                        console.error("Errore di rete:", response.status);
+                        if (logIntervalId) clearInterval(logIntervalId);
+                        return;
+                    }
+                    const data = await response.json();
+                    if (data.success) {
+                        // Usare .textContent è sicuro e preserva i newline (\n)
+                        consoleOutput.textContent = data.content;
+                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                    } else {
+                        consoleOutput.textContent = "Errore nel caricamento del log: " + data.message;
+                        if (logIntervalId) clearInterval(logIntervalId);
+                    }
+                } catch (error) {
+                    console.error('Errore durante il fetch del log:', error);
+                    if (logIntervalId) clearInterval(logIntervalId);
+                }
+            }
 
-        // Gestione Tab
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', () => {
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-                button.classList.add('active');
-                document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
+            // --- Gestione Eventi ---
+
+            // Gestione Tab
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                    button.classList.add('active');
+                    document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
+                });
             });
+
+            // Avvio Console
+            if (consoleTabButton) {
+                consoleTabButton.addEventListener('click', () => {
+                    if (!logIntervalId) {
+                        console.log("Avvio aggiornamento console ogni 3 secondi.");
+                        fetchLogAndUpdateConsole();
+                        logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000);
+                    }
+                });
+            }
+
+            // Salvataggio Proprietà Server
+            if (serverPropertiesForm) {
+                serverPropertiesForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                        formData.set(checkbox.name, checkbox.checked ? 'true' : 'false');
+                    });
+                    fetch('ajax_update_server.php', { method: 'POST', body: formData })
+                        .then(res => res.json())
+                        .then(data => showNotification(data.success, data.message))
+                        .catch(() => showNotification(false, "Errore nella richiesta. Riprovare."));
+                });
+            }
+
+            // Caricamento Icona Server
+            if (iconPreview && serverIconUrl) {
+                fetch(serverIconUrl)
+                    .then(response => { if (response.ok) iconPreview.src = serverIconUrl; })
+                    .catch(error => console.error("Errore nel caricamento dell'icona:", error));
+            }
+
+            // Upload Nuova Icona
+            if (uploadIconButton) {
+                uploadIconButton.addEventListener('click', function () {
+                    const fileInput = document.getElementById('server-icon');
+                    if (!fileInput.files.length) {
+                        alert('Seleziona un file PNG 64x64 prima di caricare.');
+                        return;
+                    }
+                    const file = fileInput.files[0];
+                    const formData = new FormData();
+                    formData.append('server_id', serverId);
+                    formData.append('server-icon', file);
+                    formData.append('csrf_token', csrfToken);
+                    fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
+                        .then(r => r.json())
+                        .then(data => {
+                            showNotification(data.success, data.message);
+                            if (data.success) iconPreview.src = URL.createObjectURL(file);
+                        })
+                        .catch(() => showNotification(false, "Errore durante l'upload."));
+                });
+            }
         });
 
-        // Avvio Console
-        if (consoleTabButton) {
-            consoleTabButton.addEventListener('click', () => {
-                if (!logIntervalId) {
-                    console.log("Avvio aggiornamento console ogni 3 secondi.");
-                    fetchLogAndUpdateConsole();
-                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000);
-                }
-            });
-        }
-        
-        // Salvataggio Proprietà Server
-        if (serverPropertiesForm) {
-            serverPropertiesForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    formData.set(checkbox.name, checkbox.checked ? 'true' : 'false');
-                });
-                fetch('ajax_update_server.php', { method: 'POST', body: formData })
-                    .then(res => res.json())
-                    .then(data => showNotification(data.success, data.message))
-                    .catch(() => showNotification(false, "Errore nella richiesta. Riprovare."));
-            });
-        }
-        
-        // Caricamento Icona Server
-        if (iconPreview && serverIconUrl) {
-            fetch(serverIconUrl)
-                .then(response => { if (response.ok) iconPreview.src = serverIconUrl; })
-                .catch(error => console.error("Errore nel caricamento dell'icona:", error));
-        }
-        
-        // Upload Nuova Icona
-        if (uploadIconButton) {
-            uploadIconButton.addEventListener('click', function () {
-                const fileInput = document.getElementById('server-icon');
-                if (!fileInput.files.length) {
-                    alert('Seleziona un file PNG 64x64 prima di caricare.');
-                    return;
-                }
-                const file = fileInput.files[0];
-                const formData = new FormData();
-                formData.append('server_id', serverId);
-                formData.append('server-icon', file);
-                formData.append('csrf_token', csrfToken);
-                fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
-                    .then(r => r.json())
-                    .then(data => {
-                        showNotification(data.success, data.message);
-                        if (data.success) iconPreview.src = URL.createObjectURL(file);
-                    })
-                    .catch(() => showNotification(false, "Errore durante l'upload."));
-            });
-        }
-    });
+        const consoleInput = document.getElementById('console-input');
+        const sendBtn = document.getElementById('send-command-btn');
 
+        sendBtn.addEventListener('click', () => {
+            const command = consoleInput.value.trim();
+            if (!command) return;
+
+            const formData = new FormData();
+            formData.append('server_id', serverId);
+            formData.append('command', command);
+            formData.append('csrf_token', csrfToken);
+
+            fetch('ajax_send_command.php', {
+                method: 'POST',
+                body: formData
+            })
+                .then(res => res.json())
+                .then(data => {
+                    showNotification(data.success, data.message);
+                    if (data.success) consoleInput.value = '';
+                })
+                .catch(() => showNotification(false, "Errore nell'invio del comando"));
+        });
+
+        consoleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendBtn.click();
+            }
+        });
 
         const csrfToken = '<?= $csrf_token ?>';
         const serverId = '<?= $serverId ?>';
