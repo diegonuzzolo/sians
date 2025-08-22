@@ -27,7 +27,7 @@ try {
     // Determina comando
     if ($action === 'start') {
         $cmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp "
-             . "\"pct exec $vmid -- /root/minecraft_bedrock/start.sh\"";
+             . "\"pct exec $vmid -- screen -dmS bedrock /root/minecraft_bedrock/start.sh\"";
         $newStatus = 'running';
         $successMessage = 'Server avviato!';
     } elseif ($action === 'stop') {
