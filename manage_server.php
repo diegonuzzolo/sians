@@ -323,168 +323,166 @@ if (!$server) {
 
     <div id="notification-message" class="notification hidden"></div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("Pagina caricata. Script di gestione unificato avviato.");
+   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log("Pagina caricata. Script di gestione unificato avviato.");
 
-            // --- Variabili Globali ---
-            const csrfToken = '<?= $csrf_token ?>';
-            const serverId = '<?= $serverId ?>';
-            const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
+        // --- Variabili Globali ---
+        const csrfToken = '<?= $csrf_token ?>';
+        const serverId = '<?= $serverId ?>';
+        const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
 
-            // --- Elementi del DOM ---
-            const iconPreview = document.getElementById('server-icon-preview');
-            const msgBox = document.getElementById('notification-message');
-            const serverPropertiesForm = document.getElementById('serverPropertiesForm');
-            const saveBtn = serverPropertiesForm?.querySelector('button[type="submit"]');
-            const uploadIconButton = document.getElementById('upload-icon-btn');
-            const consoleTabButton = document.querySelector('button[data-tab="console"]');
-            const consoleOutput = document.getElementById('console-output');
-            const consoleInput = document.getElementById('console-input');
-            const sendBtn = document.getElementById('send-command-btn');
-            let logIntervalId = null;
+        // --- Elementi del DOM ---
+        const msgBox = document.getElementById('notification-message');
+        const serverPropertiesForm = document.getElementById('serverPropertiesForm');
+        const saveBtn = serverPropertiesForm?.querySelector('button[type="submit"]');
+        const iconPreview = document.getElementById('server-icon-preview');
+        const uploadIconButton = document.getElementById('upload-icon-btn');
+        const consoleTabButton = document.querySelector('button[data-tab="console"]');
+        const consoleOutput = document.getElementById('console-output');
+        const consoleInput = document.getElementById('console-input');
+        const sendCommandBtn = document.getElementById('send-command-btn');
+        let logIntervalId = null;
 
-            // --- Funzioni ---
-            function showNotification(success, message) {
-                msgBox.textContent = message;
-                msgBox.className = `notification ${success ? 'success' : 'error'}`;
-                msgBox.classList.remove('hidden');
-                msgBox.style.opacity = '1';
-                setTimeout(() => {
-                    msgBox.style.opacity = '0';
-                    setTimeout(() => msgBox.classList.add('hidden'), 300);
-                }, 5000);
-            }
+        // --- Funzioni Helper ---
+        function showNotification(success, message) {
+            msgBox.textContent = message;
+            msgBox.className = `notification ${success ? 'success' : 'error'}`;
+            msgBox.classList.remove('hidden');
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+                setTimeout(() => msgBox.classList.add('hidden'), 300);
+            }, 5000);
+        }
 
-            async function fetchLogAndUpdateConsole() {
-                try {
-                    const response = await fetch(`ajax_get_log.php?id=${serverId}`);
-                    if (!response.ok) {
-                        console.error("Errore di rete:", response.status);
-                        if (logIntervalId) clearInterval(logIntervalId);
-                        return;
-                    }
-                    const data = await response.json();
-                    if (data.success) {
-                        consoleOutput.textContent = data.content;
-                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                    } else {
-                        consoleOutput.textContent = "Errore nel caricamento del log: " + data.message;
-                        if (logIntervalId) clearInterval(logIntervalId);
-                    }
-                } catch (error) {
-                    console.error('Errore durante il fetch del log:', error);
+        // --- Funzioni Principali ---
+        async function fetchLogAndUpdateConsole() {
+            try {
+                const response = await fetch(`ajax_get_log.php?id=${serverId}`);
+                if (!response.ok) {
+                    console.error("Errore di rete:", response.status);
+                    if (logIntervalId) clearInterval(logIntervalId);
+                    return;
+                }
+                const data = await response.json();
+                if (data.success) {
+                    consoleOutput.textContent = data.content;
+                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                } else {
+                    consoleOutput.textContent = "Errore nel caricamento del log: " + data.message;
                     if (logIntervalId) clearInterval(logIntervalId);
                 }
+            } catch (error) {
+                console.error('Errore durante il fetch del log:', error);
+                if (logIntervalId) clearInterval(logIntervalId);
             }
+        }
 
-            // --- Gestione Tab ---
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-                    btn.classList.add('active');
-                    document.getElementById(`${btn.dataset.tab}-tab`).classList.remove('hidden');
+        function sendCommand() {
+            const command = consoleInput.value.trim();
+            if (!command) return;
 
-                    // Disabilita pulsante Salva modifiche sul tab console
-                    if (saveBtn) saveBtn.disabled = (btn.dataset.tab === 'console');
-                });
+            const formData = new FormData();
+            formData.append('server_id', serverId);
+            formData.append('command', command);
+            formData.append('csrf_token', csrfToken);
+
+            fetch('ajax_send_command.php', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    showNotification(data.success, data.message);
+                    if (data.success) consoleInput.value = '';
+                })
+                .catch(() => showNotification(false, "Errore nell'invio del comando"));
+        }
+
+        // --- Inizializzazione e Gestione Eventi ---
+
+        // 1. Gestione Tab e Pulsante Salva
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                btn.classList.add('active');
+                document.getElementById(`${btn.dataset.tab}-tab`).classList.remove('hidden');
+
+                // Disabilita il pulsante Salva se siamo sulla tab console
+                if (saveBtn) {
+                    saveBtn.disabled = (btn.dataset.tab === 'console');
+                }
             });
-
-            // Disabilita subito se già sul tab console
-            const activeTab = document.querySelector('.tab-button.active');
-            if (saveBtn && activeTab?.dataset.tab === 'console') saveBtn.disabled = true;
-
-            // --- Avvio Console ---
-            if (consoleTabButton) {
-                consoleTabButton.addEventListener('click', () => {
-                    if (!logIntervalId) {
-                        fetchLogAndUpdateConsole();
-                        logIntervalId = setInterval(fetchLogAndUpdateConsole, 1000); // aggiorna ogni 1 secondo
-                    }
-                });
-            }
-
-            // --- Salvataggio Proprietà Server ---
-            if (serverPropertiesForm) {
-                serverPropertiesForm.addEventListener('submit', function (e) {
-                    e.preventDefault();
-                    const formData = new FormData(this);
-                    this.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                        formData.set(cb.name, cb.checked ? 'true' : 'false');
-                    });
-                    fetch('ajax_update_server.php', { method: 'POST', body: formData })
-                        .then(res => res.json())
-                        .then(data => showNotification(data.success, data.message))
-                        .catch(() => showNotification(false, "Errore nella richiesta. Riprovare."));
-                });
-            }
-
-            // --- Invio comandi console ---
-            if (sendBtn && consoleInput) {
-                const sendCommand = () => {
-                    const command = consoleInput.value.trim();
-                    if (!command) return;
-                    const formData = new FormData();
-                    formData.append('server_id', serverId);
-                    formData.append('command', command);
-                    formData.append('csrf_token', csrfToken);
-
-                    fetch('ajax_send_command.php', { method: 'POST', body: formData })
-                        .then(res => res.json())
-                        .then(data => {
-                            showNotification(data.success, data.message);
-                            if (data.success) consoleInput.value = '';
-                        })
-                        .catch(() => showNotification(false, "Errore nell'invio del comando"));
-                };
-
-                sendBtn.addEventListener('click', sendCommand);
-                consoleInput.addEventListener('keydown', e => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        sendCommand();
-                    }
-                });
-            }
-
-            // --- Upload Icona Server ---
-            if (uploadIconButton && iconPreview) {
-                uploadIconButton.addEventListener('click', () => {
-                    const fileInput = document.getElementById('server-icon');
-                    if (!fileInput.files.length) return alert('Seleziona un file PNG 64x64 prima di caricare.');
-                    const file = fileInput.files[0];
-                    const reader = new FileReader();
-                    reader.onload = event => {
-                        const img = new Image();
-                        img.onload = function () {
-                            if (img.width !== 64 || img.height !== 64) return alert('L\'immagine deve essere 64x64 pixel.');
-                            const formData = new FormData();
-                            formData.append('server_id', serverId);
-                            formData.append('server-icon', file);
-                            formData.append('csrf_token', csrfToken);
-                            fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
-                                .then(r => r.json())
-                                .then(data => {
-                                    showNotification(data.success, data.message);
-                                    if (data.success) iconPreview.src = URL.createObjectURL(file);
-                                })
-                                .catch(() => showNotification(false, "Errore durante l'upload."));
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                });
-
-                // Caricamento iniziale icona
-                fetch(serverIconUrl)
-                    .then(resp => { if (resp.ok) iconPreview.src = serverIconUrl; })
-                    .catch(err => console.error("Errore nel caricamento dell'icona:", err));
-            }
         });
 
+        // Controlla subito la tab attiva al caricamento della pagina
+        const activeTab = document.querySelector('.tab-button.active');
+        if (saveBtn && activeTab?.dataset.tab === 'console') {
+            saveBtn.disabled = true;
+        }
 
-    </script>
+        // 2. Logica della Console (Avvio e Invio Comandi)
+        if (consoleTabButton) {
+            consoleTabButton.addEventListener('click', () => {
+                if (!logIntervalId) {
+                    console.log("Avvio aggiornamento console ogni 3 secondi.");
+                    fetchLogAndUpdateConsole();
+                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000);
+                }
+            });
+        }
+        if (sendCommandBtn && consoleInput) {
+            sendCommandBtn.addEventListener('click', sendCommand);
+            consoleInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Previene il submit del form principale
+                    sendCommand();
+                }
+            });
+        }
+        
+        // 3. Salvataggio Proprietà Server
+        if (serverPropertiesForm) {
+            serverPropertiesForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                this.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    formData.set(cb.name, cb.checked ? 'true' : 'false');
+                });
+                fetch('ajax_update_server.php', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => showNotification(data.success, data.message))
+                    .catch(() => showNotification(false, "Errore nella richiesta. Riprovare."));
+            });
+        }
+
+        // 4. Gestione Icona Server (Caricamento iniziale e Upload)
+        if (iconPreview && serverIconUrl) {
+            fetch(serverIconUrl)
+                .then(response => { if (response.ok) iconPreview.src = serverIconUrl; })
+                .catch(error => console.error("Errore nel caricamento dell'icona iniziale:", error));
+        }
+        if (uploadIconButton) {
+            uploadIconButton.addEventListener('click', () => {
+                const fileInput = document.getElementById('server-icon');
+                if (!fileInput.files.length) {
+                    return alert('Seleziona un file PNG 64x64 prima di caricare.');
+                }
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('server_id', serverId);
+                formData.append('server-icon', file);
+                formData.append('csrf_token', csrfToken);
+                fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        showNotification(data.success, data.message);
+                        if (data.success) iconPreview.src = URL.createObjectURL(file);
+                    })
+                    .catch(() => showNotification(false, "Errore durante l'upload."));
+            });
+        }
+    });
+</script>
 </body>
 
 </html>
