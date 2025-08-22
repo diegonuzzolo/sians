@@ -136,19 +136,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$userId]);
     $billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    // Ricarico i piani attivi
-    $stmt = $pdo->prepare("
-        SELECT
-            p.name AS plan_name,
-            p.cpu_cores,
-            (p.ram_mb/1024) AS ram_gb,
-            s.status
-        FROM subscriptions s
-        JOIN plans p ON p.stripe_price_id = s.plan_id
-        WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
-    ");
-    $stmt->execute([$userId]);
-    $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+  // Ricarico i piani attivi
+$stmt = $pdo->prepare("
+    SELECT
+        p.name AS plan_name,
+        p.cpu_cores,
+        p.ram_gb, -- CORRECTED LINE
+        s.status
+    FROM subscriptions s
+    JOIN plans p ON p.stripe_price_id = s.plan_id
+    WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
+");
+$stmt->execute([$userId]);
+$activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
