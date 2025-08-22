@@ -113,7 +113,7 @@ else
     echo "ERRORE: Impossibile terminare il processo del server."
     exit 1
 fi
-
+killall screen
 exit 0
 EOF
 
