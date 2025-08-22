@@ -56,16 +56,17 @@ try {
             escapeshellarg($remoteScript)
         );
     } elseif ($action === 'stop') {
-        // Per fermare, inviamo il comando 'stop' alla sessione screen già esistente.
-        $cmd = sprintf(
-            'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- screen -S %s -p 0 -X stuff %s"',
-            escapeshellarg($sshKey),
-            escapeshellarg($nodeIp),
-            $vmid,
-            escapeshellarg($sessionName),
-            escapeshellarg("stop\n") // Invia il comando 'stop' seguito da Invio
-        );
-    }
+    // Esegue lo script stop.sh che gestisce l'intero processo di spegnimento sicuro.
+    $remoteScript = '/root/minecraft_bedrock/stop.sh';
+    
+    $cmd = sprintf(
+        'ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid,
+        escapeshellarg($remoteScript)
+    );
+}
     
     exec($cmd . " 2>&1", $output, $ret);
 
