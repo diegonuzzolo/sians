@@ -44,7 +44,14 @@ if (!$server) {
             background-color: #121212;
             color: #fff;
         }
-
+        /* Aggiungi questo nuovo stile */
+#console-output {
+    white-space: pre-wrap;      /* Preserva gli spazi e va a capo automaticamente */
+    word-break: break-all;      /* Forza le parole lunghe (es. URL) ad andare a capo */
+    font-family: 'Menlo', 'Monaco', 'Consolas', monospace; /* Usa un font monospaziato */
+    font-size: 0.8rem;          /* Rende il testo più piccolo (puoi usare 12px, 0.75rem, etc.) */
+    line-height: 1.5;           /* Aumenta lo spazio tra le righe per una migliore leggibilità */
+}
         .tab-button.active {
             background-color: #3b82f6;
             color: #fff;
@@ -291,7 +298,7 @@ if (!$server) {
             </form>
 
 <div id="console-tab" class="tab-content hidden mt-6">
-    <div id="console-output" class="h-96 bg-black p-4 rounded-lg font-mono text-sm overflow-y-auto border border-gray-700">
+    <div id="console-output" class="h-96 bg-black p-4 rounded-lg overflow-y-auto border border-gray-700">
         Caricamento console...
     </div>
     <div class="mt-4 flex">
@@ -310,42 +317,46 @@ if (!$server) {
     <div id="notification-message" class="notification hidden"></div>
 
     <script>
-       document.addEventListener('DOMContentLoaded', () => {
-        console.log("Pagina caricata. Script di gestione v2 avviato.");
+        document.addEventListener('DOMContentLoaded', () => {
+        console.log("Pagina caricata. Script di gestione unificato avviato.");
 
+        // --- Variabili Globali ---
         const csrfToken = '<?= $csrf_token ?>';
         const serverId = '<?= $serverId ?>';
-        
-        // --- Gestione Tab ---
-        // (codice per cambiare tab, se lo hai messo qui, lascialo)
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', () => {
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-                button.classList.add('active');
-                document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
-            });
-        });
+        const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
 
-        // --- Logica della Console ---
+        // --- Elementi del DOM ---
+        const iconPreview = document.getElementById('server-icon-preview');
+        const msgBox = document.getElementById('notification-message');
+        const serverPropertiesForm = document.getElementById('serverPropertiesForm');
+        const uploadIconButton = document.getElementById('upload-icon-btn');
         const consoleTabButton = document.querySelector('button[data-tab="console"]');
         const consoleOutput = document.getElementById('console-output');
-        let logIntervalId = null; // ID per fermare l'aggiornamento
+        let logIntervalId = null;
+
+        // --- Funzioni ---
+        function showNotification(success, message) {
+            msgBox.textContent = message;
+            msgBox.className = `notification ${success ? 'success' : 'error'}`;
+            msgBox.classList.remove('hidden');
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+                setTimeout(() => msgBox.classList.add('hidden'), 300);
+            }, 5000);
+        }
 
         async function fetchLogAndUpdateConsole() {
             try {
                 const response = await fetch(`ajax_get_log.php?id=${serverId}`);
                 if (!response.ok) {
                     console.error("Errore di rete:", response.status);
-                    // Ferma l'aggiornamento in caso di errore grave
                     if(logIntervalId) clearInterval(logIntervalId); 
                     return;
                 }
-                
                 const data = await response.json();
-
                 if (data.success) {
-                    // Sostituisce l'intero contenuto e scrolla in fondo
+                    // Usare .textContent è sicuro e preserva i newline (\n)
                     consoleOutput.textContent = data.content;
                     consoleOutput.scrollTop = consoleOutput.scrollHeight;
                 } else {
@@ -357,19 +368,74 @@ if (!$server) {
                 if(logIntervalId) clearInterval(logIntervalId);
             }
         }
-        
+
+        // --- Gestione Eventi ---
+
+        // Gestione Tab
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                button.classList.add('active');
+                document.getElementById(`${button.dataset.tab}-tab`).classList.remove('hidden');
+            });
+        });
+
+        // Avvio Console
         if (consoleTabButton) {
             consoleTabButton.addEventListener('click', () => {
-                // Se l'intervallo non è già attivo, avvialo
                 if (!logIntervalId) {
                     console.log("Avvio aggiornamento console ogni 3 secondi.");
-                    fetchLogAndUpdateConsole(); // Carica subito la prima volta
-                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000); // E poi ogni 3 secondi
+                    fetchLogAndUpdateConsole();
+                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000);
                 }
             });
         }
         
-        // Aggiungi qui gli altri listener (form, icona, comandi console)
+        // Salvataggio Proprietà Server
+        if (serverPropertiesForm) {
+            serverPropertiesForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    formData.set(checkbox.name, checkbox.checked ? 'true' : 'false');
+                });
+                fetch('ajax_update_server.php', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => showNotification(data.success, data.message))
+                    .catch(() => showNotification(false, "Errore nella richiesta. Riprovare."));
+            });
+        }
+        
+        // Caricamento Icona Server
+        if (iconPreview && serverIconUrl) {
+            fetch(serverIconUrl)
+                .then(response => { if (response.ok) iconPreview.src = serverIconUrl; })
+                .catch(error => console.error("Errore nel caricamento dell'icona:", error));
+        }
+        
+        // Upload Nuova Icona
+        if (uploadIconButton) {
+            uploadIconButton.addEventListener('click', function () {
+                const fileInput = document.getElementById('server-icon');
+                if (!fileInput.files.length) {
+                    alert('Seleziona un file PNG 64x64 prima di caricare.');
+                    return;
+                }
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('server_id', serverId);
+                formData.append('server-icon', file);
+                formData.append('csrf_token', csrfToken);
+                fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        showNotification(data.success, data.message);
+                        if (data.success) iconPreview.src = URL.createObjectURL(file);
+                    })
+                    .catch(() => showNotification(false, "Errore durante l'upload."));
+            });
+        }
     });
 
 
