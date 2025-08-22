@@ -366,6 +366,7 @@ if (!$server) {
         // Funzione per recuperare i log
         function fetchLogs() {
             fetch(`ajax_get_logs.php?server_id=${serverId}&offset=${lastLogSize}`)
+
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.log.length > 0) {
@@ -391,15 +392,12 @@ if (!$server) {
             formData.append('csrf_token', csrfToken);
             formData.append('command', command);
 
-            fetch('ajax_send_command.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    showNotification(false, data.message || "Comando fallito.");
-                }
+            fetch('ajax_send_command.php', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        showNotification(false, data.message || "Comando fallito.");
+                    }
                 // Il comando inviato apparirà nei log al prossimo polling
             })
             .catch(() => showNotification(false, "Errore di rete."));
