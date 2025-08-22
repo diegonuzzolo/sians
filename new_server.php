@@ -168,30 +168,30 @@ try {
 
 // --- 7. Setup software remoto ---
 try {
-        $sshKey = "/var/www/.ssh/id_rsa_container"; // chiave www-data
-        $commands = [
-    "mkdir -p /root/.ssh",
-    "chmod 700 /root/.ssh",
-    "bash -c 'echo {$escapedKey} >> /root/.ssh/authorized_keys'",
-    "chmod 600 /root/.ssh/authorized_keys"
-];
-    $nodeIp = "192.168.1.251";
+     $sshKey = "/var/www/.ssh/id_rsa_container"; // chiave privata di www-data
+    $publicKey = trim(file_get_contents('/var/www/.ssh/id_rsa_container.pub')); 
+    $escapedKey = escapeshellarg($publicKey); // escape corretto per shell
+
+    $nodeIp = "192.168.1.251"; // IP nodo Proxmox
     $localScript = '/var/www/setup_server.sh';
     $remoteTemp = "/root/setup_server.sh";
 
-    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"");
+    // --- 1. Installa dipendenze nel container ---
+    $installCmd = "bash -c \"apt-get update && apt-get install -y curl jq unzip screen\"";
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- $installCmd\"");
+
+    // --- 2. Copia script di setup ---
     exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp");
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp $remoteTemp\"");
 
-    $remoteExecCommand = "bash -c 'chmod +x {$remoteTemp} && {$remoteTemp} {$containerId} > /root/setup.log 2>&1 &'";
-    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$remoteExecCommand}\"");
+    // --- 3. Copia chiave pubblica nel container e imposta permessi ---
+    $sshSetupCmd = "bash -c 'mkdir -p /root/.ssh && chmod 700 /root/.ssh && echo $escapedKey >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys'";
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- $sshSetupCmd\"");
 
-      $publicKey = trim(file_get_contents('/var/www/.ssh/id_rsa_container.pub'));
-    $escapedKey = escapeshellarg($publicKey);
+    // --- 4. Esegui script di setup container ---
+    $remoteExecCmd = "bash -c 'chmod +x {$remoteTemp} && {$remoteTemp} {$containerId} > /root/setup.log 2>&1 &'";
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- $remoteExecCmd\"");
 
-    foreach ($commands as $command) {
-        exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$command}\"");
-    }
 
 } catch (Exception $e) {
     header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il setup software potrebbe essere fallito: " . $e->getMessage()));
