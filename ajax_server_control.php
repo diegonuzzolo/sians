@@ -29,7 +29,7 @@ try {
 
     $vmid     = intval($server['proxmox_containerId']);
     $nodeIp   = '192.168.1.251';
-    $sshKey   = '/var/www/.ssh/id_proxmox';
+    $sshKey   = '/var/www/.ssh/id_rsa_container';
     $remoteScript = ($action === 'start') ? '/root/minecraft_bedrock/start.sh' : '/root/minecraft_bedrock/stop.sh';
 
     // Comando SSH con pct exec + screen
