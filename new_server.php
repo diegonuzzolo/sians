@@ -169,7 +169,12 @@ try {
 // --- 7. Setup software remoto ---
 try {
         $sshKey = "/var/www/.ssh/id_rsa_container"; // chiave www-data
-
+        $commands = [
+    "mkdir -p /root/.ssh",
+    "chmod 700 /root/.ssh",
+    "bash -c 'echo {$escapedKey} >> /root/.ssh/authorized_keys'",
+    "chmod 600 /root/.ssh/authorized_keys"
+];
     $nodeIp = "192.168.1.251";
     $localScript = '/var/www/setup_server.sh';
     $remoteTemp = "/root/setup_server.sh";
@@ -184,8 +189,9 @@ try {
       $publicKey = trim(file_get_contents('/var/www/.ssh/id_rsa_container.pub'));
     $escapedKey = escapeshellarg($publicKey);
 
-    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- mkdir -p /root/.ssh && pct exec $vmid -- chmod 700 /root/.ssh && pct exec $vmid -- bash -c 'echo {$escapedKey} >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys'\"");
-
+    foreach ($commands as $command) {
+        exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$command}\"");
+    }
 
 } catch (Exception $e) {
     header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il setup software potrebbe essere fallito: " . $e->getMessage()));
