@@ -41,16 +41,10 @@ class StripeManager {
 
       // ... (altre funzioni come cancelSubscriptionAtPeriodEnd) ...
 
-    /**
-     * Tenta di rimborsare l'ultimo pagamento di una sottoscrizione e poi la annulla.
-     * * @param string $subscriptionId L'ID della sottoscrizione Stripe.
-     * @return bool|string Ritorna `true` in caso di successo, altrimenti una stringa con il messaggio di errore.
-     */
-    public static function refundLatestPayment($subscriptionId) {
+   public static function refundLatestPayment($subscriptionId) {
         self::init(); 
 
         try {
-            // 1. Recupera la sottoscrizione per trovare l'ultima fattura (invoice)
             $subscription = \Stripe\Subscription::retrieve($subscriptionId);
             $latestInvoiceId = $subscription->latest_invoice;
 
@@ -58,32 +52,34 @@ class StripeManager {
                 return "Nessuna fattura trovata per questa sottoscrizione.";
             }
 
-            // 2. Recupera la fattura per trovare l'ID del pagamento (Payment Intent)
             $invoice = \Stripe\Invoice::retrieve($latestInvoiceId);
+
+            // --- NUOVO CONTROLLO AGGIUNTO ---
+            // Verifichiamo se la fattura ha un importo pagato superiore a 0.
+            // Se è 0 (come in un trial), non c'è nulla da rimborsare.
+            if ($invoice->amount_paid <= 0) {
+                // Annulliamo comunque la sottoscrizione e informiamo l'utente.
+                $subscription->cancel();
+                return "La tua sottoscrizione (periodo di prova) è stata annullata. Nessun importo era stato addebitato, quindi non è necessario un rimborso.";
+            }
+            // --- FINE NUOVO CONTROLLO ---
+
             $paymentIntentId = $invoice->payment_intent;
 
             if (!$paymentIntentId) {
-                return "Nessun pagamento associato all'ultima fattura.";
+                // Questo messaggio ora apparirà solo se c'è un VERO problema.
+                return "Errore imprevisto: la fattura risulta pagata ma non è associata a nessun pagamento.";
             }
 
-            // 3. Crea il rimborso usando l'ID del Payment Intent
-            \Stripe\Refund::create([
-                'payment_intent' => $paymentIntentId,
-            ]);
-
-            // 4. Annulla immediatamente la sottoscrizione per evitare future fatturazioni
+            // Procedi con il rimborso e l'annullamento come prima
+            \Stripe\Refund::create(['payment_intent' => $paymentIntentId]);
             $subscription->cancel();
 
             return true; // Successo!
 
         } catch (\Stripe\Exception\ApiErrorException $e) {
-            // !! QUESTA È LA PARTE CRUCIALE !!
-            // In caso di errore da Stripe, restituisce il messaggio specifico.
-            // Esempio: "This charge has already been refunded."
             return "Errore API Stripe: " . $e->getMessage();
-
         } catch (Exception $e) {
-            // In caso di altri errori (es. connessione), restituisce un messaggio generico.
             return "Errore generico: " . $e->getMessage();
         }
     }
