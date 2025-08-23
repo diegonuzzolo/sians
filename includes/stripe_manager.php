@@ -3,7 +3,7 @@
 
 // Assicurati di avere la libreria Stripe installata via Composer
 // Se non l'hai ancora fatto, esegui: composer require stripe/stripe-php
-require_once '../stripe-php/init.php';
+require_once __DIR__.'/../stripe-php/init.php';
 
 class StripeManager {
 
