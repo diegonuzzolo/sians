@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 require 'auth_check.php';
 require 'config/config.php';
 require 'includes/csrf.php';
-require 'stripe-php/init.php'; // Nuovo file per la gestione di Stripe
+require 'includes/stripe_manager.php'; // Nuovo file per la gestione di Stripe
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) {
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $diff = $today->diff($subscriptionDate);
 
         // Controllo se sono passati meno di 14 giorni (diritto di recesso UE)
-        if ($diff->days <= 14 && StripeManager::refundLatestPayment($subscriptionId, $user['stripe_customer_id'])) {
+        if ($diff->days <= 14 && StripeManager::refundLatestPayment($subscriptionId)) {
             $stmt = $pdo->prepare("
                 INSERT INTO refund_requests (user_id, stripe_subscription_id, status)
                 VALUES (?, ?, 'pending')
