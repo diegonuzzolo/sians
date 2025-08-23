@@ -85,23 +85,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = "Errore durante l'annullamento del rinnovo. Riprova più tardi.";
         }
     } elseif (isset($_POST['request_refund'])) {
-        // --- Nuova logica per la richiesta di rimborso ---
+        // --- LOGICA DI RIMBORSO AGGIORNATA ---
         $subscriptionId = $_POST['stripe_subscription_id'] ?? '';
         $subscriptionCreatedAt = $_POST['subscription_created_at'] ?? '';
+        
         $today = new DateTime();
         $subscriptionDate = new DateTime($subscriptionCreatedAt);
         $diff = $today->diff($subscriptionDate);
 
-        // Controllo se sono passati meno di 14 giorni (diritto di recesso UE)
-        if ($diff->days <= 14 && StripeManager::refundLatestPayment($subscriptionId)) {
-            $stmt = $pdo->prepare("
-                INSERT INTO refund_requests (user_id, stripe_subscription_id, status)
-                VALUES (?, ?, 'pending')
-            ");
-            $stmt->execute([$userId, $subscriptionId]);
-            $msg = "Richiesta di rimborso inviata con successo. La processeremo entro pochi giorni lavorativi.";
+        // 1. Controlla prima la data
+        if ($diff->days > 14) {
+            $msg = "Non è più possibile richiedere il rimborso. Sono trascorsi più di 14 giorni dalla data di acquisto.";
         } else {
-            $msg = "Non è più possibile richiedere il rimborso. Sono trascorsi più di 14 giorni dalla data di acquisto o si è verificato un errore.";
+            // 2. Prova a eseguire il rimborso e cattura il risultato
+            //    Questa funzione dovrebbe restituire `true` in caso di successo
+            //    o una stringa con l'errore in caso di fallimento.
+            $refundResult = StripeManager::refundLatestPayment($subscriptionId);
+
+            if ($refundResult === true) {
+                // Il rimborso è andato a buon fine, registra la richiesta nel DB
+                $stmt = $pdo->prepare("
+                    INSERT INTO refund_requests (user_id, stripe_subscription_id, status)
+                    VALUES (?, ?, 'pending')
+                ");
+                $stmt->execute([$userId, $subscriptionId]);
+                $msg = "Richiesta di rimborso inviata con successo. La processeremo entro pochi giorni lavorativi.";
+            } else {
+                // Il rimborso è fallito, mostra l'errore specifico restituito dalla funzione
+                $msg = "Errore durante la richiesta di rimborso: " . htmlspecialchars($refundResult);
+            }
         }
     } else {
         // --- Logica per l'aggiornamento del profilo, invariata ---
@@ -159,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-    // Ricarico i dati dopo POST
+    // Ricarico i dati dopo POST per riflettere le modifiche
     $stmt = $pdo->prepare("SELECT username, email, stripe_customer_id FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -247,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 </button>
                                             </form>
                                         <?php else: ?>
-                                             <button disabled class="py-2 px-4 text-gray-500 bg-gray-700 rounded-lg">Annulla Rinnovo</button>
+                                            <button disabled class="py-2 px-4 text-gray-500 bg-gray-700 rounded-lg">Annulla Rinnovo</button>
                                         <?php endif; ?>
                                         
                                         <?php 
