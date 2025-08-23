@@ -31,6 +31,15 @@ $user_logged_in = isset($_SESSION['user_id']);
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-17502279024"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'AW-17502279024');
+</script>
     <meta name="google-adsense-account" content="ca-pub-6216576482936386">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6216576482936386"
      crossorigin="anonymous"></script>
