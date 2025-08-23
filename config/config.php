@@ -1,6 +1,7 @@
 <?php
 // ==========================
 // 📦 CONFIGURAZIONE DATABASE
+date_default_timezone_set('UTC');
 
 // config.php
 if (!defined('DB_HOST')) {
