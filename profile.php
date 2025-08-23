@@ -1,10 +1,12 @@
 <?php
+// Avvia la sessione e include i file di configurazione
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require 'auth_check.php';
 require 'config/config.php';
 require 'includes/csrf.php';
+require 'stripe-php/init.php'; // Nuovo file per la gestione di Stripe
 
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) {
@@ -15,7 +17,7 @@ if (!$userId) {
 $msg = '';
 
 // --- Recupero dati utente e billing ---
-$stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
+$stmt = $pdo->prepare("SELECT username, email, stripe_customer_id FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
@@ -28,8 +30,11 @@ $stmt = $pdo->prepare("
     SELECT
         p.name AS plan_name,
         p.cpu_cores,
-        p.ram_gb, -- CORRECTED LINE
-        s.status
+        p.ram_gb,
+        s.status,
+        s.stripe_subscription_id,
+        s.created_at,
+        s.cancel_at_period_end
     FROM subscriptions s
     JOIN plans p ON p.stripe_price_id = s.plan_id
     WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
@@ -41,8 +46,8 @@ $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check_or_die(); // <-- controlla CSRF solo su POST
 
-    // Cambio password
     if (isset($_POST['change_password'])) {
+        // ... (Logica per il cambio password, invariata) ...
         $curr = $_POST['current_password'] ?? '';
         $new = $_POST['new_password'] ?? '';
         $new2 = $_POST['new_password_confirm'] ?? '';
@@ -61,17 +66,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
                 $upd = $pdo->prepare("
-    UPDATE users
-    SET password_hash = ?, last_password_change = NOW(), force_password_reset = 0
-    WHERE id = ?
-");
+                    UPDATE users
+                    SET password_hash = ?, last_password_change = NOW(), force_password_reset = 0
+                    WHERE id = ?
+                ");
                 $upd->execute([$newHash, $userId]);
                 $msg = "Password aggiornata";
             }
         }
-    }
-    // Aggiornamento profilo & billing
-    else {
+    } elseif (isset($_POST['cancel_renewal'])) {
+        // --- Nuova logica per cancellare il rinnovo ---
+        $subscriptionId = $_POST['stripe_subscription_id'] ?? '';
+        if (StripeManager::cancelSubscriptionAtPeriodEnd($subscriptionId)) {
+            $stmt = $pdo->prepare("UPDATE subscriptions SET cancel_at_period_end = 1 WHERE stripe_subscription_id = ? AND user_id = ?");
+            $stmt->execute([$subscriptionId, $userId]);
+            $msg = "Il rinnovo dell'abbonamento è stato annullato. Potrai continuare a usare il piano fino alla scadenza.";
+        } else {
+            $msg = "Errore durante l'annullamento del rinnovo. Riprova più tardi.";
+        }
+    } elseif (isset($_POST['request_refund'])) {
+        // --- Nuova logica per la richiesta di rimborso ---
+        $subscriptionId = $_POST['stripe_subscription_id'] ?? '';
+        $subscriptionCreatedAt = $_POST['subscription_created_at'] ?? '';
+        $today = new DateTime();
+        $subscriptionDate = new DateTime($subscriptionCreatedAt);
+        $diff = $today->diff($subscriptionDate);
+
+        // Controllo se sono passati meno di 14 giorni (diritto di recesso UE)
+        if ($diff->days <= 14 && StripeManager::refundLatestPayment($subscriptionId, $user['stripe_customer_id'])) {
+            $stmt = $pdo->prepare("
+                INSERT INTO refund_requests (user_id, stripe_subscription_id, status)
+                VALUES (?, ?, 'pending')
+            ");
+            $stmt->execute([$userId, $subscriptionId]);
+            $msg = "Richiesta di rimborso inviata con successo. La processeremo entro pochi giorni lavorativi.";
+        } else {
+            $msg = "Non è più possibile richiedere il rimborso. Sono trascorsi più di 14 giorni dalla data di acquisto o si è verificato un errore.";
+        }
+    } else {
+        // --- Logica per l'aggiornamento del profilo, invariata ---
         $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
         $username = trim($_POST['username'] ?? '');
 
@@ -126,9 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-
-    // ricarico i dati dopo POST
-    $stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
+    // Ricarico i dati dopo POST
+    $stmt = $pdo->prepare("SELECT username, email, stripe_customer_id FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
@@ -136,19 +168,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$userId]);
     $billing = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-  // Ricarico i piani attivi
-$stmt = $pdo->prepare("
-    SELECT
-        p.name AS plan_name,
-        p.cpu_cores,
-        p.ram_gb, -- CORRECTED LINE
-        s.status
-    FROM subscriptions s
-    JOIN plans p ON p.stripe_price_id = s.plan_id
-    WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
-");
-$stmt->execute([$userId]);
-$activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Ricarico i piani attivi
+    $stmt = $pdo->prepare("
+        SELECT
+            p.name AS plan_name,
+            p.cpu_cores,
+            p.ram_gb,
+            s.status,
+            s.stripe_subscription_id,
+            s.created_at,
+            s.cancel_at_period_end
+        FROM subscriptions s
+        JOIN plans p ON p.stripe_price_id = s.plan_id
+        WHERE s.user_id = ? AND s.status IN ('active', 'trialing')
+    ");
+    $stmt->execute([$userId]);
+    $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
@@ -180,6 +215,7 @@ $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <th class="py-3 px-6">RAM</th>
                                 <th class="py-3 px-6">CPU</th>
                                 <th class="py-3 px-6">Stato</th>
+                                <th class="py-3 px-6">Gestione</th>
                             </tr>
                         </thead>
                         <tbody class="text-gray-200 text-sm font-light">
@@ -195,6 +231,43 @@ $activeSubscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             <?= $plan['status'] === 'active' || $plan['status'] === 'trialing' ? 'bg-green-500 text-green-900' : 'bg-yellow-500 text-yellow-900' ?>">
                                             <?= htmlspecialchars(ucfirst($plan['status'])) ?>
                                         </span>
+                                        <?php if ($plan['cancel_at_period_end']): ?>
+                                            <span class="ml-2 text-xs font-bold text-red-400"> (Rinnovo annullato)</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="py-3 px-6">
+                                        <?php if ($plan['cancel_at_period_end'] != 1): ?>
+                                            <form method="POST" class="inline-block" onsubmit="return confirm('Sei sicuro di voler annullare il rinnovo? Il servizio rimarrà attivo fino alla prossima scadenza.');">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="cancel_renewal" value="1">
+                                                <input type="hidden" name="stripe_subscription_id" value="<?= htmlspecialchars($plan['stripe_subscription_id']) ?>">
+                                                <button type="submit"
+                                                    class="py-2 px-4 text-white font-bold rounded-lg shadow-lg bg-red-500 hover:bg-red-600 transition-all duration-300 transform hover:scale-105">
+                                                    Annulla Rinnovo
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                             <button disabled class="py-2 px-4 text-gray-500 bg-gray-700 rounded-lg">Annulla Rinnovo</button>
+                                        <?php endif; ?>
+                                        
+                                        <?php 
+                                            $created_date = new DateTime($plan['created_at']);
+                                            $now = new DateTime();
+                                            $diff = $now->diff($created_date);
+                                            // Il pulsante di rimborso è visibile solo se sono trascorsi meno di 14 giorni
+                                            if ($diff->days <= 14):
+                                        ?>
+                                            <form method="POST" class="inline-block ml-2" onsubmit="return confirm('Sei sicuro di voler richiedere un rimborso? Questo annullerà immediatamente il tuo abbonamento.');">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="request_refund" value="1">
+                                                <input type="hidden" name="stripe_subscription_id" value="<?= htmlspecialchars($plan['stripe_subscription_id']) ?>">
+                                                <input type="hidden" name="subscription_created_at" value="<?= htmlspecialchars($plan['created_at']) ?>">
+                                                <button type="submit"
+                                                    class="py-2 px-4 text-white font-bold rounded-lg shadow-lg bg-orange-500 hover:bg-orange-600 transition-all duration-300 transform hover:scale-105">
+                                                    Richiedi Rimborso
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
