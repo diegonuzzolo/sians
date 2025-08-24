@@ -34,7 +34,6 @@ include 'includes/header.php';
 ?>
 
 <main class="flex-grow-1 container mx-auto px-4 py-12">
-    <div id="google_translate_element">
 <?php
 // Messaggi da mostrare all'utente
 $errorMessage = $_GET['error'] ?? '';
@@ -47,7 +46,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
 }
 ?>
 
-<section class="mb-16">
+    <section class="mb-16">
         <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
         <div id="server-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php if (empty($servers)): ?>
@@ -55,17 +54,17 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                     <p class="text-lg">Nessun server attivo. Hai uno slot disponibile?</p>
                     <p class="text-sm mt-2">Crea il tuo primo server per iniziare a giocare!</p>
                 </div>
-                <?php else: ?>
-                    <?php foreach ($servers as $server):
+            <?php else: ?>
+                <?php foreach ($servers as $server):
                     $status = htmlspecialchars($server['status']);
                     $statusClass = ($status === 'running') ? 'bg-green-500' : ($status === 'creating' ? 'bg-yellow-500' : 'bg-red-500');
                     $iconColor = ($status === 'running') ? 'text-green-400' : ($status === 'creating' ? 'text-yellow-400' : 'text-red-400');
-                    
+
                     // Costruiamo l'indirizzo pubblico che l'utente userà per connettersi
                     $publicAddress = htmlspecialchars($server['name']) . '.sians.it';
-                    ?>
+                ?>
                     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
-                        
+
                         <div class="flex items-center space-x-4 mb-4">
                             <div id="icon-container-<?= $server['id'] ?>" class="bg-gray-700 rounded-full p-3 <?= $iconColor ?>">
                                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -77,7 +76,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                                 <p class="text-xs text-gray-500">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP Privato: <?= $server['ip'] ?? 'N/A' ?></p>
                             </div>
                         </div>
-                        
+
                         <div class="flex items-center justify-between mb-4">
                             <span id="status-<?= $server['id'] ?>" class="px-4 py-1 rounded-full text-sm font-bold text-white <?= $statusClass ?> shadow-md">
                                 <?= ucfirst($status) ?>
@@ -86,93 +85,92 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                                 Gestisci
                             </a>
                         </div>
-                        
+
                         <div class="mt-auto">
                             <label class="text-xs font-semibold text-gray-400">Indirizzo Server Pubblico</label>
                             <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
                                 <input type="text" readonly value="<?= $publicAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
                                 <button onclick="copyToClipboard('<?= $publicAddress ?>', this)"
-                                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
-                                Copia
+                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
+                                    Copia
+                                </button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <button id="start-<?= $server['id'] ?>"
+                                class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                    <?= ($status === 'running' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>"
+                                onclick="startServer(<?= $server['id'] ?>)"
+                                <?= ($status === 'running' || $status === 'creating') ? 'disabled' : '' ?>>
+                                Avvia
+                            </button>
+                            <button id="stop-<?= $server['id'] ?>"
+                                class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
+                    <?= ($status === 'stopped' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>"
+                                onclick="stopServer(<?= $server['id'] ?>)"
+                                <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
+                                Ferma
+                            </button>
+                            <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
+                                class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
+                                Elimina
                             </button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4 mt-4">
-                        <button id="start-<?= $server['id'] ?>"
-                        class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                        <?= ($status === 'running' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>"
-                        onclick="startServer(<?= $server['id'] ?>)"
-                        <?= ($status === 'running' || $status === 'creating') ? 'disabled' : '' ?>>
-                        Avvia
-                    </button>
-                    <button id="stop-<?= $server['id'] ?>"
-                    class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                    <?= ($status === 'stopped' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>"
-                    onclick="stopServer(<?= $server['id'] ?>)"
-                    <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
-                    Ferma
-                </button>
-                <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
-                class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
-                Elimina
-            </button>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
-    </div>
-    <?php endforeach; ?>
-    <?php endif; ?>
-</div>
-</section>
+    </section>
 
-<hr class="my-16 border-gray-700">
+    <hr class="my-16 border-gray-700">
 
-<section>
-    <h2 class="text-4xl font-extrabold text-center mb-12 animate-fade-in-down">🚀 I tuoi slot disponibili</h2>
-    <div id="slot-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <?php if (empty($serverSlots)): ?>
-            <div class="col-span-full text-center text-gray-500 py-24">
-                <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
-            </div>
+    <section>
+        <h2 class="text-4xl font-extrabold text-center mb-12 animate-fade-in-down">🚀 I tuoi slot disponibili</h2>
+        <div id="slot-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <?php if (empty($serverSlots)): ?>
+                <div class="col-span-full text-center text-gray-500 py-24">
+                    <p class="mt-4 text-base">Acquista un nuovo piano per iniziare a costruire il tuo server!</p>
+                </div>
             <?php else: ?>
                 <?php foreach ($serverSlots as $slot): ?>
                     <div class="bg-gray-800 rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:scale-105 hover:shadow-cyan-500/50 relative overflow-hidden">
-                        
+
                         <div class="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/20 transform -skew-y-6"></div>
-                        
+
                         <div class="relative z-10 flex flex-col h-full">
                             <h3 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
                                 <?= htmlspecialchars($slot['name']) ?>
                             </h3>
                             <p class="text-lg text-gray-400 mb-4">Piano Premium</p>
-                            
+
                             <div class="mt-auto pt-4 border-t border-gray-700">
                                 <p class="text-4xl font-extrabold my-2">
                                     €<?= htmlspecialchars($slot['price_eur']) ?>
                                     <span class="text-base font-medium text-gray-500">/mese</span>
                                 </p>
-                                
+
                                 <a href="#" onclick="promptAndCreateServer('<?= $slot['plan_code'] ?>', '<?= $slot['id'] ?>', this)"
-                                class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                                Crea Server
-                            </a>
+                                    class="mt-6 w-full inline-block text-center py-3 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                                    Crea Server
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
                 <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </section>
-    </div>
-    </main>
-    <?php
+            <?php endif; ?>
+        </div>
+    </section>
+</main>
+<?php
 $flashMessage = $_SESSION['flash_message'] ?? null;
 unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
 ?>
 <?php if ($flashMessage): ?>
     <div id="flash-message"
-    class="mb-6 p-4 rounded-lg text-white text-center font-semibold
-    <?= $flashMessage['type'] === 'error' ? 'bg-red-600' : ($flashMessage['type'] === 'success' ? 'bg-green-600' : 'bg-yellow-500') ?>">
-    <?= htmlspecialchars($flashMessage['text']) ?>
-</div>
+         class="mb-6 p-4 rounded-lg text-white text-center font-semibold
+                <?= $flashMessage['type'] === 'error' ? 'bg-red-600' : ($flashMessage['type'] === 'success' ? 'bg-green-600' : 'bg-yellow-500') ?>">
+        <?= htmlspecialchars($flashMessage['text']) ?>
+    </div>
 <?php endif; ?>
 
 

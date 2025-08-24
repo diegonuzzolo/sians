@@ -16,6 +16,6 @@
     </small>
   </div>
 </footer>
-
+<div id="google_translate_element"></div>
 </body>
 </html>
