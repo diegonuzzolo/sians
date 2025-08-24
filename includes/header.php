@@ -31,6 +31,7 @@ $user_logged_in = isset($_SESSION['user_id']);
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17502279024"></script>
 <script>
@@ -127,6 +128,12 @@ $user_logged_in = isset($_SESSION['user_id']);
 </nav>
 
 <script>
+    function googleTranslateElementInit() {
+  new google.translate.TranslateElement({
+    pageLanguage: 'it', // Imposta la lingua originale del tuo sito (in questo caso, italiano)
+    layout: google.translate.TranslateElement.InlineLayout.SIMPLE // Puoi scegliere diversi stili
+  }, 'google_translate_element');
+}
     // Seleziona il pulsante e il menu mobile
     const mobileMenuButton = document.getElementById('mobile-menu-button');
     const mobileMenu = document.getElementById('mobile-menu');

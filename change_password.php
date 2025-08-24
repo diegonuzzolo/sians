@@ -33,40 +33,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 include "includes/header.php";
 ?>
+<div id="google_translate_element">
 
-<div class="container py-5">
-    <h1 class="mb-4">Cambia Password</h1>
-
-    <?php if (!empty($error)): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-    <?php if (!empty($success)): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php endif; ?>
-
-    <form method="post" class="card p-4 bg-dark text-light">
-        <?= csrf_field() ?>
-        <div class="mb-3">
-            <label>Password attuale</label>
-            <input type="password" name="old_password" class="form-control" required>
+    <div class="container py-5">
+        <h1 class="mb-4">Cambia Password</h1>
+        
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($success)): ?>
+                <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+                <?php endif; ?>
+                
+                <form method="post" class="card p-4 bg-dark text-light">
+                    <?= csrf_field() ?>
+                    <div class="mb-3">
+                        <label>Password attuale</label>
+                        <input type="password" name="old_password" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>Nuova password</label>
+                        <input type="password" name="new_password" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>Conferma nuova password</label>
+                        <input type="password" name="confirm_password" class="form-control" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning">Aggiorna Password</button>
+                </form>
+            </div>
         </div>
-
-        <div class="mb-3">
-            <label>Nuova password</label>
-            <input type="password" name="new_password" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label>Conferma nuova password</label>
-            <input type="password" name="confirm_password" class="form-control" required>
-        </div>
-
-        <button type="submit" class="btn btn-warning">Aggiorna Password</button>
-    </form>
-</div>
-
-<?php include "includes/footer.php"; ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-
-</html>
+            
+            <?php include "includes/footer.php"; ?>
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        </body>
+        
+        </html>
