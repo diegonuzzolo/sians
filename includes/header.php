@@ -1,6 +1,5 @@
 <?php
 // Includi i file di configurazione e funzioni
-// Assicurati che il percorso sia corretto rispetto alla posizione del file header
 include __DIR__.'/../config/config.php';
 
 // Avvia la sessione se non è già attiva
@@ -32,15 +31,13 @@ $user_logged_in = isset($_SESSION['user_id']);
 <html lang="it">
 <head>
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-17502279024"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'AW-17502279024');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17502279024"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'AW-17502279024');
+    </script>
     <meta name="google-adsense-account" content="ca-pub-6216576482936386">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6216576482936386"
      crossorigin="anonymous"></script>
@@ -53,12 +50,39 @@ $user_logged_in = isset($_SESSION['user_id']);
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
 
     <style>
-        /* Stili di base per il body per coerenza con il tema scuro */
+        /* Stili di base per il body */
         body {
             background-color: #0f172a; /* bg-slate-900 */
             color: #f1f5f9; /* text-slate-100 */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding-top: 4.5rem; /* Spazio per la navbar fissa, aggiusta se necessario */
+            padding-top: 4.5rem;
+        }
+
+        /* ----- STILI PER IL WIDGET GOOGLE TRANSLATE ----- */
+        /* Contenitore principale del widget */
+        .goog-te-gadget-simple {
+            background-color: transparent !important;
+            border: none !important;
+        }
+        /* Stile del menu a tendina */
+        .goog-te-gadget-simple select {
+            background-color: #1e293b; /* bg-slate-800 */
+            color: #f1f5f9; /* text-slate-100 */
+            border: 1px solid #334155; /* border-slate-700 */
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+        }
+        /* Nasconde la scritta "Powered by Google" */
+        .goog-te-gadget-icon, .goog-logo-link {
+            display: none !important;
+        }
+        /* Rimuove il tooltip di Google */
+        #goog-gt-tt {
+            display: none !important;
+        }
+        body {
+            top: 0 !important; /* Corregge lo spazio bianco che a volte Google aggiunge in cima */
         }
     </style>
 </head>
@@ -82,7 +106,7 @@ $user_logged_in = isset($_SESSION['user_id']);
             </div>
 
             <div class="hidden md:flex items-center space-x-6">
-                 <a href="dashboard.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
+                <a href="dashboard.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
                     <i class="fa-solid fa-gauge-high"></i> Dashboard
                 </a>
                 <a href="add_server.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300">
@@ -104,6 +128,8 @@ $user_logged_in = isset($_SESSION['user_id']);
                     <a href="login.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300"><i class="fa-solid fa-right-to-bracket"></i> Accedi</a>
                     <a href="register.php" class="text-gray-300 hover:text-white flex items-center gap-2 transition duration-300"><i class="fa-solid fa-user-plus"></i> Registrati</a>
                 <?php endif; ?>
+                
+                <div id="google_translate_element_desktop"></div>
             </div>
         </div>
 
@@ -114,6 +140,12 @@ $user_logged_in = isset($_SESSION['user_id']);
             <a href="add_server.php" class="block py-2 px-4 text-gray-300 hover:bg-slate-700 rounded flex items-center gap-2">
                 <i class="fa-solid fa-plus-circle"></i> Acquista Server
             </a>
+            
+            <div class="border-t border-gray-700 my-2"></div>
+            <div class="py-2 px-4 flex items-center gap-2 text-gray-300">
+                <i class="fa-solid fa-language"></i>
+                <div id="google_translate_element_mobile"></div>
+            </div>
             <div class="border-t border-gray-700 my-2"></div>
 
             <?php if ($user_logged_in): ?>
@@ -128,19 +160,21 @@ $user_logged_in = isset($_SESSION['user_id']);
 </nav>
 
 <script>
+    // Funzione di inizializzazione di Google Translate aggiornata
     function googleTranslateElementInit() {
-  new google.translate.TranslateElement({
-    pageLanguage: 'it', // Imposta la lingua originale del tuo sito (in questo caso, italiano)
-    layout: google.translate.TranslateElement.InlineLayout.SIMPLE // Puoi scegliere diversi stili
-  }, 'google_translate_element');
-}
-    // Seleziona il pulsante e il menu mobile
+        const config = {
+            pageLanguage: 'it',
+            layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+        };
+        // Inizializza il widget sia per desktop che per mobile
+        new google.translate.TranslateElement(config, 'google_translate_element_desktop');
+        new google.translate.TranslateElement(config, 'google_translate_element_mobile');
+    }
+
+    // Gestione del menu mobile
     const mobileMenuButton = document.getElementById('mobile-menu-button');
     const mobileMenu = document.getElementById('mobile-menu');
-
-    // Aggiungi un evento 'click' al pulsante
     mobileMenuButton.addEventListener('click', () => {
-        // Alterna la classe 'hidden' sul menu mobile per mostrarlo o nasconderlo
         mobileMenu.classList.toggle('hidden');
     });
 </script>

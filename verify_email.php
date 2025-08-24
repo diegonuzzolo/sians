@@ -53,9 +53,10 @@ if (empty($token)) {
         .animate-fade-in {
             animation: fadeIn 0.8s ease-out forwards;
         }
-    </style>
+        </style>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans antialiased">
+    <div id="google_translate_element"></div>
 
     <main class="flex items-center justify-center min-h-screen p-4 bg-cover bg-center" style="background-image: url('/path/to/your/minecraft-background.jpg');">
         <div class="w-full max-w-md bg-slate-800/70 rounded-3xl p-8 shadow-2xl backdrop-blur-xl border border-slate-700 text-center animate-fade-in">
@@ -81,6 +82,5 @@ if (empty($token)) {
             <?php endif; ?>
         </div>
     </main>
-<div id="google_translate_element"></div>
 </body>
 </html>
