@@ -1,9 +1,8 @@
 <?php
-// FILE: verify_email.php (Versione Finale con Stile Aggiornato)
+// FILE: verify_email.php (Versione Corretta e Pulita)
 
 session_start();
 require 'config/config.php';
-require 'includes/header.php'; // Includi il tuo header per un layout coerente
 
 $message = '';
 $is_success = false;
@@ -36,51 +35,36 @@ if (empty($token)) {
         $message = "Errore del database. Riprova più tardi.";
     }
 }
+
+// Includi l'header DOPO la logica PHP
+require 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verifica Email - Sians Hosting</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.8s ease-out forwards;
-        }
-        </style>
-</head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased">
-    <div id="google_translate_element"></div>
 
-    <main class="flex items-center justify-center min-h-screen p-4 bg-cover bg-center" style="background-image: url('/path/to/your/minecraft-background.jpg');">
-        <div class="w-full max-w-md bg-slate-800/70 rounded-3xl p-8 shadow-2xl backdrop-blur-xl border border-slate-700 text-center animate-fade-in">
-            
-            <?php if ($is_success): ?>
-                <i class="bi bi-check-circle-fill text-6xl text-green-400 mb-4"></i>
-                <h2 class="text-3xl font-bold text-white">Verifica Completata!</h2>
-            <?php else: ?>
-                <i class="bi bi-x-circle-fill text-6xl text-red-400 mb-4"></i>
-                <h2 class="text-3xl font-bold text-white">Ops! Qualcosa è andato storto.</h2>
-            <?php endif; ?>
-            
-            <p class="text-slate-300 mt-4 mb-8"><?= htmlspecialchars($message) ?></p>
+<main class="flex items-center justify-center flex-grow p-4 bg-cover bg-center" style="background-image: url('assets/background.jpg');">
+    <div class="w-full max-w-md bg-slate-800/70 rounded-3xl p-8 shadow-2xl backdrop-blur-xl border border-slate-700 text-center animate-fade-in">
+        
+        <?php if ($is_success): ?>
+            <i class="bi bi-check-circle-fill text-6xl text-green-400 mb-4"></i>
+            <h2 class="text-3xl font-bold text-white">Verifica Completata!</h2>
+        <?php else: ?>
+            <i class="bi bi-x-circle-fill text-6xl text-red-400 mb-4"></i>
+            <h2 class="text-3xl font-bold text-white">Ops! Qualcosa è andato storto.</h2>
+        <?php endif; ?>
+        
+        <p class="text-slate-300 mt-4 mb-8"><?= htmlspecialchars($message) ?></p>
 
-            <?php if ($is_success): ?>
-                <a href="login.php" class="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105 inline-block">
-                    Vai al Login
-                </a>
-            <?php else: ?>
-                 <a href="register.php" class="w-full py-3 mt-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold rounded-full shadow-lg hover:shadow-gray-600/50 transition-all duration-300 transform hover:scale-105 inline-block">
-                    Torna alla Registrazione
-                </a>
-            <?php endif; ?>
-        </div>
-    </main>
-</body>
-</html>
+        <?php if ($is_success): ?>
+            <a href="login.php" class="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105 inline-block">
+                Vai al Login
+            </a>
+        <?php else: ?>
+            <a href="register.php" class="w-full py-3 mt-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold rounded-full shadow-lg hover:shadow-gray-600/50 transition-all duration-300 transform hover:scale-105 inline-block">
+                Torna alla Registrazione
+            </a>
+        <?php endif; ?>
+    </div>
+</main>
+
+<?php
+// Includi il footer per chiudere la pagina e aggiungere gli script
+require 'includes/footer.php';
