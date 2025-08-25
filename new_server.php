@@ -103,7 +103,7 @@ try {
     sleep(4);
     // --- 6. AGGIORNAMENTO AUTOMATICO CONFIGURAZIONE CLOUDFLARED ---
     try {
-        $fileConfigTunnel = '/root/.cloudflared/config.yml';
+        $fileConfigTunnel = '/etc/cloudflared/config.yml';
         
         $config = Yaml::parseFile($fileConfigTunnel);
 
