@@ -29,7 +29,7 @@ $proxmox_token_secret = '0b4b070d-90bc-40a5-b0d1-9db4df95aa79'; // Secret token
     define('CONTAINER_SUBNET', '192.168.1.0/24');
 
         define('STRIPE_SECRET_KEY', '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');
-define('CLOUDFLARE_API_TOKEN', 'UI5ZCFz62itti1220yKgJV9y5SsZtFJ4CoFvU5yo');
+define('CLOUDFLARE_API_TOKEN', '7DaLfoM_Q2BEqgq5w4XHCLs0nIZ3RhS7z9a6_LEf');
 define('CLOUDFLARE_ZONE_ID', 'ad73843747d02aa059e3a650182af704');
 // In config/config.php
 
