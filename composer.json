@@ -1,7 +1,6 @@
 {
     "require": {
         "phpmailer/phpmailer": "^6.10",
-        "symfony/yaml": "^7.3",
-        "phpmailer/dkimvalidator": "^0.3.0"
+        "symfony/yaml": "^7.3"
     }
 }
