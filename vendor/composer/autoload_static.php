@@ -20,6 +20,7 @@ class ComposerStaticInitcb5da62d73716ac8a1776f19367bc28f
         'P' => 
         array (
             'PHPMailer\\PHPMailer\\' => 20,
+            'PHPMailer\\DKIMValidator\\' => 24,
         ),
     );
 
@@ -35,6 +36,10 @@ class ComposerStaticInitcb5da62d73716ac8a1776f19367bc28f
         'PHPMailer\\PHPMailer\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
+        ),
+        'PHPMailer\\DKIMValidator\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpmailer/dkimvalidator/src',
         ),
     );
 
