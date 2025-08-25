@@ -21,7 +21,7 @@ use Symfony\Component\Yaml\Exception\ParseException;
  * @param string $serverName Il nome del server (senza dominio) da rimuovere.
  */
 function removeTunnelRuleAndReload(string $serverName) {
-    $configFile = '~/.cloudflared/config.yml';
+    $configFile = '/etc/cloudflared/config.yml';
     $hostnameToDelete = $serverName . '.sians.it';
 
     try {
