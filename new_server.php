@@ -100,10 +100,10 @@ try {
     if (!$risultatoCreazione['success']) {
         throw new Exception("Errore durante la creazione del container in Proxmox: " . $risultatoCreazione['message']);
     }
-
+    sleep(4);
     // --- 6. AGGIORNAMENTO AUTOMATICO CONFIGURAZIONE CLOUDFLARED ---
     try {
-        $fileConfigTunnel = '/etc/cloudflared/config.yml';
+        $fileConfigTunnel = '/root/.cloudflared/config.yml';
         
         $config = Yaml::parseFile($fileConfigTunnel);
 
@@ -186,14 +186,25 @@ try {
     exit;
 }
 
-// --- 8. SETUP SOFTWARE REMOTO (es. installazione gioco) ---
+// --- 8. Setup software remoto ---
 try {
-    // Il tuo codice esistente per l'installazione remota va qui...
-    // es. exec(...)
+    $sshKey = "/var/www/.ssh/id_proxmox";
+    $nodeIp = "192.168.1.251";
+    $localScript = '/var/www/setup_server.sh';
+    $remoteTemp = "/root/setup_server.sh";
+
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- apt-get update && pct exec $vmid -- apt-get install -y curl jq unzip screen\"");
+    exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp");
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct push $vmid $remoteTemp $remoteTemp\"");
+
+    $remoteExecCommand = "bash -c 'chmod +x {$remoteTemp} && {$remoteTemp} {$containerId} > /root/setup.log 2>&1 &'";
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$remoteExecCommand}\"");
+
 } catch (Exception $e) {
     header("Location: dashboard.php?warning=" . urlencode("Server creato, ma il setup software potrebbe essere fallito: " . $e->getMessage()));
     exit;
 }
+
 
 // --- 9. FINALIZZA STATO E REDIRECT ---
 $pdo->prepare("UPDATE servers SET status = 'stopped' WHERE id = ?")->execute([$idServer]);
