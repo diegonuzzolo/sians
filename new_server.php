@@ -15,10 +15,10 @@ require 'vendor/autoload.php';
 define('VPS_USER', 'root');
 define('VPS_IP', '195.231.66.137');
 define('VPS_SSH_KEY', '/var/www/.ssh/id_proxmox');
-define('VPS_PUBLIC_INTERFACE', 'enx3');
+define('VPS_PUBLIC_INTERFACE', 'enx3'); // CORRETTO
 
 define('WEBSERVER_TUNNEL_IP', '10.10.0.2');
-define('WEBSERVER_LAN_INTERFACE', 'eth0'); // Assicurati che questo sia il nome corretto della tua interfaccia LAN
+define('WEBSERVER_LAN_INTERFACE', 'eth0'); // VERIFICA CHE SIA CORRETTA (con `ip a`)
 define('WEBSERVER_WIREGUARD_INTERFACE', 'wg0');
 
 define('MINECRAFT_BEDROCK_PORT', 19132);
@@ -55,7 +55,7 @@ if (!$slotId || !$planCode) {
 // --- INIZIO TRANSAZIONE ---
 $pdo->beginTransaction();
 $newPublicPort = 0;
-$containerLanIp = '';
+$containerLanIp = ''; // IP locale del container, es. 192.168.1.101
 
 try {
     // --- 2. BLOCCO SLOT ---
@@ -84,6 +84,7 @@ try {
 
     // --- 3. ALLOCAZIONE RISORSE ---
     $vmid = getNextFreeVmid($pdo);
+    // getNextFreePrivateIp() deve restituire un IP della LAN, es. 192.168.1.101
     $containerLanIp = getNextFreePrivateIp($pdo); 
 
     $stmtPort = $pdo->query("SELECT MAX(public_port) as last_port FROM servers");
@@ -115,15 +116,16 @@ try {
     
     sleep(5); 
     
-    // --- 6. CONFIGURAZIONE PORT FORWARDING ---
+    // --- 6. CONFIGURAZIONE PORT FORWARDING (LOGICA CORRETTA) ---
+    
+    // ## PARTE A: REGOLE SUL VPS PUBBLICO ##
     $escapedPublicPort = escapeshellarg($newPublicPort);
     $webserverTunnelIp = escapeshellarg(WEBSERVER_TUNNEL_IP);
     $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
-    $escapedContainerIp = escapeshellarg($containerLanIp);
-    $saveRules = "netfilter-persistent save";
 
-    // ## PARTE A: REGOLE SUL VPS PUBBLICO ##
     $vpsDnatRule = "iptables -t nat -A PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
+    $saveRules = "netfilter-persistent save";
+    
     $remoteCommand = escapeshellarg("{$vpsDnatRule} && {$saveRules}");
     $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
     exec($sshCommand, $output, $return_var);
@@ -131,9 +133,12 @@ try {
         throw new Exception("Configurazione firewall sul VPS fallita. Output: " . implode("\n", $output));
     }
 
-    // ## PARTE B: REGOLE SUL WEBSERVER (LOCALE) - CON SUDO ##
-    $webserverDnatRule = "sudo iptables -t nat -A PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
-    exec("{$webserverDnatRule} && sudo {$saveRules}", $output_local, $return_var_local);
+    // ## PARTE B: REGOLE SUL WEBSERVER (LOCALE) ##
+    $escapedContainerIp = escapeshellarg($containerLanIp);
+    $webserverDnatRule = "iptables -t nat -A PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
+    
+    // Eseguiamo il comando localmente
+    exec("{$webserverDnatRule} && {$saveRules}", $output_local, $return_var_local);
     if ($return_var_local !== 0) {
         throw new Exception("Configurazione firewall su Webserver fallita. Output: " . implode("\n", $output_local));
     }
@@ -145,14 +150,16 @@ try {
 
     // --- Rollback delle regole IPTABLES in caso di fallimento ---
     if ($newPublicPort > 0) {
+        // Rimuovi regola dal VPS
         $vpsDnatRule = "iptables -t nat -D PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
         $remoteCommand = escapeshellarg("{$vpsDnatRule} && netfilter-persistent save");
         $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
         exec($sshCommand);
 
+        // Rimuovi regola dal Webserver
         if (!empty($containerLanIp)) {
-            $webserverDnatRule = "sudo iptables -t nat -D PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
-            exec("{$webserverDnatRule} && sudo netfilter-persistent save");
+            $webserverDnatRule = "iptables -t nat -D PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
+            exec("{$webserverDnatRule} && netfilter-persistent save");
         }
     }
 
@@ -175,13 +182,11 @@ try {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-    // A Record punta al VPS pubblico
     $aRecord = ["type" => "A", "name" => $serverName, "content" => VPS_IP, "ttl" => 120, "proxied" => false];
     curl_setopt($ch, CURLOPT_URL, "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records");
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($aRecord));
     curl_exec($ch);
 
-    // SRV Record per Minecraft Bedrock che punta alla porta pubblica
     $srvRecord = [
         "type" => "SRV",
         "data" => [
