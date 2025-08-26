@@ -308,13 +308,12 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
     }
 
     // --- ELIMINA SERVER ---
-    function deleteServer(serverId, vmid) {
+    function deleteServer(vmid) {
         if (!confirm('Sei sicuro di voler eliminare questo server? L\'azione è irreversibile.')) {
             return;
         }
 
         const formData = new FormData();
-        formData.append('server_id', serverId); // <-- CORRETTO
         formData.append('vmid', vmid); // opzionale, se ti serve lato PHP
         formData.append('csrf_token', csrfToken);
 
