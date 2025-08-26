@@ -124,7 +124,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                                 <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
                                 Ferma
                             </button>
-                            <button onclick="deleteServer(<?= $server['id'] ?>)"
+                            <button onclick="deleteServer('<?= $server['proxmox_containerId'] ?>')"
                                 class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
                                 Elimina
                             </button>
