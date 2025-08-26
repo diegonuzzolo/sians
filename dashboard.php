@@ -209,31 +209,28 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
 
 
 function controlServer(serverId, action) {
-    const logContainerId = 'log-' + serverId;
-    let logContainer = document.getElementById(logContainerId);
-
-    // Se non esiste, lo creiamo
-    if (!logContainer) {
-        const serverDiv = document.getElementById('server-' + serverId);
-        logContainer = document.createElement('pre');
-        logContainer.id = logContainerId;
-        logContainer.className = "mt-2 p-2 bg-gray-900 text-gray-200 rounded-lg text-xs overflow-x-auto max-h-40";
-        serverDiv.appendChild(logContainer);
+    if (!serverId || !action) {
+        console.error('Parametri della richiesta non validi.', { serverId, action });
+        alert('Errore: Parametri della richiesta non validi.');
+        return;
     }
 
-    logContainer.textContent = "Esecuzione comando...";
+    const payload = `action=${encodeURIComponent(action)}&server_id=${encodeURIComponent(serverId)}&csrf_token=${encodeURIComponent(csrfToken)}`;
+    console.log('Invio richiesta AJAX:', { serverId, action, csrfToken });
 
     fetch('ajax_server_control.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=${encodeURIComponent(action)}&server_id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
+        body: payload
     })
     .then(res => res.json())
     .then(data => {
-        if (data.success && data.status) {
+        if (!data) throw new Error('Risposta vuota dal server.');
+
+        if (data.success) {
             // Aggiorna stato server
             const statusEl = document.getElementById('status-' + serverId);
-            if (statusEl) {
+            if (statusEl && data.status) {
                 statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
                 statusEl.classList.remove('bg-green-500', 'bg-red-500', 'bg-yellow-500');
                 if (data.status === 'running') statusEl.classList.add('bg-green-500');
@@ -247,20 +244,24 @@ function controlServer(serverId, action) {
             // Aggiorna colore icona
             updateIconColor(serverId, data.status);
 
-            // Mostra i log
-            logContainer.textContent = data.log || "Comando eseguito con successo!";
+            // Mostra log al debug (console)
+            if (data.log) console.log(`Log server ${serverId}:`, data.log);
+
         } else {
-            logContainer.textContent = "Errore: " + (data.message || "Si è verificato un problema.");
+            alert('Errore: ' + (data.message || 'Si è verificato un problema.'));
+            if (data.log) console.error('Log server:', data.log);
         }
     })
     .catch(err => {
-        logContainer.textContent = "Errore fetch: " + err.message;
-        console.error(err);
+        console.error('Errore fetch controlServer:', err);
+        alert('Errore nella comunicazione con il server. Controlla console.');
     });
 }
 
+// Wrapper per start/stop
 function startServer(serverId) { controlServer(serverId, 'start'); }
 function stopServer(serverId) { controlServer(serverId, 'stop'); }
+
 
 
 // --- AGGIORNA COLORE ICONA ---
