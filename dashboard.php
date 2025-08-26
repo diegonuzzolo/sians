@@ -64,8 +64,8 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                     $iconColor = ($status === 'running') ? 'text-green-400' : ($status === 'creating' ? 'text-yellow-400' : 'text-red-400');
 
                     // MODIFICATO: Costruiamo l'indirizzo pubblico con IP e PORTA
-                    $publicAddress = VPS_IP . ':' . htmlspecialchars($server['public_port']);
-                    $domainAddress = htmlspecialchars($server['name']) . '.sians.it'. ':' . htmlspecialchars($server['public_port']); // Manteniamo il dominio per riferimento
+                    $publicPort = htmlspecialchars($server['public_port']);
+                    $domainAddress = htmlspecialchars($server['name']) . '.sians.it'; // Manteniamo il dominio per riferimento
                 ?>
                     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
 
@@ -90,20 +90,20 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                         </div>
 
                         <div class="mt-auto">
-                            <!-- MODIFICATO: Mostra l'indirizzo IP:PORTA -->
-                            <label class="text-xs font-semibold text-gray-400">Indirizzo IP Pubblico (IP:PORTA)</label>
+                            <!-- AGGIUNTO: Mostra anche l'indirizzo con dominio -->
+                           <label class="text-xs font-semibold text-gray-400 mt-2">Indirizzo Dominio</label>
+                           <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
+                               <input type="text" readonly value="<?= $domainAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
+                               <button onclick="copyToClipboard('<?= $domainAddress ?>', this)"
+                                   class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
+                                   Copia
+                               </button>
+                           </div>
+                            <!-- Mostra la PORTA -->
+                            <label class="text-xs font-semibold text-gray-400">PORTA</label>
                             <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
-                                <input type="text" readonly value="<?= $publicAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
-                                <button onclick="copyToClipboard('<?= $publicAddress ?>', this)"
-                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
-                                    Copia
-                                </button>
-                            </div>
-                             <!-- AGGIUNTO: Mostra anche l'indirizzo con dominio -->
-                            <label class="text-xs font-semibold text-gray-400 mt-2">Indirizzo Dominio</label>
-                            <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
-                                <input type="text" readonly value="<?= $domainAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
-                                <button onclick="copyToClipboard('<?= $domainAddress ?>', this)"
+                                <input type="text" readonly value="<?= $publicPort ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
+                                <button onclick="copyToClipboard('<?= $publicPort ?>', this)"
                                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
                                     Copia
                                 </button>
