@@ -1,85 +1,95 @@
 <?php
-// FILE: delete_server.php (Compatibile con il nuovo new_server.php)
+// FILE: delete_server.php
 
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // --- 0. DIPENDENZE E CONFIGURAZIONE ---
-require 'vendor/autoload.php'; // Per la libreria Symfony YAML
 require 'auth_check.php';
 require_once 'includes/csrf.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
 
-use Symfony\Component\Yaml\Yaml;
-use Symfony\Component\Yaml\Exception\ParseException;
+// --- COSTANTI PER LA CONNESSIONE ---
+define('VPS_USER', 'root');
+define('VPS_IP', '195.231.66.137');
+define('VPS_SSH_KEY', '/var/www/.ssh/id_proxmox'); // Chiave per connettersi al VPS
+define('PUBLIC_INTERFACE', 'enx3'); // Interfaccia pubblica del VPS
+
+define('WEBSERVER_TUNNEL_IP', '10.10.0.2'); // IP del webserver nel tunnel
+define('WEBSERVER_LAN_INTERFACE', 'eth0'); // Interfaccia LAN del webserver (da verificare con `ip a`)
+define('MINECRAFT_BEDROCK_PORT', 19132);
+
 
 // --- FUNZIONI HELPER ---
 
 /**
- * Rimuove una regola di ingress dal file config.yml di cloudflared e ricarica il servizio.
- * @param string $serverName Il nome del server (senza dominio) da rimuovere.
+ * Rimuove le regole iptables dal VPS Pubblico.
+ * @param int $publicPort La porta pubblica da chiudere.
  */
-function removeTunnelRuleAndReload(string $serverName) {
-    $configFile = '/etc/cloudflared/config.yml';
-    $hostnameToDelete = $serverName . '.sians.it';
+function removeVpsFirewallRules(int $publicPort) {
+    $escapedPublicPort = escapeshellarg($publicPort);
+    $webserverTunnelIp = escapeshellarg(WEBSERVER_TUNNEL_IP);
+    $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
 
-    try {
-        $config = Yaml::parseFile($configFile);
-        
-        if (!isset($config['ingress']) || !is_array($config['ingress'])) {
-            return; // Nessuna regola di ingress da rimuovere
-        }
+    // Comando per rimuovere la regola DNAT
+    $dnatRule = "iptables -t nat -D PREROUTING -i " . PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
+    
+    // Comando per salvare le regole
+    $saveRules = "netfilter-persistent save";
 
-        $newIngressRules = [];
-        $ruleFound = false;
+    $remoteCommand = escapeshellarg("{$dnatRule} && {$saveRules}");
+    $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no -o ConnectTimeout=10 " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
 
-        // Filtra le regole, escludendo quella da eliminare
-        foreach ($config['ingress'] as $rule) {
-            if (isset($rule['hostname']) && $rule['hostname'] === $hostnameToDelete) {
-                $ruleFound = true;
-                continue; // Salta questa regola, non la aggiungere alla nuova lista
-            }
-            $newIngressRules[] = $rule;
-        }
-
-        // Se la regola è stata trovata e rimossa, aggiorna il file e ricarica il servizio
-        if ($ruleFound) {
-            $config['ingress'] = $newIngressRules;
-            $yaml = Yaml::dump($config, 4);
-            file_put_contents($configFile, $yaml);
-            
-            // Ricarica cloudflared per applicare le modifiche
-            exec('sudo systemctl reload cloudflared');
-        }
-
-    } catch (ParseException $e) {
-        throw new Exception("Errore di parsing del file config.yml: " . $e->getMessage());
-    } catch (Exception $e) {
-        throw new Exception("Errore durante l'aggiornamento della configurazione del tunnel: " . $e->getMessage());
+    exec($sshCommand, $output, $return_var);
+    if ($return_var !== 0) {
+        // Non blocchiamo l'eliminazione per un errore firewall, ma lo logghiamo
+        error_log("Fallita rimozione regola firewall su VPS per porta {$publicPort}. Output: " . implode("\n", $output));
     }
 }
 
 /**
- * Cancella i record CNAME e SRV da Cloudflare per un dato server.
+ * Rimuove le regole iptables dal Webserver locale.
+ * @param string $containerIp L'IP locale del container (es. 192.168.1.101).
+ */
+function removeWebserverFirewallRules(string $containerIp) {
+    $escapedContainerIp = escapeshellarg($containerIp);
+    $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
+
+    // Comando per rimuovere la regola DNAT locale
+    $dnatRule = "iptables -t nat -D PREROUTING -i wg0 -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
+    
+    // Comando per rimuovere la regola MASQUERADE locale
+    $masqueradeRule = "iptables -t nat -D POSTROUTING -o " . WEBSERVER_LAN_INTERFACE . " -j MASQUERADE";
+    
+    // Comando per salvare le regole
+    $saveRules = "netfilter-persistent save";
+
+    // Eseguiamo i comandi localmente (assumendo che lo script giri sul webserver)
+    exec("{$dnatRule} && {$masqueradeRule} && {$saveRules}", $output, $return_var);
+    if ($return_var !== 0) {
+        error_log("Fallita rimozione regola firewall su Webserver per IP {$containerIp}.");
+    }
+}
+
+
+/**
+ * Cancella i record A e SRV da Cloudflare per un dato server.
  * @param string $serverName Il nome del server (senza dominio).
  */
 function deleteCloudflareDnsRecords(string $serverName) {
-    // Il tuo codice esistente per deleteCloudflareRecords va qui, è già corretto.
-    // Ho solo rinominato la funzione per chiarezza.
     $headers = [
         "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
         "Content-Type: application/json"
     ];
-
     $zoneId = CLOUDFLARE_ZONE_ID;
-    $hostname = $serverName . '.sians.it';
-
-    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?name=" . urlencode($hostname));
+    
+    // Trova e cancella tutti i record associati al nome del server (A e SRV)
+    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?name=" . urlencode($serverName . '.sians.it'));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch);
-    if (curl_errno($ch)) throw new Exception("Errore cURL nella ricerca DNS: " . curl_error($ch));
+    if (curl_errno($ch)) return; // Non bloccare in caso di errore
     $data = json_decode($resp, true);
     curl_close($ch);
 
@@ -90,14 +100,8 @@ function deleteCloudflareDnsRecords(string $serverName) {
             curl_setopt($chDel, CURLOPT_CUSTOMREQUEST, "DELETE");
             curl_setopt($chDel, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($chDel, CURLOPT_RETURNTRANSFER, true);
-            $delResp = curl_exec($chDel);
-            if (curl_errno($chDel)) throw new Exception("Errore cURL nell'eliminazione DNS: " . curl_error($chDel));
-            $delData = json_decode($delResp, true);
+            curl_exec($chDel);
             curl_close($chDel);
-
-            if (!($delData['success'] ?? false)) {
-                // Ignora l'errore se il record non è stato trovato, potrebbe essere già stato cancellato
-            }
         }
     }
 }
@@ -105,13 +109,14 @@ function deleteCloudflareDnsRecords(string $serverName) {
 // --- SCRIPT PRINCIPALE ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    die("Metodo non consentito");
+    die(json_encode(['success' => false, 'message' => 'Metodo non consentito']));
 }
 csrf_check_or_die();
 
+header('Content-Type: application/json');
 $idUtente = $_SESSION['user_id'] ?? 0;
 $vmid = intval($_POST['vmid'] ?? 0);
-if ($vmid <= 0) die("VMID non valido");
+if ($vmid <= 0) die(json_encode(['success' => false, 'message' => 'VMID non valido']));
 
 try {
     $pdo->beginTransaction();
@@ -129,27 +134,34 @@ try {
     if (!$server) throw new Exception("Server non trovato o non appartiene all'utente");
     
     $nomeServer = $server['name'];
+    $publicPort = $server['public_port'];
+    $containerIp = $server['ip'];
     $idContainer = $server['container_id'] ?? null;
 
-    // --- 1. Ferma e distruggi il container su Proxmox ---
-    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
-    sleep(5); // Attendi un po' per assicurarti che il container sia fermo
-    $distruzione = callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
-    // Non bloccare l'esecuzione se la distruzione fallisce (potrebbe essere già stato rimosso)
-
-    // --- 2. Rimuove la regola dal tunnel Cloudflared ---
-    if (!empty($nomeServer)) {
-        removeTunnelRuleAndReload($nomeServer);
+    // --- 1. Rimuove le regole firewall ---
+    if ($publicPort > 0) {
+        removeVpsFirewallRules($publicPort);
+    }
+    if (!empty($containerIp)) {
+        removeWebserverFirewallRules($containerIp);
     }
 
-    // --- 3. Rimuove i record DNS da Cloudflare ---
+    // --- 2. Rimuove i record DNS da Cloudflare ---
     if (!empty($nomeServer)) {
         deleteCloudflareDnsRecords($nomeServer);
     }
+    
+    // --- 3. Ferma e distruggi il container su Proxmox ---
+    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
+    sleep(5); // Attendi un po' per assicurarti che il container sia fermo
+    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
 
     // --- 4. Aggiorna le risorse globali nel DB ---
-    $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1")
+    $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1 AND used_cpu_cores >= ? AND used_ram_mb >= ? AND used_storage_gb >= ?")
         ->execute([
+            intval($server['cpu_cores']),
+            intval($server['ram_mb']),
+            intval($server['storage_gb']),
             intval($server['cpu_cores']),
             intval($server['ram_mb']),
             intval($server['storage_gb'])
@@ -169,15 +181,11 @@ try {
 
     $pdo->commit();
     
-    // Invia una risposta di successo al client (es. per AJAX)
-    header('Content-Type: application/json');
     echo json_encode(['success' => true, 'message' => 'Server eliminato correttamente']);
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     http_response_code(500);
-    // Invia una risposta di errore al client
-    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
 ?>
