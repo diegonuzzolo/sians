@@ -356,41 +356,85 @@ if (!$server) {
                 }, 5000);
             }
 
-            const logDiv = document.getElementById('console-output');
-            const evtSource = new EventSource('ajax_stream_log.php?id=<?= $serverId ?>');
+         document.addEventListener('DOMContentLoaded', () => {
+    const csrfToken = '<?= $csrf_token ?>';
+    const serverId = '<?= $serverId ?>';
 
-            evtSource.onmessage = function (e) {
-                const data = JSON.parse(e.data);
-                const div = document.createElement('div');
-                div.textContent = data.log;
-                logDiv.appendChild(div);
-                logDiv.scrollTop = logDiv.scrollHeight;
-            };
+    const logDiv = document.getElementById('console-output');
+    const consoleInput = document.getElementById('console-input');
+    const sendCommandBtn = document.getElementById('send-command-btn');
+    const msgBox = document.getElementById('notification-message');
 
-            evtSource.addEventListener('error', e => {
-                logDiv.innerHTML += "<div class='text-red-500 font-semibold'>Errore streaming log.</div>";
-                evtSource.close();
-            });
+    function showNotification(success, message) {
+        msgBox.textContent = message;
+        msgBox.className = `notification ${success ? 'success' : 'error'}`;
+        msgBox.classList.remove('hidden');
+        msgBox.style.opacity = '1';
+        setTimeout(() => {
+            msgBox.style.opacity = '0';
+            setTimeout(() => msgBox.classList.add('hidden'), 300);
+        }, 5000);
+    }
+
+    // --- Streaming log con SSE ---
+    const evtSource = new EventSource('ajax_stream_log.php?id=' + serverId);
+    evtSource.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        const div = document.createElement('div');
+        div.textContent = data.log;
+        logDiv.appendChild(div);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    };
+    evtSource.addEventListener('error', () => {
+        const errDiv = document.createElement('div');
+        errDiv.textContent = "Errore nello streaming dei log.";
+        errDiv.classList.add('text-red-500', 'font-semibold');
+        logDiv.appendChild(errDiv);
+        evtSource.close();
+    });
+
+    // --- Invia comandi ---
+    function sendCommand() {
+        const command = consoleInput.value.trim();
+        if (!command) return;
+
+        const formData = new FormData();
+        formData.append('server_id', serverId);
+        formData.append('command', command);
+        formData.append('csrf_token', csrfToken);
+
+        fetch('ajax_send_command.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                showNotification(data.success, data.message);
+                if (data.success) consoleInput.value = '';
+            })
+            .catch(() => showNotification(false, "Errore nell'invio del comando"));
+    }
+
+    sendCommandBtn.addEventListener('click', sendCommand);
+    consoleInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendCommand();
+        }
+    });
+
+    // --- Gestione tab per mostrare/nascondere pulsante Salva ---
+    const saveBtn = document.querySelector('#serverPropertiesForm button[type="submit"]');
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            btn.classList.add('active');
+            document.getElementById(`${btn.dataset.tab}-tab`).classList.remove('hidden');
+            if (saveBtn) saveBtn.style.display = (btn.dataset.tab === 'console') ? 'none' : 'inline-block';
+        });
+    });
+});
 
 
-            function sendCommand() {
-                const command = consoleInput.value.trim();
-                if (!command) return;
-
-                const formData = new FormData();
-                formData.append('server_id', serverId);
-                formData.append('command', command);
-                formData.append('csrf_token', csrfToken);
-
-                fetch('ajax_send_command.php', { method: 'POST', body: formData })
-                    .then(res => res.json())
-                    .then(data => {
-                        showNotification(data.success, data.message);
-                        if (data.success) consoleInput.value = '';
-                    })
-                    .catch(() => showNotification(false, "Errore nell'invio del comando"));
-            }
-
+            
             // --- Inizializzazione e Gestione Eventi ---
 
             // 1. Gestione Tab e Pulsante Salva

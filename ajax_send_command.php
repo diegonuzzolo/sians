@@ -1,53 +1,46 @@
 <?php
-session_start();
+include("auth_check.php");
 require 'config/config.php';
 
 header('Content-Type: application/json');
 
-$userId   = $_SESSION['user_id'] ?? 0;
-$serverId = intval($_POST['server_id'] ?? 0);
-$command  = trim($_POST['command'] ?? '');
+try {
+    $userId = $_SESSION['user_id'] ?? 0;
+    $serverId = intval($_POST['server_id'] ?? 0);
+    $command = trim($_POST['command'] ?? '');
+    $csrfToken = $_POST['csrf_token'] ?? '';
 
-if (!$userId || !$serverId || !$command) {
-    echo json_encode(["success" => false, "message" => "Parametri mancanti"]);
-    exit;
-}
+    if (!$userId || !$serverId || !$command) throw new Exception("Parametri mancanti");
+    if ($csrfToken !== ($_SESSION['csrf_token'] ?? '')) throw new Exception("Token CSRF non valido");
 
-// Recupera server + container + nodo
-$stmt = $pdo->prepare("
-    SELECT s.id, s.name, c.proxmox_containerId, c.node_ip
-    FROM servers s
-    LEFT JOIN containers c ON c.id = s.container_id
-    WHERE s.id=? AND s.user_id=?
-");
-$stmt->execute([$serverId, $userId]);
-$server = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Recupera container + nodo
+    $stmt = $pdo->prepare("SELECT c.proxmox_containerId, c.node_ip
+                           FROM servers s
+                           LEFT JOIN containers c ON c.id = s.container_id
+                           WHERE s.id=? AND s.user_id=?");
+    $stmt->execute([$serverId, $userId]);
+    $server = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$server) throw new Exception("Server non trovato");
 
-if (!$server) {
-    echo json_encode(["success" => false, "message" => "Server non trovato"]);
-    exit;
-}
+    $vmid = (int)$server['proxmox_containerId'];
+    $nodeIp = $server['node_ip'];
+    $sshKey = '/var/www/.ssh/id_proxmox';
+    $screenName = "mc-$serverId";
 
-$containerId = (int)$server['proxmox_containerId'];
-$screenName  = "mc-" . $server['name'];
-$nodeIp      = $server['node_ip'];   // IP del nodo remoto
-$sshKey      = '/var/www/.ssh/id_proxmox';
+    // Invia comando alla sessione screen
+    $cmd = sprintf(
+        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -S %s -p 0 -X stuff %s"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid,
+        escapeshellarg($screenName),
+        escapeshellarg($command . "\n")
+    );
 
-// Escaping sicuro del comando
-$escapedCmd = escapeshellarg($command);
+    exec($cmd . " 2>&1", $output, $status);
+    if ($status !== 0) throw new Exception("Errore invio comando: " . implode("\n", $output));
 
-// Costruisci comando remoto via SSH
-$remoteCmd = "pct exec $containerId -- screen -S $screenName -p 0 -X stuff {$escapedCmd}$(printf '\r')";
-$sshCmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp " . escapeshellarg($remoteCmd);
-
-exec($sshCmd, $output, $exitCode);
-
-if ($exitCode === 0) {
-    echo json_encode(["success" => true, "message" => "Comando inviato"]);
-} else {
-    echo json_encode([
-        "success" => false,
-        "message" => "Errore durante l'invio",
-        "debug"   => $output
-    ]);
+    echo json_encode(['success' => true, 'message' => 'Comando inviato con successo']);
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }

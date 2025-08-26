@@ -1,8 +1,8 @@
 <?php
-session_start();
+include("auth_check.php");
 require 'config/config.php';
 
-$userId   = $_SESSION['user_id'] ?? 0;
+$userId = $_SESSION['user_id'] ?? 0;
 $serverId = intval($_GET['id'] ?? 0);
 
 if (!$userId || !$serverId) {
@@ -10,13 +10,11 @@ if (!$userId || !$serverId) {
     exit("Parametri mancanti");
 }
 
-// Recupera server + container + nodo
-$stmt = $pdo->prepare("
-    SELECT s.id, s.name, c.proxmox_containerId, c.node_ip
-    FROM servers s
-    LEFT JOIN containers c ON c.id = s.container_id
-    WHERE s.id=? AND s.user_id=?
-");
+// Recupera container + nodo
+$stmt = $pdo->prepare("SELECT c.proxmox_containerId, c.node_ip
+                       FROM servers s
+                       LEFT JOIN containers c ON c.id = s.container_id
+                       WHERE s.id=? AND s.user_id=?");
 $stmt->execute([$serverId, $userId]);
 $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -25,12 +23,11 @@ if (!$server) {
     exit("Server non trovato");
 }
 
-$containerId = (int)$server['proxmox_containerId'];
-$screenName  = "mc-" . $server['name'];
-$nodeIp      = $server['node_ip'];
-$sshKey      = '/var/www/.ssh/id_proxmox';
+$vmid = (int)$server['proxmox_containerId'];
+$nodeIp = $server['node_ip'];
+$sshKey = '/var/www/.ssh/id_proxmox';
+$screenName = "mc-$serverId";
 
-// Impostazioni SSE
 header('Content-Type: text/event-stream');
 header('Cache-Control: no-cache');
 header('Connection: keep-alive');
@@ -39,10 +36,9 @@ header('X-Accel-Buffering: no');
 $lastLine = 0;
 
 while (true) {
-    // Comando remoto per leggere le ultime righe dal log
-    // Utilizziamo tail -n +$lastLine per leggere solo le nuove righe
-    $cmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp " . 
-           escapeshellarg("tail -n +$lastLine /root/minecraft_bedrock/bedrock_server_{$serverId}.log");
+    // Legge log dal container tramite screen
+    $cmd = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp " .
+           escapeshellarg("pct exec $vmid -- tail -n +$lastLine /root/minecraft_bedrock/$serverId/bedrock_server_$serverId.log");
 
     exec($cmd, $lines, $exitCode);
 
@@ -51,12 +47,10 @@ while (true) {
             $line = trim($line);
             if ($line === '') continue;
             echo "data: " . json_encode(['log' => $line]) . "\n\n";
-            ob_flush();
-            flush();
+            ob_flush(); flush();
         }
         $lastLine += count($lines);
     }
 
-    // Pausa 1 secondo prima di leggere altre righe
     sleep(1);
 }
