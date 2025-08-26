@@ -37,6 +37,8 @@ function createLxcContainer(
         'swap' => $swapMb,
         'rootfs' => "local-lvm:64", // esempio "local-lvm:8"
         'cores' => $cores,
+        'nameserver' => '1.1.1.1', //  <-- Aggiungi questa riga
+
         'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
         'ostemplate' => $template,
         'password' => 'Lgu8330Serve6',
