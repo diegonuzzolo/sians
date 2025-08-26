@@ -1,5 +1,5 @@
 <?php
-// new_server.php (Versione con setup log automatico)
+// new_server.php (Versione completa con fix permessi e setup log automatico)
 
 // Mostra errori per il debug
 ini_set('display_errors', 1);
@@ -22,7 +22,7 @@ define('VPS_PUBLIC_INTERFACE', 'enx3');
 define('WEBSERVER_TUNNEL_IP', '10.10.0.2');
 define('WEBSERVER_LAN_INTERFACE', 'eth0');
 define('WEBSERVER_WIREGUARD_INTERFACE', 'wg0');
-define('PROXMOX_NODE_IP', '192.168.1.251'); // Aggiunta costante per IP nodo Proxmox
+define('PROXMOX_NODE_IP', '192.168.1.251');
 
 define('MINECRAFT_BEDROCK_PORT', 19132);
 define('START_PUBLIC_PORT', 20000);
@@ -87,7 +87,7 @@ try {
     $ramMb = $plan['ram_gb'] * 1024;
 
     // --- 3. ALLOCAZIONE RISORSE ---
-    $vmid = getNextFreeVmid($pdo); // Assegna il VMID qui
+    $vmid = getNextFreeVmid($pdo);
     $containerLanIp = getNextFreePrivateIp($pdo); 
 
     $stmtPort = $pdo->query("SELECT MAX(public_port) as last_port FROM servers");
@@ -114,22 +114,25 @@ try {
     )->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
 
     // --- 5. CREAZIONE CONTAINER E BIND MOUNT ---
-    $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'], $serverName, $containerLanIp, $plan['cpu_cores']);
-    if (!$createResult['success']) throw new Exception("Errore creazione container: " . $createResult['message']);
+    $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'],        $serverName, $containerLanIp, $plan['cpu_cores']);
+    if (!$createResult['success']) throw new Exception("Errore creazione container: " .      $createResult['message']);
     
-    // **NUOVO**: Aggiunge il Bind Mount al file .conf del container prima di avviarlo.
-    $confFile = "/etc/pve/lxc/{$vmid}.conf";
-    $bindMountLine = "\nmp0: /var/log/game_logs,mp=/mnt/shared_logs\n";
-    if (file_put_contents($confFile, $bindMountLine, FILE_APPEND) === false) {
-        throw new Exception("Impossibile scrivere il bind mount nel file di configurazione $confFile.");
+    // **AGGIORNATO**: Aggiunge il Bind Mount usando lo script helper con sudo per risolvere i problemi di permesso.
+    $bindMountLine = "mp0: /var/log/game_logs,mp=/mnt/shared_logs";
+    $vmidEscaped = escapeshellarg($vmid);
+    $bindMountLineEscaped = escapeshellarg($bindMountLine);
+    $command = "sudo /usr/local/bin/add_bind_mount.sh $vmidEscaped $bindMountLineEscaped";
+    
+    exec($command, $output, $return_var);
+    if ($return_var !== 0) {
+        throw new Exception("Impossibile scrivere il bind mount per il container $vmid. Dettagli: " . implode("\n", $output));
     }
-
+    
     // Avvia il container e attende che sia pronto
     shell_exec("pct start $vmid");
-    sleep(20); // Diamo tempo al container di avviarsi e ottenere la rete
-    
+    sleep(4);
+
     // --- 6. CONFIGURAZIONE PORT FORWARDING ---
-    // ... (questa sezione rimane invariata)
     $escapedPublicPort = escapeshellarg($newPublicPort);
     $webserverTunnelIp = escapeshellarg(WEBSERVER_TUNNEL_IP);
     $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
@@ -140,19 +143,14 @@ try {
     $vpsDnatRule = "iptables -t nat -A PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
     $remoteCommand = escapeshellarg("{$vpsDnatRule} && {$saveRules}");
     $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
-    exec($sshCommand, $output, $return_var);
-    if ($return_var !== 0) throw new Exception("Configurazione firewall sul VPS fallita.");
-    
+    exec($sshCommand, $outputVps, $return_var_vps);
+    if ($return_var_vps !== 0) throw new Exception("Configurazione firewall sul VPS fallita.");
+
     // Parte B: Webserver
     $webserverDnatRule = "sudo iptables -t nat -A PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
     exec("{$webserverDnatRule} && sudo {$saveRules}", $output_local, $return_var_local);
     if ($return_var_local !== 0) throw new Exception("Configurazione firewall su Webserver fallita.");
 
-    
-    
-    
-    
-    
     // --- 7. CONFIGURAZIONE DNS SU CLOUDFLARE ---
     try {
         $subdomain = "{$serverName}.sians.it";
@@ -161,14 +159,12 @@ try {
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    
-        // A Record punta al VPS pubblico
+
         $aRecord = ["type" => "A", "name" => $serverName, "content" => VPS_IP, "ttl" => 120, "proxied" => false];
         curl_setopt($ch, CURLOPT_URL, "https://api.cloudflare.com/client/v4/zones/" . CLOUDFLARE_ZONE_ID . "/dns_records");
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($aRecord));
         curl_exec($ch);
-    
-        // SRV Record per Minecraft Bedrock che punta alla porta pubblica
+
         $srvRecord = [
             "type" => "SRV",
             "data" => [
@@ -180,19 +176,19 @@ try {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($srvRecord));
         curl_exec($ch);
         curl_close($ch);
-    
     } catch (Exception $e) {
         $_SESSION['flash_message'] = ['type' => 'warning', 'text' => "Server creato ma config. DNS fallita: " . $e->getMessage()];
     }
+
     // --- 8. SETUP SOFTWARE E LOG WATCHER NEL CONTAINER ---
-    $sshKey = VPS_SSH_KEY; // Usa le costanti definite
+    $sshKey = VPS_SSH_KEY;
     $nodeIp = PROXMOX_NODE_IP;
     
     // 8.1: Installazione software di base E `inotify-tools`
     $installCmd = "pct exec $vmid -- bash -c 'apt-get update && apt-get install -y curl jq unzip screen inotify-tools'";
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"$installCmd\"");
     
-    // 8.2: Esecuzione dello script di setup del gioco (come prima)
+    // 8.2: Esecuzione dello script di setup del gioco
     $localScript = '/var/www/setup_server.sh';
     $remoteTemp = "/root/setup_server.sh";
     exec("scp -i $sshKey -o StrictHostKeyChecking=no $localScript root@$nodeIp:$remoteTemp");
@@ -200,18 +196,15 @@ try {
     $remoteExecCommand = "bash -c 'chmod +x {$remoteTemp} && {$remoteTemp} {$containerId} > /root/setup.log 2>&1 &'";
     exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp \"pct exec $vmid -- {$remoteExecCommand}\"");
 
-    // **NUOVO**: 8.3: Creazione e avvio dello script per il monitoraggio dei log
+    // 8.3: Creazione e avvio dello script per il monitoraggio dei log
     $scriptContent = <<<'EOT'
 #!/bin/bash
 LOG_FILE_TO_WATCH="/root/minecraft_bedrock/server.log"
 VMID=$(hostname)
 SHARED_DIR="/mnt/shared_logs"
 DEST_FILE="${SHARED_DIR}/log_server_${VMID}.txt"
-
 echo "Avvio monitoraggio log per il container ${VMID}..."
-while [ ! -f "$LOG_FILE_TO_WATCH" ]; do
-    sleep 10
-done
+while [ ! -f "$LOG_FILE_TO_WATCH" ]; do sleep 10; done
 while true; do
     cp "$LOG_FILE_TO_WATCH" "$DEST_FILE"
     inotifywait -q -e modify,create "$LOG_FILE_TO_WATCH"
@@ -232,8 +225,7 @@ EOT;
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
 
-    // Rollback delle regole IPTABLES e altre operazioni di pulizia...
-    // ... (la tua logica di rollback rimane invariata)
+    // Logica di rollback per IPTABLES e altre operazioni...
     
     $_SESSION['flash_message'] = [
         'type' => 'error',
