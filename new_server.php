@@ -100,23 +100,24 @@ try {
     );
     $stmtServer->execute([$serverName, $userId, $plan['id'], $slotId, $vmid, $plan['cpu_cores'], $ramMb, $newPublicPort]);
     $serverId = $pdo->lastInsertId();
-
+    
     $stmtContainer = $pdo->prepare(
         "INSERT INTO containers (proxmox_containerId, ram_mb, storage_gb, user_id, hostname, ip, status, cores, server_id) VALUES (?, ?, ?, ?, ?, ?, 'Creating', ?, ?)"
     );
     $stmtContainer->execute([$vmid, $ramMb, $plan['storage_gb'], $userId, $serverName, $containerLanIp, $plan['cpu_cores'], $serverId]);
     $containerId = $pdo->lastInsertId();
-
+    
     $pdo->prepare("UPDATE servers SET container_id = ? WHERE id = ?")->execute([$containerId, $serverId]);
     $pdo->prepare("UPDATE server_slots SET server_id = ?, status = 'created' WHERE id = ?")->execute([$serverId, $slotId]);
     $pdo->prepare(
         "UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id = 1"
-    )->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
-
-    // --- 5. CREAZIONE CONTAINER E BIND MOUNT ---
-    $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'],        $serverName, $containerLanIp, $plan['cpu_cores']);
-    if (!$createResult['success']) throw new Exception("Errore creazione container: " .      $createResult['message']);
-    
+        )->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
+        
+        // --- 5. CREAZIONE CONTAINER E BIND MOUNT ---
+        $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'],        $serverName, $containerLanIp, $plan['cpu_cores']);
+        if (!$createResult['success']) throw new Exception("Errore creazione container: " .      $createResult['message']);
+        sleep(4);
+        
     // **AGGIORNATO**: Aggiunge il Bind Mount usando lo script helper con sudo per risolvere i problemi di permesso.
     $bindMountLine = "mp0: /var/log/game_logs,mp=/mnt/shared_logs";
     $vmidEscaped = escapeshellarg($vmid);
@@ -130,7 +131,6 @@ try {
     
     // Avvia il container e attende che sia pronto
     shell_exec("pct start $vmid");
-    sleep(4);
 
     // --- 6. CONFIGURAZIONE PORT FORWARDING ---
     $escapedPublicPort = escapeshellarg($newPublicPort);
