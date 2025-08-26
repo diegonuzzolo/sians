@@ -13,11 +13,11 @@ require_once 'proxmox_functions.php';
 // --- COSTANTI PER LA CONNESSIONE ---
 define('VPS_USER', 'root');
 define('VPS_IP', '195.231.66.137');
-define('VPS_SSH_KEY', '/var/www/.ssh/id_proxmox'); // Chiave per connettersi al VPS
-define('PUBLIC_INTERFACE', 'enx3'); // Interfaccia pubblica del VPS
+define('VPS_SSH_KEY', '/var/www/.ssh/id_proxmox');
+define('VPS_PUBLIC_INTERFACE', 'enx3');
 
-define('WEBSERVER_TUNNEL_IP', '10.10.0.2'); // IP del webserver nel tunnel
-define('WEBSERVER_LAN_INTERFACE', 'eth0'); // Interfaccia LAN del webserver (da verificare con `ip a`)
+define('WEBSERVER_TUNNEL_IP', '10.10.0.2');
+define('WEBSERVER_LAN_INTERFACE', 'eth0'); // Assicurati che questo sia il nome corretto
 define('MINECRAFT_BEDROCK_PORT', 19132);
 
 
@@ -32,10 +32,7 @@ function removeVpsFirewallRules(int $publicPort) {
     $webserverTunnelIp = escapeshellarg(WEBSERVER_TUNNEL_IP);
     $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
 
-    // Comando per rimuovere la regola DNAT
-    $dnatRule = "iptables -t nat -D PREROUTING -i " . PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
-    
-    // Comando per salvare le regole
+    $dnatRule = "iptables -t nat -D PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
     $saveRules = "netfilter-persistent save";
 
     $remoteCommand = escapeshellarg("{$dnatRule} && {$saveRules}");
@@ -43,7 +40,6 @@ function removeVpsFirewallRules(int $publicPort) {
 
     exec($sshCommand, $output, $return_var);
     if ($return_var !== 0) {
-        // Non blocchiamo l'eliminazione per un errore firewall, ma lo logghiamo
         error_log("Fallita rimozione regola firewall su VPS per porta {$publicPort}. Output: " . implode("\n", $output));
     }
 }
@@ -56,22 +52,14 @@ function removeWebserverFirewallRules(string $containerIp) {
     $escapedContainerIp = escapeshellarg($containerIp);
     $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
 
-    // Comando per rimuovere la regola DNAT locale
-    $dnatRule = "iptables -t nat -D PREROUTING -i wg0 -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
-    
-    // Comando per rimuovere la regola MASQUERADE locale
-    $masqueradeRule = "iptables -t nat -D POSTROUTING -o " . WEBSERVER_LAN_INTERFACE . " -j MASQUERADE";
-    
-    // Comando per salvare le regole
-    $saveRules = "netfilter-persistent save";
+    $dnatRule = "sudo iptables -t nat -D PREROUTING -i wg0 -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
+    $saveRules = "sudo netfilter-persistent save";
 
-    // Eseguiamo i comandi localmente (assumendo che lo script giri sul webserver)
-    exec("{$dnatRule} && {$masqueradeRule} && {$saveRules}", $output, $return_var);
+    exec("{$dnatRule} && {$saveRules}", $output, $return_var);
     if ($return_var !== 0) {
         error_log("Fallita rimozione regola firewall su Webserver per IP {$containerIp}.");
     }
 }
-
 
 /**
  * Cancella i record A e SRV da Cloudflare per un dato server.
@@ -84,12 +72,11 @@ function deleteCloudflareDnsRecords(string $serverName) {
     ];
     $zoneId = CLOUDFLARE_ZONE_ID;
     
-    // Trova e cancella tutti i record associati al nome del server (A e SRV)
     $ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?name=" . urlencode($serverName . '.sians.it'));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch);
-    if (curl_errno($ch)) return; // Non bloccare in caso di errore
+    if (curl_errno($ch)) return;
     $data = json_decode($resp, true);
     curl_close($ch);
 
@@ -121,7 +108,6 @@ if ($vmid <= 0) die(json_encode(['success' => false, 'message' => 'VMID non vali
 try {
     $pdo->beginTransaction();
 
-    // Recupera i dettagli del server dal DB
     $stmt = $pdo->prepare("
         SELECT s.*, c.ip, c.ram_mb, c.storage_gb, c.id as container_id 
         FROM servers s 
@@ -153,7 +139,7 @@ try {
     
     // --- 3. Ferma e distruggi il container su Proxmox ---
     callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
-    sleep(5); // Attendi un po' per assicurarti che il container sia fermo
+    sleep(5);
     callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
 
     // --- 4. Aggiorna le risorse globali nel DB ---
