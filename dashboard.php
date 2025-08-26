@@ -73,7 +73,6 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                             </div>
                             <div>
                                 <h3 class="text-xl font-semibold text-white"><?= htmlspecialchars($server['name']) ?></h3>
-                                <p class="text-xs text-gray-500">VMID: <?= $server['proxmox_containerId'] ?? 'N/A' ?> | IP Privato: <?= $server['ip'] ?? 'N/A' ?></p>
                             </div>
                         </div>
 
