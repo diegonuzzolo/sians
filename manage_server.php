@@ -107,8 +107,8 @@ if (!$server) {
     </style>
 </head>
 
+<?php include "includes/header.php"; ?>
 <body class="bg-gray-900 text-white font-sans antialiased">
-    <?php include "includes/header.php"; ?>
 <div id="google_translate_element"></div>
     <main class="container mx-auto px-4 py-12">
         <div
