@@ -47,7 +47,7 @@ try {
     // --- MODIFICA 3: Logica separata e corretta per 'start' e 'stop' ---
     if ($action === 'start') {
         // Per avviare, eseguiamo semplicemente lo script. Sarà lui a creare la sessione screen.
-        $remoteScript = '/root/minecraft_bedrock/start.sh';
+        $remoteScript = '/root/minecraft_bedrock/start.sh ' . $serverId;
         $cmd = sprintf(
             'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
             escapeshellarg($sshKey),
