@@ -7,11 +7,14 @@ include("auth_check.php");
 require 'config/config.php';
 require_once 'includes/csrf.php';
 
+// Definiamo l'IP del VPS per costruire l'indirizzo pubblico
+define('VPS_IP', '195.231.66.137');
+
 $userId = $_SESSION['user_id'] ?? 0;
 
-// Server attivi
+// Server attivi - AGGIUNTO s.public_port alla query
 $stmt = $pdo->prepare("
-    SELECT s.id, s.name, s.status, s.type, c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id
+    SELECT s.id, s.name, s.status, s.type, c.ip AS ip, c.ram_mb, c.proxmox_containerId, s.plan_id, s.public_port
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.user_id=? AND s.status != 'deleted'
@@ -60,8 +63,9 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                     $statusClass = ($status === 'running') ? 'bg-green-500' : ($status === 'creating' ? 'bg-yellow-500' : 'bg-red-500');
                     $iconColor = ($status === 'running') ? 'text-green-400' : ($status === 'creating' ? 'text-yellow-400' : 'text-red-400');
 
-                    // Costruiamo l'indirizzo pubblico che l'utente userà per connettersi
-                    $publicAddress = htmlspecialchars($server['name']) . '.sians.it';
+                    // MODIFICATO: Costruiamo l'indirizzo pubblico con IP e PORTA
+                    $publicAddress = VPS_IP . ':' . htmlspecialchars($server['public_port']);
+                    $domainAddress = htmlspecialchars($server['name']) . '.sians.it'; // Manteniamo il dominio per riferimento
                 ?>
                     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
 
@@ -86,10 +90,20 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                         </div>
 
                         <div class="mt-auto">
-                            <label class="text-xs font-semibold text-gray-400">Indirizzo Server Pubblico</label>
+                            <!-- MODIFICATO: Mostra l'indirizzo IP:PORTA -->
+                            <label class="text-xs font-semibold text-gray-400">Indirizzo IP Pubblico (IP:PORTA)</label>
                             <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
                                 <input type="text" readonly value="<?= $publicAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
                                 <button onclick="copyToClipboard('<?= $publicAddress ?>', this)"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
+                                    Copia
+                                </button>
+                            </div>
+                             <!-- AGGIUNTO: Mostra anche l'indirizzo con dominio -->
+                            <label class="text-xs font-semibold text-gray-400 mt-2">Indirizzo Dominio</label>
+                            <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
+                                <input type="text" readonly value="<?= $domainAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
+                                <button onclick="copyToClipboard('<?= $domainAddress ?>', this)"
                                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
                                     Copia
                                 </button>
@@ -98,14 +112,14 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                         <div class="grid grid-cols-2 gap-4 mt-4">
                             <button id="start-<?= $server['id'] ?>"
                                 class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                    <?= ($status === 'running' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>"
+                                <?= ($status === 'running' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' ?>"
                                 onclick="startServer(<?= $server['id'] ?>)"
                                 <?= ($status === 'running' || $status === 'creating') ? 'disabled' : '' ?>>
                                 Avvia
                             </button>
                             <button id="stop-<?= $server['id'] ?>"
                                 class="py-2 rounded-xl text-sm font-semibold transition-colors duration-200 
-                    <?= ($status === 'stopped' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>"
+                                <?= ($status === 'stopped' || $status === 'creating') ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white' ?>"
                                 onclick="stopServer(<?= $server['id'] ?>)"
                                 <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
                                 Ferma
