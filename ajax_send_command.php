@@ -1,181 +1,99 @@
- <script>
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("Pagina caricata. Script di gestione unificato avviato.");
+<?php
+// ajax_send_command.php
 
-    // --- Variabili Globali ---
-    const csrfToken = '<?= $csrf_token ?>';
-    const serverId = '<?= $serverId ?>';
-    const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
-    // --- Elementi del DOM ---
-    const msgBox = document.getElementById('notification-message');
-    const serverPropertiesForm = document.getElementById('serverPropertiesForm');
-    const saveBtn = serverPropertiesForm?.querySelector('button[type="submit"]');
-    const iconPreview = document.getElementById('server-icon-preview');
-    const uploadIconButton = document.getElementById('upload-icon-btn');
-    const consoleOutput = document.getElementById('console-output');
-    const consoleInput = document.getElementById('console-input');
-    const sendCommandBtn = document.getElementById('send-command-btn');
+include("auth_check.php");
+require 'config/config.php';
 
-    // --- Logica SSE (Server-Sent Events) ---
-    let logSource = null; // Terrà la nostra connessione di streaming
+// Imposta l'header per la risposta JSON
+header('Content-Type: application/json');
 
-    // --- Funzioni Helper ---
-    function showNotification(success, message) {
-        msgBox.textContent = message;
-        msgBox.className = `notification ${success ? 'success' : 'error'}`;
-        msgBox.classList.remove('hidden');
-        msgBox.style.opacity = '1';
-        setTimeout(() => {
-            msgBox.style.opacity = '0';
-            setTimeout(() => msgBox.classList.add('hidden'), 300);
-        }, 5000);
+// Avvolgiamo tutto in un blocco try...catch per una gestione pulita degli errori
+try {
+    // 1. Sicurezza: Controlla che la richiesta sia di tipo POST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception("Metodo non autorizzato.");
     }
 
-    // --- Funzioni Principali ---
-    function startLogStream() {
-        if (logSource) { // Se la connessione è già attiva, non fare nulla
-            return;
-        }
-        console.log("Avvio dello stream della console...");
-        consoleOutput.innerHTML = '<div class="text-gray-400">Connessione al log in corso...</div>';
+    // 2. Sicurezza: Genera un nuovo token CSRF dopo l'uso per prevenire replay attacks
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        throw new Exception("Token CSRF non valido. Ricarica la pagina.");
+    }
+    // Invalida il token usato. Il frontend ha ancora il vecchio, ma al prossimo caricamento
+    // della pagina o form ne verrà generato uno nuovo. Per maggiore sicurezza, si può rigenerare
+    // e reinviare tramite JSON se necessario.
+    unset($_SESSION['csrf_token']);
 
-        // Crea la connessione SSE allo script di streaming
-        logSource = new EventSource(`ajax_stream_log.php?id=${serverId}`);
 
-        let isFirstMessage = true;
+    // 3. Validazione Input
+    $userId   = $_SESSION['user_id'] ?? 0;
+    $serverId = intval($_POST['server_id'] ?? 0);
+    $command  = trim($_POST['command'] ?? '');
 
-        // Questo evento viene chiamato per ogni "data:" che lo script PHP invia
-        logSource.onmessage = function (event) {
-            // Al primo messaggio, pulisce la console dal testo di caricamento
-            if (isFirstMessage) {
-                consoleOutput.innerHTML = '';
-                isFirstMessage = false;
-            }
-            const data = JSON.parse(event.data);
-            if (data.log) {
-                const logLine = document.createElement('div');
-                logLine.textContent = data.log;
-                consoleOutput.appendChild(logLine);
-                // Scrolla automaticamente alla fine per mostrare sempre le ultime righe
-                consoleOutput.scrollTop = consoleOutput.scrollHeight;
-            }
-        };
-
-        // Gestisce gli errori di connessione
-        logSource.onerror = function () {
-            console.error("Errore nello stream della console. Connessione chiusa.");
-            const errorLine = document.createElement('div');
-            errorLine.className = 'text-red-500 font-semibold';
-            errorLine.textContent = 'Connessione al server persa. Cambia tab per riprovare.';
-            consoleOutput.appendChild(errorLine);
-            stopLogStream(); // Chiude la connessione fallita
-        };
+    if (!$userId || !$serverId || empty($command)) {
+        throw new Exception("Dati mancanti: impossibile inviare il comando.");
     }
 
-    function stopLogStream() {
-        if (logSource) {
-            logSource.close();
-            logSource = null; // Resetta la variabile per permettere una nuova connessione
-            console.log("Stream della console chiuso.");
-        }
+    // 4. Recupera le informazioni del container dal database
+    // Questo passaggio verifica anche che l'utente sia il proprietario del server
+    $stmt = $pdo->prepare("
+        SELECT s.proxmox_containerId
+        FROM servers s
+        WHERE s.id = ? AND s.user_id = ?
+    ");
+    $stmt->execute([$serverId, $userId]);
+    $server = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$server || empty($server['proxmox_containerId'])) {
+        throw new Exception("Server non trovato o non autorizzato.");
     }
 
-    function sendCommand() {
-        const command = consoleInput.value.trim();
-        if (!command) return;
-        const formData = new FormData();
-        formData.append('server_id', serverId);
-        formData.append('command', command);
-        formData.append('csrf_token', csrfToken);
-        fetch('ajax_send_command.php', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                showNotification(data.success, data.message);
-                if (data.success) consoleInput.value = '';
-            })
-            .catch(() => showNotification(false, "Errore nell'invio del comando"));
-    }
-
-    // --- Inizializzazione e Gestione Eventi ---
-
-    // 1. Gestione dei Tab
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Gestione visuale delle tab
-            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            btn.classList.add('active');
-            document.getElementById(`${btn.dataset.tab}-tab`).classList.remove('hidden');
-
-            // Gestione dello stream e del pulsante "Salva"
-            if (btn.dataset.tab === 'console') {
-                saveBtn?.classList.add('hidden');
-                startLogStream(); // Avvia lo stream quando si apre la tab console
-            } else {
-                saveBtn?.classList.remove('hidden');
-                stopLogStream(); // Ferma lo stream quando si lascia la tab console
-            }
-        });
-    });
+    // 5. Costruzione ed esecuzione del comando remoto
+    $vmid          = intval($server['proxmox_containerId']);
+    $nodeIp        = '192.168.1.251'; // IP del tuo nodo Proxmox
+    $sshKey        = '/var/www/.ssh/id_proxmox';
     
-    // Controlla la tab attiva al caricamento iniziale
-    const activeTab = document.querySelector('.tab-button.active');
-    if (saveBtn && activeTab?.dataset.tab === 'console') {
-        saveBtn.classList.add('hidden');
+    // **Assunzione importante**: il server Minecraft è in esecuzione in una sessione 'screen'.
+    // Creiamo un nome di sessione prevedibile, ad es. "mc-server-101" per il container 101.
+    $screenSessionName = "mc-server-" . $vmid;
+    
+    // Per evitare problemi con caratteri speciali (es. "say 'Ciao mondo'"),
+    // facciamo un escape delle virgolette singole prima di passarlo a `stuff`.
+    $escapedCommand = addslashes($command);
+
+    // Il comando `screen -X stuff` invia una stringa alla sessione screen specificata.
+    // Il `\n` alla fine simula la pressione del tasto Invio.
+    $remoteCmd = sprintf(
+        'screen -S %s -p 0 -X stuff "%s\n"',
+        escapeshellarg($screenSessionName),
+        $escapedCommand // Non usiamo escapeshellarg qui perché la stringa va tra virgolette dentro 'stuff'
+    );
+
+    // Il comando completo da eseguire sul nodo Proxmox
+    $fullSshCmd = sprintf(
+        'sudo ssh -i %s -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@%s "pct exec %d -- %s"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid,
+        $remoteCmd // Il comando da eseguire DENTRO il container
+    );
+
+    // Esegui il comando
+    $output = shell_exec($fullSshCmd);
+
+    // shell_exec restituisce null in caso di errore
+    if ($output === null) {
+        // Potrebbe essere necessario un debug più approfondito qui (es. loggare $fullSshCmd)
+        // throw new Exception("Errore nell'esecuzione del comando sul server remoto.");
     }
 
-    // 2. Logica Invio Comandi Console
-    if (sendCommandBtn && consoleInput) {
-        sendCommandBtn.addEventListener('click', sendCommand);
-        consoleInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendCommand();
-            }
-        });
-    }
+    // 6. Invia una risposta di successo
+    echo json_encode(['success' => true, 'message' => 'Comando inviato.']);
 
-    // 3. Salvataggio Proprietà Server
-    if (serverPropertiesForm) {
-        serverPropertiesForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            this.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                formData.set(cb.name, cb.checked ? 'true' : 'false');
-            });
-            fetch('ajax_update_server.php', { method: 'POST', body: formData })
-                .then(res => res.json())
-                .then(data => showNotification(data.success, data.message))
-                .catch(() => showNotification(false, "Errore nella richiesta. Riprovare."));
-        });
-    }
-
-    // 4. Gestione Icona Server
-    if (iconPreview && serverIconUrl) {
-        fetch(serverIconUrl)
-            .then(response => { if (response.ok) iconPreview.src = serverIconUrl; })
-            .catch(error => console.error("Errore nel caricamento dell'icona iniziale:", error));
-    }
-    if (uploadIconButton) {
-        uploadIconButton.addEventListener('click', () => {
-            const fileInput = document.getElementById('server-icon');
-            if (!fileInput.files.length) {
-                return alert('Seleziona un file PNG 64x64 prima di caricare.');
-            }
-            const file = fileInput.files[0];
-            const formData = new FormData();
-            formData.append('server_id', serverId);
-            formData.append('server-icon', file);
-            formData.append('csrf_token', csrfToken);
-            fetch('ajax_upload_icon.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
-                    showNotification(data.success, data.message);
-                    if (data.success) iconPreview.src = URL.createObjectURL(file);
-                })
-                .catch(() => showNotification(false, "Errore durante l'upload."));
-        });
-    }
-});
-</script>
+} catch (Exception $e) {
+    // In caso di qualsiasi errore, invia una risposta JSON con il messaggio di errore
+    http_response_code(400); // Bad Request o 500 Internal Server Error sono appropriati
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+}
