@@ -148,6 +148,7 @@ try {
     // ... (questa sezione rimane invariata, usa lo script helper)
     $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'], $serverName, $containerLanIp, $plan['cpu_cores']);
     if (!$createResult['success']) throw new Exception("Errore creazione container: " . $createResult['message']);
+    sleep(4); 
     $bindMountLine = "mp0: /var/log/game_logs,mp=/mnt/shared_logs";
     $vmidEscaped = escapeshellarg($vmid);
     $bindMountLineEscaped = escapeshellarg($bindMountLine);
@@ -158,7 +159,7 @@ try {
         throw new Exception("Impossibile scrivere il bind mount per il container $vmid tramite SSH. Dettagli: " . implode("\n", $output));
     }
     exec("ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no root@" . PROXMOX_NODE_IP . " 'pct start $vmid'");
-    sleep(20);
+    sleep(4);
 
     // --- 6. CONFIGURAZIONE PORT FORWARDING ---
     // ... (questa sezione rimane invariata)
