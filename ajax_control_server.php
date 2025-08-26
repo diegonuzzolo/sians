@@ -9,9 +9,10 @@ header('Content-Type: application/json');
 try {
     $action = $_POST['action'] ?? '';
     $serverId = intval($_POST['server_id'] ?? 0);
-    $userId   = $_SESSION['user_id'] ?? 0;
+    $userId = $_SESSION['user_id'] ?? 0;
 
-    if (!$serverId || !$userId) throw new Exception('Parametri mancanti');
+    if (!$serverId || !$userId)
+        throw new Exception('Parametri mancanti');
 
     // Recupera VMID e nodo
     $stmt = $pdo->prepare("
@@ -22,7 +23,8 @@ try {
     ");
     $stmt->execute([$serverId, $userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$server) throw new Exception('Server non trovato');
+    if (!$server)
+        throw new Exception('Server non trovato');
 
     $vmid = intval($server['proxmox_containerId']);
     $nodeIp = $server['node_ip'];
@@ -30,42 +32,47 @@ try {
     $sessionName = "mc-" . $server['name'];
 
     if ($action === 'start') {
-        // Avvia il server in screen con parametri
-        $cmd = sprintf(
-            'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -dmS %s /root/minecraft_bedrock/start.sh %d"',
-            escapeshellarg($sshKey),
-            escapeshellarg($nodeIp),
-            $vmid,
-            escapeshellarg($sessionName),
-            $serverId
-        );
+    $cmd = sprintf(
+        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct start %d"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid
+    );
+
+    exec($cmd, $output, $returnVar);
+
+    if ($returnVar === 0) {
         $newStatus = 'running';
         $successMessage = 'Server avviato!';
-    } elseif ($action === 'stop') {
-        // Ferma server inviando comando 'stop' allo screen
-        $cmd = sprintf(
-            'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct exec %d -- screen -S %s -p 0 -X stuff %s"',
-            escapeshellarg($sshKey),
-            escapeshellarg($nodeIp),
-            $vmid,
-            escapeshellarg($sessionName),
-            escapeshellarg("stop\n")
-        );
+    } else {
+        throw new Exception('Errore durante l\'avvio del server: ' . implode("\n", $output));
+    }
+} elseif ($action === 'stop') {
+    $cmd = sprintf(
+        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct stop %d"',
+        escapeshellarg($sshKey),
+        escapeshellarg($nodeIp),
+        $vmid
+    );
+
+    exec($cmd, $output, $returnVar);
+
+    if ($returnVar === 0) {
         $newStatus = 'stopped';
         $successMessage = 'Server fermato!';
     } else {
-        throw new Exception('Azione non valida');
+        throw new Exception('Errore durante l\'arresto del server: ' . implode("\n", $output));
     }
+} else {
+    throw new Exception('Azione non valida');
+}
 
-    exec($cmd . ' 2>&1', $output, $status);
-    if ($status !== 0) throw new Exception('Errore comando: ' . implode("\n", $output));
+// ✅ Aggiorna status DB
+$stmt = $pdo->prepare("UPDATE servers SET status=? WHERE id=?");
+$stmt->execute([$newStatus, $serverId]);
 
-    // Aggiorna status DB
-    $stmt = $pdo->prepare("UPDATE servers SET status=? WHERE id=?");
-    $stmt->execute([$newStatus, $serverId]);
-
-    echo json_encode(['success'=>true, 'message'=>$successMessage, 'status'=>$newStatus]);
+echo json_encode(['success' => true, 'message' => $successMessage, 'status' => $newStatus]);
 
 } catch (Exception $e) {
-    echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
