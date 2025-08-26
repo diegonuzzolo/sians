@@ -11,8 +11,9 @@ try {
     $serverId = intval($_POST['server_id'] ?? 0);
     $userId = $_SESSION['user_id'] ?? 0;
 
-    if (!$serverId || !$userId)
+    if (!$serverId || !$userId) {
         throw new Exception('Parametri mancanti');
+    }
 
     // Recupera VMID e nodo
     $stmt = $pdo->prepare("
@@ -23,40 +24,62 @@ try {
     ");
     $stmt->execute([$serverId, $userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$server)
+    if (!$server) {
         throw new Exception('Server non trovato');
+    }
 
     $vmid = intval($server['proxmox_containerId']);
     $nodeIp = $server['node_ip'];
     $sshKey = '/var/www/.ssh/id_proxmox';
     $sessionName = "mc-" . $server['name'];
 
+    // Comando base
     if ($action === 'start') {
-    $cmd = sprintf(
-        'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct start %d"',
-        escapeshellarg($sshKey),
-        escapeshellarg($nodeIp),
-        $vmid
-    );
-
-    exec($cmd, $output, $returnVar);
-
-    if ($returnVar === 0) {
+        $cmd = sprintf(
+            'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct start %d"',
+            escapeshellarg($sshKey),
+            escapeshellarg($nodeIp),
+            $vmid
+        );
+        $newStatus = 'running';
+        $successMessage = 'Server avviato!';
+    } elseif ($action === 'stop') {
+        $cmd = sprintf(
+            'ssh -i %s -o StrictHostKeyChecking=no root@%s "pct stop %d"',
+            escapeshellarg($sshKey),
+            escapeshellarg($nodeIp),
+            $vmid
+        );
         $newStatus = 'stopped';
         $successMessage = 'Server fermato!';
     } else {
-        throw new Exception('Errore durante l\'arresto del server: ' . implode("\n", $output));
+        throw new Exception('Azione non valida');
     }
-} else {
-    throw new Exception('Azione non valida');
-}
 
-// ✅ Aggiorna status DB
-$stmt = $pdo->prepare("UPDATE servers SET status=? WHERE id=?");
-$stmt->execute([$newStatus, $serverId]);
+    // Esegui comando e cattura log
+    exec($cmd . ' 2>&1', $output, $returnVar);
+    $logOutput = implode("\n", $output);
 
-echo json_encode(['success' => true, 'message' => $successMessage, 'status' => $newStatus]);
+    if ($returnVar !== 0) {
+        throw new Exception("Errore durante l'azione '{$action}':\n" . $logOutput);
+    }
+
+    // Aggiorna status DB
+    $stmt = $pdo->prepare("UPDATE servers SET status=? WHERE id=?");
+    $stmt->execute([$newStatus, $serverId]);
+
+    // Invia JSON con log
+    echo json_encode([
+        'success' => true,
+        'message' => $successMessage,
+        'status' => $newStatus,
+        'log' => $logOutput
+    ]);
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'log' => $logOutput ?? ''
+    ]);
 }
