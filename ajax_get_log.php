@@ -34,7 +34,7 @@ try {
     $vmid     = intval($server['proxmox_containerId']);
     $nodeIp   = '192.168.1.251'; // L'IP del tuo nodo Proxmox, come hai specificato
     $sshKey   = '/var/www/.ssh/id_proxmox';
-    $remoteLogPath = '/root/minecraft_bedrock/server.log';
+    $remoteLogPath = '/root/minecraft_bedrock/bedrock_server.log';
 
     // Comando per leggere il contenuto del file DENTRO il container
     $cmd = sprintf(
