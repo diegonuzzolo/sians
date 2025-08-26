@@ -124,7 +124,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
                                 <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
                                 Ferma
                             </button>
-                            <button onclick="deleteServer(<?= $server['id'] ?>, '<?= $server['proxmox_containerId'] ?>')"
+                            <button onclick="deleteServer(<?= $server['id'] ?>)"
                                 class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
                                 Elimina
                             </button>
@@ -308,38 +308,34 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
 
     // --- ELIMINA SERVER ---
     function deleteServer(serverId, vmid) {
-        if (!confirm('Sei sicuro di voler eliminare questo server? L\'azione è irreversibile.')) {
-            return;
-        }
-
-        // Crea un oggetto FormData per inviare i dati come POST
-        const formData = new FormData();
-        formData.append('vmid', vmid);
-        formData.append('csrf_token', csrfToken); // Invia il token CSRF per sicurezza
-
-        fetch('delete_server.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    // Se la risposta non è "OK" (es. errore 500), leggi l'errore
-                    return response.text().then(text => {
-                        throw new Error(text)
-                    });
-                }
-                return response.text();
-            })
-            .then(data => {
-                alert(data); // Mostra il messaggio di successo
-                window.location.reload(); // Ricarica la pagina per aggiornare la lista
-            })
-            .catch(err => {
-                // Mostra il messaggio di errore restituito dallo script PHP
-                alert("Errore durante l'eliminazione: " + err.message);
-                console.error(err);
-            });
+    if (!confirm('Sei sicuro di voler eliminare questo server? L\'azione è irreversibile.')) {
+        return;
     }
+
+    const formData = new FormData();
+    formData.append('server_id', serverId); // <-- CORRETTO
+    formData.append('vmid', vmid); // opzionale, se ti serve lato PHP
+    formData.append('csrf_token', csrfToken);
+
+    fetch('delete_server.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json()) // ⬅️ importante: la tua PHP ora restituisce JSON
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(err => {
+        alert("Errore durante l'eliminazione: " + err.message);
+        console.error(err);
+    });
+}
+
     document.addEventListener('DOMContentLoaded', function() {
         const slotsContainer = document.querySelector('#slots-container');
 
