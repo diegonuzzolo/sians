@@ -113,24 +113,31 @@ try {
         "UPDATE resources SET used_cpu_cores = used_cpu_cores + ?, used_ram_mb = used_ram_mb + ?, used_storage_gb = used_storage_gb + ? WHERE id = 1"
         )->execute([$plan['cpu_cores'], $ramMb, $plan['storage_gb']]);
         
-        // --- 5. CREAZIONE CONTAINER E BIND MOUNT ---
-        $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'],        $serverName, $containerLanIp, $plan['cpu_cores']);
-        if (!$createResult['success']) throw new Exception("Errore creazione container: " .      $createResult['message']);
-        sleep(4);
-        
-    // **AGGIORNATO**: Aggiunge il Bind Mount usando lo script helper con sudo per risolvere i problemi di permesso.
+// --- 5. CREAZIONE CONTAINER E BIND MOUNT ---
+    $createResult = createLxcContainer($vmid, $plan['ram_gb'], $plan['storage_gb'],        $serverName, $containerLanIp, $plan['cpu_cores']);
+    if (!$createResult['success']) throw new Exception("Errore creazione container: " .      $createResult['message']);
+    sleep(4); // Attendi che Proxmox completi la creazione
+    // **AGGIORNATO**: Esegue lo script helper sull'host Proxmox tramite SSH
     $bindMountLine = "mp0: /var/log/game_logs,mp=/mnt/shared_logs";
     $vmidEscaped = escapeshellarg($vmid);
     $bindMountLineEscaped = escapeshellarg($bindMountLine);
-    $command = "sudo /usr/local/bin/add_bind_mount.sh $vmidEscaped $bindMountLineEscaped";
+
+    // Costruisci il comando da eseguire SULL'HOST
+    $remoteHelperCommand = "/usr/local/bin/add_bind_mount.sh $vmidEscaped $bindMountLineEscaped";
     
+    // Avvolgi il comando in una chiamata SSH
+    $sshKey = VPS_SSH_KEY; // Usa la costante che hai già
+    $nodeIp = PROXMOX_NODE_IP;
+    $command = "ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp " . escapeshellarg($remoteHelperCommand);
+
     exec($command, $output, $return_var);
     if ($return_var !== 0) {
-        throw new Exception("Impossibile scrivere il bind mount per il container $vmid. Dettagli: " . implode("\n", $output));
+        throw new Exception("Impossibile scrivere il bind mount per il container $vmid tramite SSH. Dettagli: " . implode("\n", $output));
     }
     
-    // Avvia il container e attende che sia pronto
-    shell_exec("pct start $vmid");
+    // Avvia il container (anche questo tramite SSH)
+    exec("ssh -i $sshKey -o StrictHostKeyChecking=no root@$nodeIp 'pct start $vmid'");
+    sleep(4);
 
     // --- 6. CONFIGURAZIONE PORT FORWARDING ---
     $escapedPublicPort = escapeshellarg($newPublicPort);
