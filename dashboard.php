@@ -65,7 +65,7 @@ if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
 
                     // MODIFICATO: Costruiamo l'indirizzo pubblico con IP e PORTA
                     $publicAddress = VPS_IP . ':' . htmlspecialchars($server['public_port']);
-                    $domainAddress = htmlspecialchars($server['name']) . '.sians.it'; // Manteniamo il dominio per riferimento
+                    $domainAddress = htmlspecialchars($server['name']) . '.sians.it'. ':' . htmlspecialchars($server['public_port']); // Manteniamo il dominio per riferimento
                 ?>
                     <div id="server-<?= $server['id'] ?>" class="bg-gray-800 backdrop-blur-md bg-opacity-40 border border-gray-700 rounded-3xl p-6 shadow-xl flex flex-col h-full transition-all duration-300 hover:scale-105 hover:border-blue-500">
 
