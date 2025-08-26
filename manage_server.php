@@ -323,7 +323,7 @@ if (!$server) {
 
     <div id="notification-message" class="notification hidden"></div>
 
- <script>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Pagina caricata. Script di gestione unificato avviato.");
 
@@ -367,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Crea la connessione SSE allo script di streaming
         logSource = new EventSource(`ajax_stream_log.php?id=${serverId}`);
-
         let isFirstMessage = true;
 
         // Questo evento viene chiamato per ogni "data:" che lo script PHP invia
@@ -394,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             errorLine.className = 'text-red-500 font-semibold';
             errorLine.textContent = 'Connessione al server persa. Cambia tab per riprovare.';
             consoleOutput.appendChild(errorLine);
-            stopLogStream(); // Chiude la connessione fallita
+            stopLogStream();
         };
     }
 
@@ -427,19 +426,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Gestione dei Tab
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.addEventListener('click', () => {
-            // Gestione visuale delle tab
             document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             btn.classList.add('active');
             document.getElementById(`${btn.dataset.tab}-tab`).classList.remove('hidden');
 
-            // Gestione dello stream e del pulsante "Salva"
+            // Gestisce lo stream in base alla tab selezionata
             if (btn.dataset.tab === 'console') {
                 saveBtn?.classList.add('hidden');
-                startLogStream(); // Avvia lo stream quando si apre la tab console
+                startLogStream();
             } else {
                 saveBtn?.classList.remove('hidden');
-                stopLogStream(); // Ferma lo stream quando si lascia la tab console
+                stopLogStream();
             }
         });
     });
@@ -502,6 +500,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(() => showNotification(false, "Errore durante l'upload."));
         });
     }
+
+    // 5. Gestione Uscita dalla Pagina
+    // Questo blocco risolve il problema del freeze quando si naviga verso un'altra pagina
+    window.addEventListener('beforeunload', () => {
+        console.log("Chiusura dello stream prima di lasciare la pagina.");
+        // Chiamiamo la stessa funzione che usiamo quando cambiamo tab
+        stopLogStream();
+    });
 });
 </script>
 </body>
