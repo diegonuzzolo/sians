@@ -37,17 +37,17 @@ include 'includes/header.php';
 ?>
 
 <main class="flex-grow-1 container mx-auto px-4 py-12">
-    <?php
-    // Messaggi da mostrare all'utente
-    $errorMessage = $_GET['error'] ?? '';
-    $successMessage = $_GET['success'] ?? '';
-    $warningMessage = $_GET['warning'] ?? '';
+<?php
+// Messaggi da mostrare all'utente
+$errorMessage = $_GET['error'] ?? '';
+$successMessage = $_GET['success'] ?? '';
+$warningMessage = $_GET['warning'] ?? '';
 
-    // Personalizzazione dei messaggi di errore SQL
-    if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
-        $errorMessage = "Nome server già esistente. Scegli un nome diverso.";
-    }
-    ?>
+// Personalizzazione dei messaggi di errore SQL
+if (strpos($errorMessage, '1062 Duplicate entry') !== false) {
+    $errorMessage = "Nome server già esistente. Scegli un nome diverso.";
+}
+?>
 
     <section class="mb-16">
         <h2 class="text-4xl font-bold text-white text-center mb-12 animate-fade-in-down">🎮 I tuoi server</h2>
@@ -91,14 +91,14 @@ include 'includes/header.php';
 
                         <div class="mt-auto">
                             <!-- AGGIUNTO: Mostra anche l'indirizzo con dominio -->
-                            <label class="text-xs font-semibold text-gray-400 mt-2">Indirizzo Dominio</label>
-                            <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
-                                <input type="text" readonly value="<?= $domainAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
-                                <button onclick="copyToClipboard('<?= $domainAddress ?>', this)"
-                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
-                                    Copia
-                                </button>
-                            </div>
+                           <label class="text-xs font-semibold text-gray-400 mt-2">Indirizzo Dominio</label>
+                           <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
+                               <input type="text" readonly value="<?= $domainAddress ?>" class="flex-grow bg-transparent text-white text-sm border-none p-1 focus:ring-0">
+                               <button onclick="copyToClipboard('<?= $domainAddress ?>', this)"
+                                   class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-xs transition-colors duration-200">
+                                   Copia
+                               </button>
+                           </div>
                             <!-- Mostra la PORTA -->
                             <label class="text-xs font-semibold text-gray-400">PORTA</label>
                             <div class="flex items-center gap-2 mt-1 bg-gray-900 rounded-lg p-2">
@@ -124,11 +124,10 @@ include 'includes/header.php';
                                 <?= ($status === 'stopped' || $status === 'creating') ? 'disabled' : '' ?>>
                                 Ferma
                             </button>
-                            <button onclick="deleteServer('<?= $server['id'] ?>')"
+                            <button onclick="deleteServer('<?= $server['proxmox_containerId'] ?>')"
                                 class="col-span-2 py-2 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-red-500 text-white transition-colors duration-300">
                                 Elimina
                             </button>
-
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -181,7 +180,7 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
 ?>
 <?php if ($flashMessage): ?>
     <div id="flash-message"
-        class="mb-6 p-4 rounded-lg text-white text-center font-semibold
+         class="mb-6 p-4 rounded-lg text-white text-center font-semibold
                 <?= $flashMessage['type'] === 'error' ? 'bg-red-600' : ($flashMessage['type'] === 'success' ? 'bg-green-600' : 'bg-yellow-500') ?>">
         <?= htmlspecialchars($flashMessage['text']) ?>
     </div>
@@ -194,18 +193,18 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
 
 <script>
     const csrfToken = '<?= $_SESSION["csrf_token"] ?? "" ?>';
-
-
+ 
+    
     document.addEventListener('DOMContentLoaded', function() {
-        const flash = document.getElementById('flash-message');
-        if (flash) {
-            setTimeout(() => {
-                flash.style.transition = "opacity 0.5s ease";
-                flash.style.opacity = 0;
-                setTimeout(() => flash.remove(), 500); // Rimuove il div completamente
-            }, 5000); // 5 secondi
-        }
-    });
+    const flash = document.getElementById('flash-message');
+    if (flash) {
+        setTimeout(() => {
+            flash.style.transition = "opacity 0.5s ease";
+            flash.style.opacity = 0;
+            setTimeout(() => flash.remove(), 500); // Rimuove il div completamente
+        }, 5000); // 5 secondi
+    }
+});
 
 
     // --- CONTROLLO SERVER (start/stop) ---
@@ -313,29 +312,34 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
             return;
         }
 
+        // Crea un oggetto FormData per inviare i dati come POST
         const formData = new FormData();
-        formData.append('vmid', vmid); // opzionale, se ti serve lato PHP
-        formData.append('csrf_token', csrfToken);
+        formData.append('vmid', vmid);
+        formData.append('csrf_token', csrfToken); // Invia il token CSRF per sicurezza
 
         fetch('delete_server.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(res => res.json()) // ⬅️ importante: la tua PHP ora restituisce JSON
-            .then(data => {
-                if (data.status === 'success') {
-                    alert(data.message);
-                    window.location.reload();
-                } else {
-                    alert(data.message);
+            .then(response => {
+                if (!response.ok) {
+                    // Se la risposta non è "OK" (es. errore 500), leggi l'errore
+                    return response.text().then(text => {
+                        throw new Error(text)
+                    });
                 }
+                return response.text();
+            })
+            .then(data => {
+                alert(data); // Mostra il messaggio di successo
+                window.location.reload(); // Ricarica la pagina per aggiornare la lista
             })
             .catch(err => {
+                // Mostra il messaggio di errore restituito dallo script PHP
                 alert("Errore durante l'eliminazione: " + err.message);
                 console.error(err);
             });
     }
-
     document.addEventListener('DOMContentLoaded', function() {
         const slotsContainer = document.querySelector('#slots-container');
 
