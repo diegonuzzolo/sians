@@ -27,7 +27,8 @@ function createLxcContainer(
 ) {
     $host = "https://192.168.1.251:8006";
     $apiToken = "root@pam!sians=0b4b070d-90bc-40a5-b0d1-9db4df95aa79";
-
+    $logPathHost = "/var/log/mcservers/$vmid";
+$logPathGuest = "/root/minecraft_bedrock/logs";
     $url = "$host/api2/json/nodes/pve/lxc";
     $swapMb = calcolaSwapMb($ramGb * 1024);
     $params = [
@@ -38,7 +39,7 @@ function createLxcContainer(
         'rootfs' => "local-lvm:64", // esempio "local-lvm:8"
         'cores' => $cores,
         'nameserver' => '1.1.1.1', //  <-- Aggiungi questa riga
-
+        "mp0" => "$logPathHost,mp=$logPathGuest",
         'net0' => "name=eth0,bridge=vmbr0,ip=$vmIp/24,gw=192.168.1.254",
         'ostemplate' => $template,
         'password' => 'Lgu8330Serve6',
