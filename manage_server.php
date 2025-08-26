@@ -428,9 +428,9 @@ if (saveBtn) {
         if (consoleTabButton) {
             consoleTabButton.addEventListener('click', () => {
                 if (!logIntervalId) {
-                    console.log("Avvio aggiornamento console ogni 3 secondi.");
+                    console.log("Avvio aggiornamento console ogni 300 millisecondi.");
                     fetchLogAndUpdateConsole();
-                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 3000);
+                    logIntervalId = setInterval(fetchLogAndUpdateConsole, 300);
                 }
             });
         }
