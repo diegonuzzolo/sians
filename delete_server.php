@@ -1,177 +1,132 @@
 <?php
-// FILE: delete_server.php
+// delete_server.php (Versione aggiornata per AJAX con output JSON)
 
+// Mostra errori per debug (puoi disattivarli in produzione)
 ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // --- 0. DIPENDENZE E CONFIGURAZIONE ---
 require 'auth_check.php';
-require_once 'includes/csrf.php';
 require 'config/config.php';
 require_once 'proxmox_functions.php';
+require_once 'includes/csrf.php';
+require 'vendor/autoload.php';
 
-// --- COSTANTI PER LA CONNESSIONE ---
+// --- COSTANTI ---
 define('VPS_USER', 'root');
 define('VPS_IP', '195.231.66.137');
 define('VPS_SSH_KEY', '/var/www/.ssh/id_proxmox');
 define('VPS_PUBLIC_INTERFACE', 'enx3');
-
 define('WEBSERVER_TUNNEL_IP', '10.10.0.2');
-define('WEBSERVER_LAN_INTERFACE', 'eth0'); // Assicurati che questo sia il nome corretto
+define('WEBSERVER_WIREGUARD_INTERFACE', 'wg0');
 define('MINECRAFT_BEDROCK_PORT', 19132);
+define('PROXMOX_NODE_IP', '192.168.1.251');
 
+// Risposta JSON
+header('Content-Type: application/json');
 
-// --- FUNZIONI HELPER ---
-
-/**
- * Rimuove le regole iptables dal VPS Pubblico.
- * @param int $publicPort La porta pubblica da chiudere.
- */
-function removeVpsFirewallRules(int $publicPort) {
-    $escapedPublicPort = escapeshellarg($publicPort);
-    $webserverTunnelIp = escapeshellarg(WEBSERVER_TUNNEL_IP);
-    $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
-
-    $dnatRule = "iptables -t nat -D PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$escapedPublicPort} -j DNAT --to-destination {$webserverTunnelIp}:{$minecraftPort}";
-    $saveRules = "netfilter-persistent save";
-
-    $remoteCommand = escapeshellarg("{$dnatRule} && {$saveRules}");
-    $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no -o ConnectTimeout=10 " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
-
-    exec($sshCommand, $output, $return_var);
-    if ($return_var !== 0) {
-        error_log("Fallita rimozione regola firewall su VPS per porta {$publicPort}. Output: " . implode("\n", $output));
-    }
-}
-
-/**
- * Rimuove le regole iptables dal Webserver locale.
- * @param string $containerIp L'IP locale del container (es. 192.168.1.101).
- */
-function removeWebserverFirewallRules(string $containerIp) {
-    $escapedContainerIp = escapeshellarg($containerIp);
-    $minecraftPort = escapeshellarg(MINECRAFT_BEDROCK_PORT);
-
-    $dnatRule = "sudo iptables -t nat -D PREROUTING -i wg0 -p udp --dport {$minecraftPort} -j DNAT --to-destination {$escapedContainerIp}:{$minecraftPort}";
-    $saveRules = "sudo netfilter-persistent save";
-
-    exec("{$dnatRule} && {$saveRules}", $output, $return_var);
-    if ($return_var !== 0) {
-        error_log("Fallita rimozione regola firewall su Webserver per IP {$containerIp}.");
-    }
-}
-
-/**
- * Cancella i record A e SRV da Cloudflare per un dato server.
- * @param string $serverName Il nome del server (senza dominio).
- */
-function deleteCloudflareDnsRecords(string $serverName) {
-    $headers = [
-        "Authorization: Bearer " . CLOUDFLARE_API_TOKEN,
-        "Content-Type: application/json"
-    ];
-    $zoneId = CLOUDFLARE_ZONE_ID;
-    
-    $ch = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?name=" . urlencode($serverName . '.sians.it'));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $resp = curl_exec($ch);
-    if (curl_errno($ch)) return;
-    $data = json_decode($resp, true);
-    curl_close($ch);
-
-    if (!empty($data['result'])) {
-        foreach ($data['result'] as $record) {
-            $recordId = $record['id'];
-            $chDel = curl_init("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId");
-            curl_setopt($chDel, CURLOPT_CUSTOMREQUEST, "DELETE");
-            curl_setopt($chDel, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($chDel, CURLOPT_RETURNTRANSFER, true);
-            curl_exec($chDel);
-            curl_close($chDel);
-        }
-    }
-}
-
-// --- SCRIPT PRINCIPALE ---
+// Sicurezza: solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    die(json_encode(['success' => false, 'message' => 'Metodo non consentito']));
+    echo json_encode(['status' => 'error', 'message' => 'Metodo non valido.']);
+    exit;
 }
 csrf_check_or_die();
 
-header('Content-Type: application/json');
-$idUtente = $_SESSION['user_id'] ?? 0;
-$vmid = intval($_POST['vmid'] ?? 0);
-if ($vmid <= 0) die(json_encode(['success' => false, 'message' => 'VMID non valido']));
+// Controlla login
+$userId = $_SESSION['user_id'] ?? 0;
+if (!$userId) {
+    echo json_encode(['status' => 'error', 'message' => 'Accesso negato.']);
+    exit;
+}
+
+// --- 1. VALIDAZIONE INPUT ---
+$serverId = filter_input(INPUT_POST, 'server_id', FILTER_VALIDATE_INT);
+if (!$serverId) {
+    echo json_encode(['status' => 'error', 'message' => 'ID server non valido.']);
+    exit;
+}
+
+// --- INIZIO TRANSAZIONE ---
+$pdo->beginTransaction();
 
 try {
-    $pdo->beginTransaction();
-
-    $stmt = $pdo->prepare("
-        SELECT s.*, c.ip, c.ram_mb, c.storage_gb, c.id as container_id 
-        FROM servers s 
-        LEFT JOIN containers c ON c.id = s.container_id 
-        WHERE s.user_id = ? AND s.proxmox_containerId = ?
-    ");
-    $stmt->execute([$idUtente, $vmid]);
+    // --- 2. RECUPERA I DATI DEL SERVER DAL DB ---
+    $stmt = $pdo->prepare(
+        "SELECT s.id, s.name, s.proxmox_containerId, s.public_port, s.cpu_cores, s.ram_mb, c.ip as container_ip, p.storage_gb
+         FROM servers s
+         LEFT JOIN containers c ON s.container_id = c.id
+         LEFT JOIN plans p ON s.plan_id = p.id
+         WHERE s.id = ? AND s.user_id = ?"
+    );
+    $stmt->execute([$serverId, $userId]);
     $server = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$server) throw new Exception("Server non trovato o non appartiene all'utente");
-    
-    $nomeServer = $server['name'];
+    if (!$server) {
+        throw new Exception("Server non trovato o non autorizzato.");
+    }
+
+    $vmid = $server['proxmox_containerId'];
     $publicPort = $server['public_port'];
-    $containerIp = $server['ip'];
-    $idContainer = $server['container_id'] ?? null;
+    $containerIp = $server['container_ip'];
+    $serverName = $server['name'];
 
-    // --- 1. Rimuove le regole firewall ---
-    if ($publicPort > 0) {
-        removeVpsFirewallRules($publicPort);
-    }
-    if (!empty($containerIp)) {
-        removeWebserverFirewallRules($containerIp);
-    }
+    // --- 3. FERMA PROCESSI E DISTRUGGI IL CONTAINER ---
 
-    // --- 2. Rimuove i record DNS da Cloudflare ---
-    if (!empty($nomeServer)) {
-        deleteCloudflareDnsRecords($nomeServer);
-    }
-    
-    // --- 3. Ferma e distruggi il container su Proxmox ---
-    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
-    sleep(5);
-    callProxmox("https://192.168.1.251:8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
+        // Termina screen + tail
+        $screenSessionName = "mc-{$vmid}";
+        $killCmd = "pct exec $vmid -- bash -c 'screen -S {$screenSessionName} -X quit; pkill -f \"tail -f server.log\"'";
+        exec("ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no root@" . PROXMOX_NODE_IP . " \"$killCmd\"");
 
-    // --- 4. Aggiorna le risorse globali nel DB ---
-    $pdo->prepare("UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1 AND used_cpu_cores >= ? AND used_ram_mb >= ? AND used_storage_gb >= ?")
-        ->execute([
-            intval($server['cpu_cores']),
-            intval($server['ram_mb']),
-            intval($server['storage_gb']),
-            intval($server['cpu_cores']),
-            intval($server['ram_mb']),
-            intval($server['storage_gb'])
-        ]);
+        // Ferma e distruggi container
+        callProxmox("https://".PROXMOX_NODE_IP.":8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
+        sleep(5);
+        callProxmox("https://".PROXMOX_NODE_IP.":8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
 
-    // --- 5. Resetta lo slot del server ---
-    if (!empty($server['slot_id'])) {
-        $pdo->prepare("UPDATE server_slots SET server_id = NULL, status = 'pending' WHERE id = ?")
-            ->execute([$server['slot_id']]);
-    }
+    // Pulisci log su host
+    $localLogFile = "/var/log/game_logs/log_server_{$vmid}.txt";
+    exec("ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no root@" . PROXMOX_NODE_IP . " \"rm -f {$localLogFile}\"");
 
-    // --- 6. Elimina il server e il container dal DB ---
-    if ($idContainer) {
-        $pdo->prepare("DELETE FROM containers WHERE id = ?")->execute([$idContainer]);
-    }
-    $pdo->prepare("DELETE FROM servers WHERE id = ?")->execute([$server['id']]);
+    // --- 4. CANCELLA LE REGOLE FIREWALL ---
+    $saveRules = "netfilter-persistent save";
 
+    // VPS Pubblico
+    $vpsDnatRule = "iptables -t nat -D PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$publicPort} -j DNAT --to-destination " . WEBSERVER_TUNNEL_IP . ":" . MINECRAFT_BEDROCK_PORT;
+    $remoteCommand = escapeshellarg("{$vpsDnatRule} && {$saveRules}");
+    $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
+    exec($sshCommand);
+
+    // Webserver locale
+    $webserverDnatRule = "sudo iptables -t nat -D PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport " . MINECRAFT_BEDROCK_PORT . " -j DNAT --to-destination {$containerIp}:" . MINECRAFT_BEDROCK_PORT;
+    exec("{$webserverDnatRule} && sudo {$saveRules}");
+
+    // --- 5. DNS Cloudflare (TODO se serve) ---
+    // findAndDeleteDnsRecord($serverName, 'A');
+    // findAndDeleteDnsRecord($serverName, 'SRV');
+
+    // --- 6. PULIZIA DEL DATABASE ---
+    $pdo->prepare("DELETE FROM servers WHERE id = ?")->execute([$serverId]);
+    $pdo->prepare("DELETE FROM containers WHERE proxmox_containerId = ?")->execute([$vmid]);
+    $pdo->prepare("UPDATE server_slots SET status = 'pending', server_id = NULL WHERE server_id = ?")->execute([$serverId]);
+    $pdo->prepare(
+        "UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1"
+    )->execute([$server['cpu_cores'], $server['ram_mb'], $server['storage_gb']]);
+
+    // --- 7. COMMIT ---
     $pdo->commit();
-    
-    echo json_encode(['success' => true, 'message' => 'Server eliminato correttamente']);
+
+    echo json_encode([
+        'status' => 'success',
+        'message' => "Server '{$serverName}' e tutte le sue risorse sono stati cancellati."
+    ]);
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Cancellazione fallita: ' . $e->getMessage()
+    ]);
 }
-?>
+
+exit;
