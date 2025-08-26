@@ -208,40 +208,60 @@ unset($_SESSION['flash_message']); // Lo rimuoviamo subito dopo averlo letto
 
 
 
-// --- CONTROLLO SERVER (start/stop) ---
 function controlServer(serverId, action) {
+    const logContainerId = 'log-' + serverId;
+    let logContainer = document.getElementById(logContainerId);
+
+    // Se non esiste, lo creiamo
+    if (!logContainer) {
+        const serverDiv = document.getElementById('server-' + serverId);
+        logContainer = document.createElement('pre');
+        logContainer.id = logContainerId;
+        logContainer.className = "mt-2 p-2 bg-gray-900 text-gray-200 rounded-lg text-xs overflow-x-auto max-h-40";
+        serverDiv.appendChild(logContainer);
+    }
+
+    logContainer.textContent = "Esecuzione comando...";
+
     fetch('ajax_server_control.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `action=${encodeURIComponent(action)}&id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success && data.status) {
-                // Aggiorna stato server
-                const statusEl = document.getElementById('status-' + serverId);
-                if (statusEl) {
-                    statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                    statusEl.classList.remove('bg-green-500', 'bg-red-500', 'bg-yellow-500');
-                    if (data.status === 'running') statusEl.classList.add('bg-green-500');
-                    else if (data.status === 'creating') statusEl.classList.add('bg-yellow-500');
-                    else statusEl.classList.add('bg-red-500');
-                }
-
-                // Aggiorna bottoni start/stop
-                updateButtons(serverId, data.status);
-
-                // Aggiorna colore icona
-                updateIconColor(serverId, data.status);
-            } else {
-                alert('Errore: ' + (data.message || 'Si è verificato un problema.'));
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=${encodeURIComponent(action)}&server_id=${serverId}&csrf_token=${encodeURIComponent(csrfToken)}`
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.status) {
+            // Aggiorna stato server
+            const statusEl = document.getElementById('status-' + serverId);
+            if (statusEl) {
+                statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                statusEl.classList.remove('bg-green-500', 'bg-red-500', 'bg-yellow-500');
+                if (data.status === 'running') statusEl.classList.add('bg-green-500');
+                else if (data.status === 'creating') statusEl.classList.add('bg-yellow-500');
+                else statusEl.classList.add('bg-red-500');
             }
-        })
-        .catch(err => console.error(err));
+
+            // Aggiorna bottoni start/stop
+            updateButtons(serverId, data.status);
+
+            // Aggiorna colore icona
+            updateIconColor(serverId, data.status);
+
+            // Mostra i log
+            logContainer.textContent = data.log || "Comando eseguito con successo!";
+        } else {
+            logContainer.textContent = "Errore: " + (data.message || "Si è verificato un problema.");
+        }
+    })
+    .catch(err => {
+        logContainer.textContent = "Errore fetch: " + err.message;
+        console.error(err);
+    });
 }
 
 function startServer(serverId) { controlServer(serverId, 'start'); }
 function stopServer(serverId) { controlServer(serverId, 'stop'); }
+
 
 // --- AGGIORNA COLORE ICONA ---
 function updateIconColor(serverId, status) {
