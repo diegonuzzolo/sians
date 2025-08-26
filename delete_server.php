@@ -1,7 +1,7 @@
 <?php
-// delete_server.php (Versione completa e aggiornata)
+// delete_server.php (Versione aggiornata per AJAX con output JSON)
 
-// Mostra errori per il debug
+// Mostra errori per debug (puoi disattivarli in produzione)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -23,9 +23,12 @@ define('WEBSERVER_WIREGUARD_INTERFACE', 'wg0');
 define('MINECRAFT_BEDROCK_PORT', 19132);
 define('PROXMOX_NODE_IP', '192.168.1.251');
 
+// Risposta JSON
+header('Content-Type: application/json');
+
 // Sicurezza: solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header("Location: dashboard.php?error=" . urlencode("Metodo non valido."));
+    echo json_encode(['status' => 'error', 'message' => 'Metodo non valido.']);
     exit;
 }
 csrf_check_or_die();
@@ -33,14 +36,14 @@ csrf_check_or_die();
 // Controlla login
 $userId = $_SESSION['user_id'] ?? 0;
 if (!$userId) {
-    header("Location: login.php?error=" . urlencode("Accesso negato."));
+    echo json_encode(['status' => 'error', 'message' => 'Accesso negato.']);
     exit;
 }
 
 // --- 1. VALIDAZIONE INPUT ---
 $serverId = filter_input(INPUT_POST, 'server_id', FILTER_VALIDATE_INT);
 if (!$serverId) {
-    header("Location: dashboard.php?error=" . urlencode("ID server non valido."));
+    echo json_encode(['status' => 'error', 'message' => 'ID server non valido.']);
     exit;
 }
 
@@ -69,47 +72,37 @@ try {
     $serverName = $server['name'];
 
     // --- 3. FERMA PROCESSI E DISTRUGGI IL CONTAINER ---
-    
-    // Controlla se il container esiste ancora su Proxmox
     $statusCheck = callProxmox("https://".PROXMOX_NODE_IP.":8006/api2/json/nodes/pve/lxc/$vmid/status/current");
-    
     if ($statusCheck && isset($statusCheck['data'])) {
-        
-        // **NUOVO**: Termina i processi specifici (screen e tail) prima di fermare il container.
-        // Questo è più pulito e previene processi orfani.
-        $screenSessionName = "mc-{$vmid}"; // Assumendo che hostname sia VMID
+        // Termina screen + tail
+        $screenSessionName = "mc-{$vmid}";
         $killCmd = "pct exec $vmid -- bash -c 'screen -S {$screenSessionName} -X quit; pkill -f \"tail -f server.log\"'";
         exec("ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no root@" . PROXMOX_NODE_IP . " \"$killCmd\"");
-        
-        // Ferma e distruggi il container con la logica robusta
+
+        // Ferma e distruggi container
         callProxmox("https://".PROXMOX_NODE_IP.":8006/api2/json/nodes/pve/lxc/$vmid/status/stop", 'POST');
-        sleep(5); // Una piccola attesa dopo aver killato i processi è sufficiente
-        $deleteResult = callProxmox("https://".PROXMOX_NODE_IP.":8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
-        
-        if (!$deleteResult || !isset($deleteResult['data'])) {
-            // Potrebbe fallire se già distrutto, non è un errore bloccante
-            // throw new Exception("Impossibile distruggere il container $vmid.");
-        }
+        sleep(5);
+        callProxmox("https://".PROXMOX_NODE_IP.":8006/api2/json/nodes/pve/lxc/$vmid", 'DELETE');
     }
-    
-    // **NUOVO**: Pulisci il file di log dalla cartella condivisa sull'host Proxmox
+
+    // Pulisci log su host
     $localLogFile = "/var/log/game_logs/log_server_{$vmid}.txt";
     exec("ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no root@" . PROXMOX_NODE_IP . " \"rm -f {$localLogFile}\"");
 
     // --- 4. CANCELLA LE REGOLE FIREWALL ---
     $saveRules = "netfilter-persistent save";
 
-    // Parte A: Rimuovi regola dal VPS Pubblico
+    // VPS Pubblico
     $vpsDnatRule = "iptables -t nat -D PREROUTING -i " . VPS_PUBLIC_INTERFACE . " -p udp --dport {$publicPort} -j DNAT --to-destination " . WEBSERVER_TUNNEL_IP . ":" . MINECRAFT_BEDROCK_PORT;
     $remoteCommand = escapeshellarg("{$vpsDnatRule} && {$saveRules}");
     $sshCommand = "ssh -i " . VPS_SSH_KEY . " -o StrictHostKeyChecking=no " . VPS_USER . "@" . VPS_IP . " {$remoteCommand}";
     exec($sshCommand);
-    
-    // Parte B: Rimuovi regola dal Webserver (locale)
+
+    // Webserver locale
     $webserverDnatRule = "sudo iptables -t nat -D PREROUTING -i " . WEBSERVER_WIREGUARD_INTERFACE . " -p udp --dport " . MINECRAFT_BEDROCK_PORT . " -j DNAT --to-destination {$containerIp}:" . MINECRAFT_BEDROCK_PORT;
     exec("{$webserverDnatRule} && sudo {$saveRules}");
 
-    // --- 5. CANCELLA I RECORD DNS SU CLOUDFLARE (Logica da implementare) ---
+    // --- 5. DNS Cloudflare (TODO se serve) ---
     // findAndDeleteDnsRecord($serverName, 'A');
     // findAndDeleteDnsRecord($serverName, 'SRV');
 
@@ -120,20 +113,22 @@ try {
     $pdo->prepare(
         "UPDATE resources SET used_cpu_cores = used_cpu_cores - ?, used_ram_mb = used_ram_mb - ?, used_storage_gb = used_storage_gb - ? WHERE id = 1"
     )->execute([$server['cpu_cores'], $server['ram_mb'], $server['storage_gb']]);
-    
-    // --- 7. COMMIT FINALE ---
+
+    // --- 7. COMMIT ---
     $pdo->commit();
 
-    $_SESSION['flash_message'] = ['type' => 'success', 'text' => "Server '{$serverName}' e tutte le sue risorse sono stati cancellati."];
+    echo json_encode([
+        'status' => 'success',
+        'message' => "Server '{$serverName}' e tutte le sue risorse sono stati cancellati."
+    ]);
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    
-    $_SESSION['flash_message'] = ['type' => 'error', 'text' => 'Cancellazione fallita: ' . $e->getMessage()];
+
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Cancellazione fallita: ' . $e->getMessage()
+    ]);
 }
 
-// --- 8. REDIRECT ---
-header("Location: dashboard.php");
 exit;
-
-?>
