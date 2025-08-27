@@ -17,7 +17,7 @@ $serverId = intval($_GET['id'] ?? 0);
 
 // Recupera server e container
 $stmt = $pdo->prepare("
-    SELECT s.*, c.proxmox_containerId
+    SELECT s.*, c.proxmox_containerId, c.id AS container_id
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.id=? AND s.user_id=?
@@ -330,6 +330,7 @@ if (!$server) {
         // --- Variabili Globali ---
         const csrfToken = '<?= $csrf_token ?>';
         const serverId = '<?= $serverId ?>';
+        const containerId = '<?= $server['container_id'] ?>';
         const serverIconUrl = '<?= isset($server['proxmox_containerId']) ? "/server_data/{$server['proxmox_containerId']}/server-icon.png?" . time() : '' ?>';
 
         // --- Elementi del DOM ---
@@ -359,7 +360,7 @@ if (!$server) {
         // --- Funzioni Principali ---
         async function fetchLogAndUpdateConsole() {
             try {
-                const response = await fetch(`ajax_get_log.php?id=${serverId}`);
+                const response = await fetch(`ajax_get_log.php?id=${containerId}`);
                 if (!response.ok) {
                     console.error("Errore di rete:", response.status);
                     if (logIntervalId) clearInterval(logIntervalId);
