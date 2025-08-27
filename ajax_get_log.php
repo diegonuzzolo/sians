@@ -10,7 +10,9 @@ header('Content-Type: application/json');
 
 try {
     $userId   = $_SESSION['user_id'] ?? 0;
-    $serverId = intval($_GET['id'] ?? 0);
+    $serverId = intval($_GET['sid'] ?? 0);
+    $containerId = intval($_GET['cid'] ?? 0);
+
 
     if (!$userId || !$serverId) {
         throw new Exception("Parametri non validi");
@@ -34,7 +36,7 @@ try {
     $vmid     = intval($server['proxmox_containerId']);
     $nodeIp   = '192.168.1.251'; // L'IP del tuo nodo Proxmox, come hai specificato
     $sshKey   = '/var/www/.ssh/id_proxmox';
-    $remoteLogPath = '/root/minecraft_bedrock/logs/bedrock_server_' . $serverId . '.log';
+    $remoteLogPath = '/root/minecraft_bedrock/logs/bedrock_server_' . $containerId . '.log';
 
     // Comando per leggere il contenuto del file DENTRO il container
     $cmd = sprintf(

@@ -360,7 +360,7 @@ if (!$server) {
         // --- Funzioni Principali ---
         async function fetchLogAndUpdateConsole() {
             try {
-                const response = await fetch(`ajax_get_log.php?id=${containerId}`);
+                const response = await fetch(`ajax_get_log.php?cid=${containerId}&sid=${serverId}`);
                 if (!response.ok) {
                     console.error("Errore di rete:", response.status);
                     if (logIntervalId) clearInterval(logIntervalId);
