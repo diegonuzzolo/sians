@@ -338,7 +338,7 @@ if (!$server) {
         const saveBtn = serverPropertiesForm?.querySelector('button[type="submit"]');
         const iconPreview = document.getElementById('server-icon-preview');
         const uploadIconButton = document.getElementById('upload-icon-btn');
-        const consoleTabButton = document.querySelector('button[data-tab="console"]');
+        const consoleTabButton = document.querySelector('button[data-tab="console-tab"]');
         const consoleOutput = document.getElementById('console-output');
         const consoleInput = document.getElementById('console-input');
         const sendCommandBtn = document.getElementById('send-command-btn');
