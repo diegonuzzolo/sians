@@ -25,7 +25,7 @@ if ($command === '') {
 
 // Recupera VMID e nome del server
 $stmt = $pdo->prepare("
-    SELECT c.proxmox_containerId, s.name
+    SELECT c.proxmox_containerId, s.name, s.id
     FROM servers s
     LEFT JOIN containers c ON c.id = s.container_id
     WHERE s.id = ? AND s.user_id = ?
@@ -39,7 +39,7 @@ if (!$server || empty($server['proxmox_containerId'])) {
 }
 
 $vmid = intval($server['proxmox_containerId']);
-$screenSession = 'mc-' . $server['name'];
+$screenSession = 'mc-' . $server['id'];
 
 $proxmoxUser = 'root';
 $proxmoxHost = '192.168.1.251';
