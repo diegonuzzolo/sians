@@ -22,7 +22,7 @@ $proxmox_token_secret = '0b4b070d-90bc-40a5-b0d1-9db4df95aa79'; // Secret token
     define('PROXMOX_API_URL', 'https://192.168.1.251:8006/api2/json');
     define('PROXMOX_NODE', 'pve');
     define('PROXMOX_USERNAME', 'root@pam');
-    define('PROXMOX_PASSWORD', 'Lgu8330Serve6');
+    define('PROXMOX_PASSWORD', 'hahahaha');
     define('PROXMOX_STORAGE', 'local-lvm');
     define('PROXMOX_TEMPLATE', 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst');
     define('CONTAINER_GATEWAY', '192.168.1.254');
