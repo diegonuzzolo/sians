@@ -7,7 +7,7 @@ if (!defined('DB_HOST')) {
     define('DB_HOST', 'localhost');
     define('DB_NAME', 'minecraft_platform');
     define('DB_USER', 'diego');
-    define('DB_PASSWORD', 'Lgu8330Serve6');
+    define('DB_PASSWORD', 'hahahah');
     define('DB_CHARSET', 'utf8mb4');
     
 // ... altre configurazioni già presenti ...
